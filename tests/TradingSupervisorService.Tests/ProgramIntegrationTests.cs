@@ -327,7 +327,7 @@ public sealed class ProgramIntegrationTests
                         Host = config["IBKR:Host"] ?? "127.0.0.1",
                         Port = config.GetValue<int>("IBKR:PaperPort", 4002),
                         ClientId = config.GetValue<int>("IBKR:ClientId", 1),
-                        TradingMode = config["TradingMode"] ?? "paper",
+                        TradingMode = SharedKernel.Domain.TradingMode.Paper,
                         ConnectionTimeoutSeconds = 30,
                         ReconnectInitialDelaySeconds = 5,
                         ReconnectMaxDelaySeconds = 60,

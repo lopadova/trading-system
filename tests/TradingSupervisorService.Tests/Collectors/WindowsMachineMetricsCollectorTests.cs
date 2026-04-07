@@ -90,7 +90,7 @@ public sealed class WindowsMachineMetricsCollectorTests : IDisposable
     }
 
     [Fact]
-    public void Dispose_CanBeCalledMultipleTimes()
+    public async Task Dispose_CanBeCalledMultipleTimes()
     {
         // Act - dispose multiple times
         _collector.Dispose();
@@ -98,7 +98,7 @@ public sealed class WindowsMachineMetricsCollectorTests : IDisposable
 
         // Assert
         // Should throw ObjectDisposedException on next use
-        Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+        await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
             await _collector.CollectAsync(CancellationToken.None));
     }
 

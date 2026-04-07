@@ -3,7 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using SharedKernel.Data;
 using SharedKernel.Domain;
-using SharedKernel.Tests.Helpers;
+using SharedKernel.Tests.Data;
 using TradingSupervisorService.Repositories;
 using TradingSupervisorService.Workers;
 using Xunit;

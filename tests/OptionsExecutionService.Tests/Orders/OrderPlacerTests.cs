@@ -28,7 +28,7 @@ public sealed class OrderPlacerTests : IAsyncDisposable
 
         // Run migrations
         MigrationRunner migrationRunner = new(_dbFactory, NullLogger<MigrationRunner>.Instance);
-        migrationRunner.RunMigrations(OptionsExecutionService.Migrations.OptionsMigrations.All)
+        migrationRunner.RunAsync(OptionsExecutionService.Migrations.OptionsMigrations.All, CancellationToken.None)
             .GetAwaiter().GetResult();
 
         // Setup mock IBKR client
@@ -305,7 +305,7 @@ public sealed class OrderPlacerTests : IAsyncDisposable
     }
 
     [Fact]
-    public void CircuitBreaker_CanBeManuallyReset()
+    public async Task CircuitBreaker_CanBeManuallyReset()
     {
         // Arrange: trip the circuit breaker
         _mockIbkr.ShouldPlaceOrderSucceed = false;
@@ -320,9 +320,9 @@ public sealed class OrderPlacerTests : IAsyncDisposable
             StrategyName = "TestStrategy"
         };
 
-        _orderPlacer.PlaceOrderAsync(request).GetAwaiter().GetResult();
-        _orderPlacer.PlaceOrderAsync(request).GetAwaiter().GetResult();
-        _orderPlacer.PlaceOrderAsync(request).GetAwaiter().GetResult();
+        await _orderPlacer.PlaceOrderAsync(request);
+        await _orderPlacer.PlaceOrderAsync(request);
+        await _orderPlacer.PlaceOrderAsync(request);
 
         Assert.True(_orderPlacer.IsCircuitBreakerOpen());
 

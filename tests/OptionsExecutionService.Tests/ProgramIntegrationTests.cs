@@ -100,12 +100,12 @@ public sealed class ProgramIntegrationTests
         Assert.Equal(10, safetyConfig.MaxPositionSize);
         Assert.Equal(50000m, safetyConfig.MaxPositionValueUsd);
         Assert.Equal(10000m, safetyConfig.MinAccountBalanceUsd);
-        Assert.Equal(5.0m, safetyConfig.MaxRiskPercentOfAccount);
+        Assert.Equal(0.05m, safetyConfig.MaxPositionPctOfAccount);
 
         // Circuit breaker config
         Assert.Equal(3, safetyConfig.CircuitBreakerFailureThreshold);
         Assert.Equal(60, safetyConfig.CircuitBreakerWindowMinutes);
-        Assert.Equal(120, safetyConfig.CircuitBreakerResetMinutes);
+        Assert.Equal(120, safetyConfig.CircuitBreakerCooldownMinutes);
 
         // Validate should not throw for safe config
         safetyConfig.Validate();
@@ -172,10 +172,10 @@ public sealed class ProgramIntegrationTests
             ["Safety:MaxPositionSize"] = "10",
             ["Safety:MaxPositionValueUsd"] = "50000",
             ["Safety:MinAccountBalanceUsd"] = "10000",
-            ["Safety:MaxRiskPercentOfAccount"] = "5.0",
+            ["Safety:MaxPositionPctOfAccount"] = "5.0",
             ["Safety:CircuitBreakerFailureThreshold"] = "3",
             ["Safety:CircuitBreakerWindowMinutes"] = "60",
-            ["Safety:CircuitBreakerResetMinutes"] = "120",
+            ["Safety:CircuitBreakerCooldownMinutes"] = "120",
         };
 
         IConfiguration configuration = new ConfigurationBuilder()
@@ -229,10 +229,10 @@ public sealed class ProgramIntegrationTests
                     MaxPositionSize = configuration.GetValue<int>("Safety:MaxPositionSize", 10),
                     MaxPositionValueUsd = configuration.GetValue<decimal>("Safety:MaxPositionValueUsd", 50000m),
                     MinAccountBalanceUsd = configuration.GetValue<decimal>("Safety:MinAccountBalanceUsd", 10000m),
-                    MaxRiskPercentOfAccount = configuration.GetValue<decimal>("Safety:MaxRiskPercentOfAccount", 5.0m),
+                    MaxPositionPctOfAccount = configuration.GetValue<decimal>("Safety:MaxPositionPctOfAccount", 0.05m),
                     CircuitBreakerFailureThreshold = configuration.GetValue<int>("Safety:CircuitBreakerFailureThreshold", 3),
                     CircuitBreakerWindowMinutes = configuration.GetValue<int>("Safety:CircuitBreakerWindowMinutes", 60),
-                    CircuitBreakerResetMinutes = configuration.GetValue<int>("Safety:CircuitBreakerResetMinutes", 120)
+                    CircuitBreakerCooldownMinutes = configuration.GetValue<int>("Safety:CircuitBreakerCooldownMinutes", 120)
                 };
 
                 services.AddSingleton(safetyConfig);

@@ -1,7 +1,8 @@
+using Dapper;
 using Microsoft.Extensions.Logging;
 using Moq;
 using SharedKernel.Data;
-using SharedKernel.Tests.Helpers;
+using SharedKernel.Tests.Data;
 using TradingSupervisorService.Repositories;
 using Xunit;
 

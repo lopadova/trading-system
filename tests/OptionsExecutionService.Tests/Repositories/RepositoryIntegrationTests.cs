@@ -2,9 +2,12 @@ using Microsoft.Extensions.Logging.Abstractions;
 using SharedKernel.Data;
 using SharedKernel.Domain;
 using SharedKernel.Tests.Data;
+using OptionsExecutionService.Campaign;
 using OptionsExecutionService.Migrations;
 using OptionsExecutionService.Repositories;
+using OptionsExecutionService.Orders;
 using Xunit;
+using CampaignEntity = OptionsExecutionService.Campaign.Campaign;
 
 namespace OptionsExecutionService.Tests.Repositories;
 
@@ -42,130 +45,114 @@ public sealed class RepositoryIntegrationTests : IAsyncLifetime
     [Trait("TestId", "TEST-22-31")]
     public async Task TEST_22_31_CampaignRepositoryCreatesAndRetrievesCampaigns()
     {
-        // Arrange
-        Campaign campaign = new()
-        {
-            CampaignId = Guid.NewGuid().ToString(),
-            StrategyName = "test-strategy",
-            Status = "active",
-            CreatedAt = DateTime.UtcNow,
-            StrategyParams = "{\"param1\":\"value1\"}"
-        };
+        // Arrange: Create test campaign
+        StrategyDefinition strategy = CreateTestStrategy("test-strategy-1");
+        CampaignEntity campaign = CampaignEntity.Create(strategy);
 
-        // Act: Insert campaign
-        await _campaignRepo.InsertAsync(campaign, CancellationToken.None);
+        // Act: Save campaign
+        await _campaignRepo.SaveCampaignAsync(campaign, CancellationToken.None);
 
         // Retrieve by ID
-        Campaign? retrieved = await _campaignRepo.GetByIdAsync(campaign.CampaignId, CancellationToken.None);
+        CampaignEntity? retrieved = await _campaignRepo.GetCampaignAsync(campaign.CampaignId, CancellationToken.None);
 
         // Assert
         Assert.NotNull(retrieved);
         Assert.Equal(campaign.CampaignId, retrieved.CampaignId);
-        Assert.Equal("test-strategy", retrieved.StrategyName);
-        Assert.Equal("active", retrieved.Status);
-        Assert.Equal("{\"param1\":\"value1\"}", retrieved.StrategyParams);
+        Assert.Equal("test-strategy-1", retrieved.Strategy.StrategyName);
+        Assert.Equal(CampaignState.Open, retrieved.State);
+        Assert.Equal(campaign.CreatedAt, retrieved.CreatedAt, TimeSpan.FromSeconds(1));
     }
 
-    [Fact(DisplayName = "TEST-22-32: CampaignRepository lists active campaigns")]
+    [Fact(DisplayName = "TEST-22-32: CampaignRepository lists campaigns by state")]
     [Trait("TaskId", "T-22")]
     [Trait("TestId", "TEST-22-32")]
-    public async Task TEST_22_32_CampaignRepositoryListsActiveCampaigns()
+    public async Task TEST_22_32_CampaignRepositoryListsCampaignsByState()
     {
-        // Arrange: Create multiple campaigns
-        Campaign active1 = new()
-        {
-            CampaignId = Guid.NewGuid().ToString(),
-            StrategyName = "strategy-1",
-            Status = "active",
-            CreatedAt = DateTime.UtcNow
-        };
+        // Arrange: Create campaigns in different states
+        StrategyDefinition strategy1 = CreateTestStrategy("strategy-1");
+        StrategyDefinition strategy2 = CreateTestStrategy("strategy-2");
+        StrategyDefinition strategy3 = CreateTestStrategy("strategy-3");
 
-        Campaign active2 = new()
-        {
-            CampaignId = Guid.NewGuid().ToString(),
-            StrategyName = "strategy-2",
-            Status = "active",
-            CreatedAt = DateTime.UtcNow
-        };
+        CampaignEntity active1 = CampaignEntity.Create(strategy1).Activate();
+        CampaignEntity active2 = CampaignEntity.Create(strategy2).Activate();
+        CampaignEntity closed = CampaignEntity.Create(strategy3).Activate().Close("test", 100m);
 
-        Campaign closed = new()
-        {
-            CampaignId = Guid.NewGuid().ToString(),
-            StrategyName = "strategy-3",
-            Status = "closed",
-            CreatedAt = DateTime.UtcNow
-        };
-
-        // Act: Insert all campaigns
-        await _campaignRepo.InsertAsync(active1, CancellationToken.None);
-        await _campaignRepo.InsertAsync(active2, CancellationToken.None);
-        await _campaignRepo.InsertAsync(closed, CancellationToken.None);
+        // Act: Save all campaigns
+        await _campaignRepo.SaveCampaignAsync(active1, CancellationToken.None);
+        await _campaignRepo.SaveCampaignAsync(active2, CancellationToken.None);
+        await _campaignRepo.SaveCampaignAsync(closed, CancellationToken.None);
 
         // Get active campaigns
-        List<Campaign> activeCampaigns = await _campaignRepo.ListActiveAsync(CancellationToken.None);
+        IReadOnlyList<CampaignEntity> activeCampaigns = await _campaignRepo.GetCampaignsByStateAsync(
+            CampaignState.Active,
+            CancellationToken.None);
 
         // Assert: Only active campaigns should be returned
         Assert.Equal(2, activeCampaigns.Count);
-        Assert.All(activeCampaigns, c => Assert.Equal("active", c.Status));
+        Assert.All(activeCampaigns, c => Assert.Equal(CampaignState.Active, c.State));
     }
 
-    [Fact(DisplayName = "TEST-22-33: CampaignRepository updates campaign status")]
+    [Fact(DisplayName = "TEST-22-33: CampaignRepository updates campaign via save")]
     [Trait("TaskId", "T-22")]
     [Trait("TestId", "TEST-22-33")]
-    public async Task TEST_22_33_CampaignRepositoryUpdatesCampaignStatus()
+    public async Task TEST_22_33_CampaignRepositoryUpdatesCampaignViaSave()
     {
-        // Arrange
-        Campaign campaign = new()
-        {
-            CampaignId = Guid.NewGuid().ToString(),
-            StrategyName = "test-strategy",
-            Status = "active",
-            CreatedAt = DateTime.UtcNow
-        };
+        // Arrange: Create and save campaign
+        StrategyDefinition strategy = CreateTestStrategy("test-strategy");
+        CampaignEntity campaign = CampaignEntity.Create(strategy);
+        await _campaignRepo.SaveCampaignAsync(campaign, CancellationToken.None);
 
-        await _campaignRepo.InsertAsync(campaign, CancellationToken.None);
-
-        // Act: Update status
-        await _campaignRepo.UpdateStatusAsync(campaign.CampaignId, "closed", CancellationToken.None);
+        // Act: Activate campaign and save again
+        CampaignEntity activated = campaign.Activate();
+        await _campaignRepo.SaveCampaignAsync(activated, CancellationToken.None);
 
         // Retrieve updated campaign
-        Campaign? updated = await _campaignRepo.GetByIdAsync(campaign.CampaignId, CancellationToken.None);
+        CampaignEntity? updated = await _campaignRepo.GetCampaignAsync(campaign.CampaignId, CancellationToken.None);
 
         // Assert
         Assert.NotNull(updated);
-        Assert.Equal("closed", updated.Status);
+        Assert.Equal(CampaignState.Active, updated.State);
+        Assert.NotNull(updated.ActivatedAt);
     }
 
-    [Fact(DisplayName = "TEST-22-34: OrderTrackingRepository creates and tracks orders")]
+    [Fact(DisplayName = "TEST-22-34: OrderTrackingRepository logs and retrieves orders")]
     [Trait("TaskId", "T-22")]
     [Trait("TestId", "TEST-22-34")]
-    public async Task TEST_22_34_OrderTrackingRepositoryCreatesAndTracksOrders()
+    public async Task TEST_22_34_OrderTrackingRepositoryLogsAndRetrievesOrders()
     {
-        // Arrange
-        OrderTracking order = new()
+        // Arrange: Create test order request
+        string orderId = Guid.NewGuid().ToString();
+        OrderRequest request = new()
         {
-            OrderId = Guid.NewGuid().ToString(),
-            IbkrOrderId = 12345,
             CampaignId = Guid.NewGuid().ToString(),
-            Status = "submitted",
+            PositionId = null,
             Symbol = "SPY",
+            ContractSymbol = "SPY 240119C00450000",
+            Side = OrderSide.Buy,
+            Type = OrderType.Limit,
             Quantity = 10,
-            OrderType = "LMT",
             LimitPrice = 450.0m,
-            CreatedAt = DateTime.UtcNow
+            TimeInForce = "DAY",
+            StrategyName = "test-strategy",
+            MetadataJson = "{}"
         };
 
-        // Act: Insert order
-        await _orderRepo.InsertAsync(order, CancellationToken.None);
+        // Act: Log order
+        await _orderRepo.LogOrderAsync(
+            orderId,
+            ibkrOrderId: null,
+            request,
+            OrderStatus.PendingSubmit,
+            CancellationToken.None);
 
         // Retrieve by ID
-        OrderTracking? retrieved = await _orderRepo.GetByIdAsync(order.OrderId, CancellationToken.None);
+        OrderRecord? retrieved = await _orderRepo.GetOrderAsync(orderId, CancellationToken.None);
 
         // Assert
         Assert.NotNull(retrieved);
-        Assert.Equal(order.OrderId, retrieved.OrderId);
-        Assert.Equal(12345, retrieved.IbkrOrderId);
-        Assert.Equal("submitted", retrieved.Status);
+        Assert.Equal(orderId, retrieved.OrderId);
+        Assert.Null(retrieved.IbkrOrderId);
+        Assert.Equal(OrderStatus.PendingSubmit, retrieved.Status);
         Assert.Equal("SPY", retrieved.Symbol);
         Assert.Equal(10, retrieved.Quantity);
         Assert.Equal(450.0m, retrieved.LimitPrice);
@@ -176,30 +163,117 @@ public sealed class RepositoryIntegrationTests : IAsyncLifetime
     [Trait("TestId", "TEST-22-35")]
     public async Task TEST_22_35_OrderTrackingRepositoryUpdatesOrderStatus()
     {
-        // Arrange
-        OrderTracking order = new()
+        // Arrange: Create and log order
+        string orderId = Guid.NewGuid().ToString();
+        OrderRequest request = new()
         {
-            OrderId = Guid.NewGuid().ToString(),
-            IbkrOrderId = 67890,
             CampaignId = Guid.NewGuid().ToString(),
-            Status = "submitted",
+            PositionId = null,
             Symbol = "SPY",
+            ContractSymbol = "SPY 240119C00450000",
+            Side = OrderSide.Buy,
+            Type = OrderType.Market,
             Quantity = 5,
-            OrderType = "MKT",
-            CreatedAt = DateTime.UtcNow
+            TimeInForce = "DAY",
+            StrategyName = "test-strategy",
+            MetadataJson = "{}"
         };
 
-        await _orderRepo.InsertAsync(order, CancellationToken.None);
+        await _orderRepo.LogOrderAsync(
+            orderId,
+            ibkrOrderId: 12345,
+            request,
+            OrderStatus.Submitted,
+            CancellationToken.None);
 
         // Act: Update status to filled
-        await _orderRepo.UpdateStatusAsync(order.OrderId, "filled", DateTime.UtcNow, CancellationToken.None);
+        await _orderRepo.UpdateOrderStatusAsync(
+            orderId,
+            OrderStatus.Filled,
+            filledQuantity: 5,
+            avgFillPrice: 451.25m,
+            CancellationToken.None);
 
         // Retrieve updated order
-        OrderTracking? updated = await _orderRepo.GetByIdAsync(order.OrderId, CancellationToken.None);
+        OrderRecord? updated = await _orderRepo.GetOrderAsync(orderId, CancellationToken.None);
 
         // Assert
         Assert.NotNull(updated);
-        Assert.Equal("filled", updated.Status);
-        Assert.NotNull(updated.FilledAt);
+        Assert.Equal(OrderStatus.Filled, updated.Status);
+        Assert.Equal(5, updated.FilledQuantity);
+        Assert.Equal(451.25m, updated.AvgFillPrice);
+    }
+
+    /// <summary>
+    /// Helper to create a minimal test strategy.
+    /// </summary>
+    private static StrategyDefinition CreateTestStrategy(string name)
+    {
+        return new StrategyDefinition
+        {
+            StrategyName = name,
+            Description = $"Test strategy {name}",
+            TradingMode = TradingMode.Paper,
+            Underlying = new UnderlyingConfig
+            {
+                Symbol = "SPY",
+                Exchange = "SMART",
+                Currency = "USD"
+            },
+            EntryRules = new EntryRules
+            {
+                MarketConditions = new MarketConditions
+                {
+                    MinDaysToExpiration = 40,
+                    MaxDaysToExpiration = 50,
+                    IvRankMin = 20.0m,
+                    IvRankMax = 80.0m
+                },
+                Timing = new TimingRules
+                {
+                    EntryTimeStart = new TimeOnly(9, 30),
+                    EntryTimeEnd = new TimeOnly(16, 0),
+                    DaysOfWeek = new[] { DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday, DayOfWeek.Friday }
+                }
+            },
+            Position = new PositionConfig
+            {
+                Type = "BullPutSpread",
+                Legs = new[]
+                {
+                    new OptionLeg
+                    {
+                        Action = "SELL",
+                        Right = "PUT",
+                        StrikeSelectionMethod = "DELTA",
+                        StrikeValue = -0.30m,
+                        Quantity = 1
+                    },
+                    new OptionLeg
+                    {
+                        Action = "BUY",
+                        Right = "PUT",
+                        StrikeSelectionMethod = "OFFSET",
+                        StrikeOffset = -5m,
+                        Quantity = 1
+                    }
+                },
+                MaxPositions = 3,
+                CapitalPerPosition = 5000m
+            },
+            ExitRules = new ExitRules
+            {
+                ProfitTarget = 0.5m,
+                StopLoss = 2.0m,
+                MaxDaysInTrade = 21,
+                ExitTimeOfDay = new TimeOnly(15, 45)
+            },
+            RiskManagement = new RiskManagement
+            {
+                MaxTotalCapitalAtRisk = 15000m,
+                MaxDrawdownPercent = 10.0m,
+                MaxDailyLoss = 500m
+            }
+        };
     }
 }

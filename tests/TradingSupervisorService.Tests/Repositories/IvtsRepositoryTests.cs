@@ -3,7 +3,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
 using SharedKernel.Data;
 using SharedKernel.Domain;
-using SharedKernel.Tests.Helpers;
+using SharedKernel.Tests.Data;
 using TradingSupervisorService.Repositories;
 using Xunit;
 

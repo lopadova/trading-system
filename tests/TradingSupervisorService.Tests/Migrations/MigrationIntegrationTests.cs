@@ -2,7 +2,7 @@ using Dapper;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging.Abstractions;
 using SharedKernel.Data;
-using SharedKernel.Tests.Helpers;
+using SharedKernel.Tests.Data;
 using TradingSupervisorService.Migrations;
 using Xunit;
 
@@ -36,7 +36,7 @@ public sealed class MigrationIntegrationTests : IAsyncLifetime
     public async Task TEST_22_11_AllSupervisorMigrationsApplySuccessfully()
     {
         // Arrange: Migrations from SupervisorMigrations.All
-        IMigration[] migrations = SupervisorMigrations.All;
+        IReadOnlyList<IMigration> migrations = SupervisorMigrations.All;
 
         // Act: Run all migrations
         await _runner.RunAsync(migrations, CancellationToken.None);

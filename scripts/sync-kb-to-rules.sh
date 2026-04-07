@@ -47,23 +47,27 @@ EOF
 
 # Estrai errori con "Severity: CRITICAL" o "CRITICAL" nel titolo
 if [ -f "$KB_ERRORS" ]; then
-  # Metodo: estrai blocchi ## ERR-XXX fino al prossimo ##
+  # Metodo: estrai blocchi ## ERR-XXX fino al prossimo ##, se contengono CRITICAL
   awk '
     /^## ERR-/ {
-      buffer = $0 "\n"
-      in_error = 1
-      is_critical = 0
-      next
-    }
-    in_error && /Severity: CRITICAL|CRITICAL/ {
-      is_critical = 1
-    }
-    in_error && /^## / {
       if (is_critical && buffer != "") {
         print buffer
       }
       buffer = $0 "\n"
       is_critical = 0
+      in_error = 1
+      next
+    }
+    in_error && /CRITICAL/ {
+      is_critical = 1
+    }
+    in_error && /^---$/ {
+      if (is_critical && buffer != "") {
+        print buffer
+      }
+      buffer = ""
+      is_critical = 0
+      in_error = 0
       next
     }
     in_error {

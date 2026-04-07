@@ -48,6 +48,35 @@
 **Sezione**: Setup Connessione, Pattern EWrapper, Error Codes
 **Tipo**: aggiunta + fix
 **Problema risolto**: Completed full IBKR wrapper implementation with connection management, message processor thread pattern, exponential backoff reconnection, and comprehensive safety validation. Added NuGet package version (IBApi 10.19.2), connection state management pattern, and error code handling. Updated all patterns to be production-ready.
+
+---
+
+## 2026-04-07 — Legacy Tests Fix
+
+**Skill**: skill-testing.md
+**Sezione**: xUnit Async Patterns, Moq Async Patterns, Nullable Assertions, Namespace Conflict Resolution
+**Tipo**: aggiunta
+**Problema risolto**: During legacy .NET tests fix (224 compilation errors → 0), discovered critical patterns missing from skill:
+- xUnit async test methods MUST return `async Task`, never `void` (ERR-007)
+- Moq async methods require `.ReturnsAsync()`, not `.Returns()` (ERR-009)
+- Nullable value type assertions need explicit null check before `.Value` (ERR-010)
+- Namespace+class name collision requires type alias pattern (ERR-003)
+- Worker constructor parameter order verification pattern
+**Impatto**: All future test code must follow these patterns. Added 4 new sections to skill-testing.md with detailed before/after examples.
+
+---
+
+## 2026-04-07 — Legacy Tests Fix
+
+**Skill**: skill-dotnet.md
+**Sezione**: Repository API Evolution, DTO Naming Convention, Worker Constructor Patterns
+**Tipo**: aggiunta
+**Problema risolto**: During legacy .NET tests fix, documented evolution from generic CRUD repositories to domain-driven repositories:
+- Repository API Evolution: Generic `InsertAsync` → Domain-specific `SaveCampaignAsync` (ERR-004)
+- DTO Naming Convention: Explicit "Record" or "Entry" suffix distinguishes DTOs from domain entities (ERR-006)
+- Worker Constructor Patterns: Document parameter order rationale to prevent breaking changes (ERR-005)
+**Impatto**: All future repository implementations must follow domain-driven pattern. All DTOs must use Record/Entry suffix. All workers must document constructor parameter order.
+**Migration guide**: Added old→new pattern examples for easy reference during refactoring.
 **Impatto**: All tasks using IBKR API (T-02, T-05, future trading logic) must use these updated patterns. Message processor thread is REQUIRED for callbacks to fire. Connection state must be tracked separately from IsConnected(). Safety validation (paper trading only) is mandatory.
 
 ---

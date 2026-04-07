@@ -5,8 +5,9 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using SharedKernel.Data;
+using SharedKernel.Domain;
 using SharedKernel.Ibkr;
-using SharedKernel.Tests.Helpers;
+using SharedKernel.Tests.Data;
 using TradingSupervisorService.Collectors;
 using TradingSupervisorService.Ibkr;
 using TradingSupervisorService.Migrations;
@@ -47,15 +48,14 @@ public sealed class WorkerLifecycleIntegrationTests : IAsyncLifetime
 
         // Mock machine metrics collector
         _mockCollector = new Mock<IMachineMetricsCollector>();
-        _mockCollector.Setup(x => x.Collect())
-            .Returns(new SharedKernel.Domain.MachineMetrics
+        _mockCollector.Setup(x => x.CollectAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new MachineMetrics
             {
                 Hostname = "TEST-HOST",
                 CpuPercent = 25.0,
                 RamPercent = 50.0,
                 DiskFreeGb = 100.0,
                 UptimeSeconds = 3600,
-                TradingMode = "paper",
                 TimestampUtc = DateTime.UtcNow
             });
     }
@@ -80,8 +80,8 @@ public sealed class WorkerLifecycleIntegrationTests : IAsyncLifetime
 
         HeartbeatWorker worker = new(
             NullLogger<HeartbeatWorker>.Instance,
-            _heartbeatRepo,
             _mockCollector.Object,
+            _heartbeatRepo,
             config);
 
         using CancellationTokenSource cts = new();
@@ -102,8 +102,9 @@ public sealed class WorkerLifecycleIntegrationTests : IAsyncLifetime
         }
 
         // Assert: Verify that heartbeat was written to database
-        SharedKernel.Domain.MachineMetrics? latest = await _heartbeatRepo.GetLatestAsync(CancellationToken.None);
-        Assert.NotNull(latest);
+        IReadOnlyList<ServiceHeartbeat> heartbeats = await _heartbeatRepo.GetAllAsync(CancellationToken.None);
+        Assert.NotEmpty(heartbeats);
+        ServiceHeartbeat latest = heartbeats[0];
         Assert.Equal("TEST-HOST", latest.Hostname);
         Assert.Equal(25.0, latest.CpuPercent);
     }
@@ -129,8 +130,8 @@ public sealed class WorkerLifecycleIntegrationTests : IAsyncLifetime
         OutboxSyncWorker worker = new(
             NullLogger<OutboxSyncWorker>.Instance,
             _outboxRepo,
-            mockHttpFactory.Object,
-            config);
+            config,
+            mockHttpFactory.Object);
 
         using CancellationTokenSource cts = new();
 
@@ -167,12 +168,11 @@ public sealed class WorkerLifecycleIntegrationTests : IAsyncLifetime
             .Build();
 
         Mock<ITelegramAlerter> mockTelegram = new();
-        mockTelegram.Setup(x => x.SendAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+        mockTelegram.Setup(x => x.SendImmediateAsync(It.IsAny<TelegramAlert>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
         TelegramWorker worker = new(
             NullLogger<TelegramWorker>.Instance,
-            _alertRepo,
             mockTelegram.Object,
             config);
 
@@ -260,15 +260,15 @@ public sealed class WorkerLifecycleIntegrationTests : IAsyncLifetime
 
         HeartbeatWorker heartbeatWorker = new(
             NullLogger<HeartbeatWorker>.Instance,
-            _heartbeatRepo,
             _mockCollector.Object,
+            _heartbeatRepo,
             config);
 
         OutboxSyncWorker outboxWorker = new(
             NullLogger<OutboxSyncWorker>.Instance,
             _outboxRepo,
-            mockHttpFactory.Object,
-            config);
+            config,
+            mockHttpFactory.Object);
 
         using CancellationTokenSource cts = new();
 
@@ -295,7 +295,7 @@ public sealed class WorkerLifecycleIntegrationTests : IAsyncLifetime
         Assert.True(outboxTask.IsCompleted || outboxTask.IsCanceled);
 
         // Verify heartbeat was written
-        SharedKernel.Domain.MachineMetrics? metrics = await _heartbeatRepo.GetLatestAsync(CancellationToken.None);
-        Assert.NotNull(metrics);
+        IReadOnlyList<ServiceHeartbeat> heartbeats = await _heartbeatRepo.GetAllAsync(CancellationToken.None);
+        Assert.NotEmpty(heartbeats);
     }
 }

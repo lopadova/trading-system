@@ -36,7 +36,7 @@ public sealed class MigrationIntegrationTests : IAsyncLifetime
     public async Task TEST_22_16_AllOptionsMigrationsApplySuccessfully()
     {
         // Arrange: Migrations from OptionsMigrations.All
-        IMigration[] migrations = OptionsMigrations.All;
+        IReadOnlyList<IMigration> migrations = OptionsMigrations.All;
 
         // Act: Run all migrations
         await _runner.RunAsync(migrations, CancellationToken.None);

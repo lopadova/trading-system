@@ -219,3 +219,207 @@ Questo permette di filtrare i test per task:
 ```bash
 dotnet test --filter "Trait=TaskId,T-01"
 ```
+
+---
+
+## xUnit Async Patterns — CRITICAL
+
+> ⚠️ AGGIORNATO da Legacy Tests Fix — 2026-04-07
+> Async test methods MUST return `async Task`, never `void`
+> Reference: ERR-007, LESSON-150
+
+**RULE: If a test method uses `await`, it MUST be `async Task`, not `void`**
+
+```csharp
+// ❌ WRONG - causes xUnit1031 warning
+[Fact]
+public void MyTest()
+{
+    var result = someAsyncMethod().GetAwaiter().GetResult();  // Blocking!
+    Assert.Equal(expected, result);
+}
+
+// ❌ WRONG - async void is never correct for tests
+[Fact]
+public async void MyTest()
+{
+    var result = await someAsyncMethod();
+    Assert.Equal(expected, result);
+}
+
+// ✅ CORRECT - async Task
+[Fact]
+public async Task MyTest()
+{
+    var result = await someAsyncMethod();
+    Assert.Equal(expected, result);
+}
+
+// ✅ CORRECT - async exception assertion
+[Fact]
+public async Task MyTest_ThrowsException()
+{
+    await Assert.ThrowsAsync<InvalidOperationException>(
+        async () => await failingMethod());
+}
+
+// ✅ CORRECT - dispose test with async
+[Fact]
+public async Task Dispose_CanBeCalledMultipleTimes()
+{
+    _sut.Dispose();
+    _sut.Dispose();  // Should not throw
+    
+    // Verify disposed state
+    await Assert.ThrowsAsync<ObjectDisposedException>(
+        async () => await _sut.SomeAsyncMethod(CancellationToken.None));
+}
+```
+
+**Prevention**: Enable xUnit analyzers in `.csproj`:
+```xml
+<PackageReference Include="xunit.analyzers" Version="1.18.0" />
+```
+
+---
+
+## Moq Async Patterns — CRITICAL
+
+> ⚠️ AGGIORNATO da Legacy Tests Fix — 2026-04-07
+> Async mock methods MUST use `.ReturnsAsync()`, not `.Returns()`
+> Reference: ERR-009, LESSON-151
+
+**RULE: For methods returning `Task<T>`, use `.ReturnsAsync(value)` in Moq setup**
+
+```csharp
+// ❌ WRONG - causes InvalidCastException at runtime
+Mock<IMachineMetricsCollector> mockCollector = new();
+mockCollector.Setup(x => x.CollectAsync(It.IsAny<CancellationToken>()))
+    .Returns(new MachineMetrics { Hostname = "TEST", CpuPercent = 25.0 });
+
+// ✅ CORRECT - use ReturnsAsync
+mockCollector.Setup(x => x.CollectAsync(It.IsAny<CancellationToken>()))
+    .ReturnsAsync(new MachineMetrics { Hostname = "TEST", CpuPercent = 25.0 });
+
+// ✅ CORRECT - void async methods use ReturnsAsync without value
+Mock<ITelegramAlerter> mockTelegram = new();
+mockTelegram.Setup(x => x.SendImmediateAsync(
+        It.IsAny<TelegramAlert>(), 
+        It.IsAny<CancellationToken>()))
+    .ReturnsAsync(true);  // Returns Task<bool>
+
+// ✅ CORRECT - CancellationToken parameter matching
+mockCollector.Setup(x => x.SomeAsync(It.IsAny<CancellationToken>()))
+    .ReturnsAsync(result);
+
+// ✅ CORRECT - verify async method was called
+mockCollector.Verify(
+    x => x.CollectAsync(It.IsAny<CancellationToken>()), 
+    Times.Once);
+```
+
+**Worker Constructor Verification Pattern**:
+```csharp
+// ALWAYS verify constructor parameter order from implementation
+// Example: HeartbeatWorker correct signature
+HeartbeatWorker worker = new(
+    NullLogger<HeartbeatWorker>.Instance,
+    mockCollector.Object,         // ← collector BEFORE repo
+    heartbeatRepo,                 // ← repo AFTER collector
+    configuration);
+
+// Example: OutboxSyncWorker correct signature
+OutboxSyncWorker worker = new(
+    NullLogger<OutboxSyncWorker>.Instance,
+    outboxRepo,
+    configuration,                 // ← config BEFORE httpFactory
+    mockHttpFactory.Object);       // ← httpFactory LAST
+
+// Example: TelegramWorker (no repository dependency)
+TelegramWorker worker = new(
+    NullLogger<TelegramWorker>.Instance,
+    mockTelegram.Object,
+    configuration);
+```
+
+---
+
+## Nullable Assertions — xUnit Pattern
+
+> ⚠️ AGGIORNATO da Legacy Tests Fix — 2026-04-07
+> Nullable value types with precision require explicit null check
+> Reference: ERR-010, LESSON-152
+
+**RULE: For nullable value types, check null BEFORE accessing .Value**
+
+```csharp
+// ❌ WRONG - cannot use precision with nullable double?
+IvtsSnapshot snapshot = await _repo.GetLatestSnapshotAsync("SPY", CancellationToken.None);
+Assert.Equal(0.45, snapshot.IvrPercentile, precision: 2);  // CS1061 error
+
+// ✅ CORRECT - explicit null check first
+Assert.NotNull(snapshot.IvrPercentile);
+Assert.Equal(0.45, snapshot.IvrPercentile.Value, precision: 2);
+
+// ✅ CORRECT - alternative with null-coalescing
+double ivrValue = snapshot.IvrPercentile ?? throw new AssertionException("IvrPercentile was null");
+Assert.Equal(0.45, ivrValue, precision: 2);
+
+// ✅ CORRECT - multiple nullable assertions
+Assert.NotNull(snapshot.Iv30d);
+Assert.NotNull(snapshot.Iv60d);
+Assert.NotNull(snapshot.Iv90d);
+Assert.InRange(snapshot.Iv30d.Value, 0.0, 1.0);
+Assert.InRange(snapshot.Iv60d.Value, 0.0, 1.0);
+Assert.InRange(snapshot.Iv90d.Value, 0.0, 1.0);
+```
+
+---
+
+## Namespace Conflict Resolution
+
+> ⚠️ AGGIORNATO da Legacy Tests Fix — 2026-04-07
+> Handle namespace+class name collisions with type alias
+> Reference: ERR-003, LESSON-153
+
+**RULE: Use type alias when namespace and class share the same name**
+
+```csharp
+// Problem: OptionsExecutionService.Campaign.Campaign causes ambiguity
+// CS0101: The namespace already contains a definition for 'Campaign'
+
+// ✅ SOLUTION: Type alias at file top
+using CampaignEntity = OptionsExecutionService.Campaign.Campaign;
+
+namespace OptionsExecutionService.Tests.Repositories;
+
+public sealed class CampaignRepositoryTests : IAsyncLifetime
+{
+    private ICampaignRepository _repo = default!;
+    
+    [Fact]
+    public async Task SaveCampaignAsync_ThenGet_ReturnsEntity()
+    {
+        // Use aliased type throughout test file
+        CampaignEntity campaign = new()
+        {
+            CampaignId = Guid.NewGuid().ToString(),
+            Strategy = CreateTestStrategy("IronCondor"),
+            State = CampaignState.Active,
+            // ...
+        };
+        
+        await _repo.SaveCampaignAsync(campaign, CancellationToken.None);
+        CampaignEntity? retrieved = await _repo.GetCampaignAsync(campaign.CampaignId, CancellationToken.None);
+        
+        Assert.NotNull(retrieved);
+        Assert.Equal(campaign.CampaignId, retrieved.CampaignId);
+    }
+}
+```
+
+**Prevention**: Never name a namespace the same as a class within it. Use plural form for namespaces if needed (e.g., `Campaigns` namespace, `Campaign` class).
+
+---
+
+*Skill version: 3.0 — Ultima modifica: Legacy Tests Fix — Data: 2026-04-07*
