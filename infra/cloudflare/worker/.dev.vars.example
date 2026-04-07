@@ -1,0 +1,31 @@
+# Cloudflare Worker Environment Variables (Development)
+# Copy this file to .dev.vars for local development:
+#   cp .dev.vars.example .dev.vars
+#
+# IMPORTANT: .dev.vars is in .gitignore - never commit secrets!
+
+# Anthropic Claude API Key (Optional)
+# Purpose: EasyLanguage → SDF conversion in dashboard
+# Get from: https://console.anthropic.com/ → API Keys → Create Key
+# Format: sk-ant-api03-...
+ANTHROPIC_API_KEY=sk-ant-api03-REPLACE_WITH_YOUR_API_KEY
+
+# Discord Bot Token (Optional)
+# Purpose: Send alerts to Discord channel from worker
+# Get Bot Token from: https://discord.com/developers/applications → Bot → Copy Token
+# Get Channel ID: Discord → User Settings → Advanced → Developer Mode ON
+#                 Then: Right-click channel → "Copy Channel ID"
+# Setup: See README.md section "Discord Bot Token" for complete guide
+# Format Bot Token: YOUR_APP_ID.XXXXXX.YOUR_SECRET_TOKEN (from Discord Developer Portal)
+# Format Channel ID: 18-digit number (e.g., 987654321098765432)
+DISCORD_BOT_TOKEN=YOUR_DISCORD_BOT_TOKEN_HERE
+DISCORD_CHANNEL_ID=YOUR_CHANNEL_ID_HERE
+
+# Telegram Bot Token (Optional - if you want Telegram from worker too)
+# Purpose: Send alerts to Telegram from worker
+# Get from: https://t.me/BotFather
+# Note: TradingSupervisorService has its own Telegram config in appsettings.json
+TELEGRAM_BOT_TOKEN=1234567890:REPLACE_WITH_YOUR_BOT_TOKEN
+
+# D1 Database ID (auto-populated after wrangler d1 create)
+# D1_DATABASE_ID=REPLACE_WITH_D1_DATABASE_ID

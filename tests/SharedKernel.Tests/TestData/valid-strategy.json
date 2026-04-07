@@ -1,0 +1,55 @@
+{
+  "strategyName": "Test Bull Put Spread",
+  "description": "Valid test strategy for unit tests",
+  "tradingMode": "paper",
+  "underlying": {
+    "symbol": "SPY",
+    "exchange": "SMART",
+    "currency": "USD"
+  },
+  "entryRules": {
+    "marketConditions": {
+      "minDaysToExpiration": 30,
+      "maxDaysToExpiration": 45,
+      "ivRankMin": 25,
+      "ivRankMax": 75
+    },
+    "timing": {
+      "entryTimeStart": "09:35:00",
+      "entryTimeEnd": "15:30:00",
+      "daysOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+    }
+  },
+  "position": {
+    "type": "BullPutSpread",
+    "legs": [
+      {
+        "action": "SELL",
+        "right": "PUT",
+        "strikeSelectionMethod": "DELTA",
+        "strikeValue": -0.30,
+        "quantity": 1
+      },
+      {
+        "action": "BUY",
+        "right": "PUT",
+        "strikeSelectionMethod": "OFFSET",
+        "strikeOffset": -5,
+        "quantity": 1
+      }
+    ],
+    "maxPositions": 3,
+    "capitalPerPosition": 1000
+  },
+  "exitRules": {
+    "profitTarget": 0.50,
+    "stopLoss": 2.00,
+    "maxDaysInTrade": 21,
+    "exitTimeOfDay": "15:45:00"
+  },
+  "riskManagement": {
+    "maxTotalCapitalAtRisk": 5000,
+    "maxDrawdownPercent": 10.0,
+    "maxDailyLoss": 500
+  }
+}

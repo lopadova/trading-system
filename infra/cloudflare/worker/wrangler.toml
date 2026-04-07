@@ -1,0 +1,22 @@
+name = "trading-system"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# D1 Database Binding
+[[d1_databases]]
+binding = "DB"
+database_name = "trading-db"
+database_id = "REPLACE_WITH_YOUR_D1_ID"
+# To create: wrangler d1 create trading-db
+# Then replace the database_id above with the output
+
+[vars]
+DASHBOARD_ORIGIN = "http://localhost:5173"
+# For production, set to actual dashboard URL: https://trading.example.com
+
+# Secrets (set via: wrangler secret put <SECRET_NAME>)
+# API_KEY - Authentication key for protected endpoints
+# ANTHROPIC_API_KEY - For EasyLanguage → SDF conversion in wizard
+# TELEGRAM_BOT_TOKEN - For Telegram bot integration
+# DISCORD_BOT_TOKEN - For Discord bot integration (optional)

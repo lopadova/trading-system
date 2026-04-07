@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(*)",
+      "Read(*)",
+      "Write(*)",
+      "Edit(*)",
+      "MultiEdit(*)",
+      "Glob(*)",
+      "LS(*)",
+      "Task(*)"
+    ],
+    "deny": [
+      "Bash(git push*)",
+      "Bash(git commit*)",
+      "Bash(curl*ibkr*live*)",
+      "Bash(wrangler secret*)"
+    ]
+  },
+  "model": "claude-sonnet-4-5",
+  "maxTokens": 8192,
+  "env": {
+    "TRADING_MODE": "paper",
+    "DOTNET_ENVIRONMENT": "Development",
+    "NODE_ENV": "development"
+  }
+}

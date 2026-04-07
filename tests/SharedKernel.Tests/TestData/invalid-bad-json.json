@@ -1,0 +1,4 @@
+{
+  "strategyName": "Invalid JSON",
+  "description": "Missing closing brace",
+  "tradingMode": "paper"

@@ -1,0 +1,27 @@
+{
+  "name": "trading-system-worker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "deploy": "wrangler deploy",
+    "migrate:local": "wrangler d1 migrations apply trading-db --local",
+    "migrate:prod": "wrangler d1 migrations apply trading-db",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "hono": "^4.7.9",
+    "@anthropic-ai/sdk": "^0.82.0"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.6.4",
+    "@cloudflare/workers-types": "^4.20250115.0",
+    "typescript": "^5.7.3",
+    "vitest": "2.1.8",
+    "wrangler": "^3.101.0"
+  }
+}

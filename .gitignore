@@ -1,0 +1,235 @@
+# ============================================================================
+# .NET / C# / Visual Studio
+# ============================================================================
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# Visual Studio cache/options
+.vs/
+.vscode/*
+!.vscode/launch.json
+!.vscode/tasks.json
+!.vscode/*.code-snippets
+.idea/
+
+# User-specific files
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Build Results
+*.dll
+*.exe
+*.pdb
+!**/bin/Release/**/*.dll
+!**/bin/Release/**/*.exe
+
+# NuGet Packages
+*.nupkg
+*.snupkg
+**/packages/*
+!**/packages/build/
+*.nuget.props
+*.nuget.targets
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# Test Results
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+*.trx
+*.coverage
+*.coveragexml
+TestResults/
+
+# .NET Core
+project.lock.json
+project.fragment.lock.json
+
+# Rider
+.idea/
+*.sln.iml
+
+# ============================================================================
+# Node.js / Bun / Wrangler (Dashboard + Cloudflare Worker)
+# ============================================================================
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+.yarn/install-state.gz
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
+# Build output
+dist/
+build/
+.next/
+out/
+
+# Wrangler
+.wrangler/
+.mf/
+wrangler.toml.local
+
+# Turbo
+.turbo/
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# ============================================================================
+# Environment Variables & Secrets (CRITICAL - NEVER COMMIT)
+# ============================================================================
+
+# .NET secrets
+appsettings.Production.json
+appsettings.Live.json
+appsettings.Local.json
+**/secrets.json
+UserSecrets/
+
+# Node/Cloudflare secrets
+.env
+.env.local
+.env.*.local
+!.env.example
+!.env.*.example
+.dev.vars
+!.dev.vars.example
+
+# ============================================================================
+# Database & Data Files (Local state - do not commit)
+# ============================================================================
+
+# SQLite databases
+data/
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+
+# ============================================================================
+# TRADING SYSTEM SPECIFIC - CRITICAL SECURITY
+# ============================================================================
+
+# Private strategies (NEVER commit - contains proprietary logic)
+strategies/private/
+strategies/*.json
+!strategies/examples/
+
+# Local trading data
+positions/
+trades/
+logs/
+*.log
+
+# ============================================================================
+# AI Agent State & Generated Reports
+# ============================================================================
+
+# Agent execution state (uncommit if you want to resume agents across sessions)
+.agent-state.json
+
+# Auto-generated implementation reports (regenerate with scripts)
+IMPLEMENTATION_REPORT.md
+IMPLEMENTATION_STATUS.md
+
+# Agent session data
+.claude/agents/*/session-*.json
+
+# ============================================================================
+# Logs & Debug Output
+# ============================================================================
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+*.log
+
+# ============================================================================
+# OS & Editor Files
+# ============================================================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+
+# ============================================================================
+# Temporary & Cache Files
+# ============================================================================
+
+*.tmp
+*.temp
+*.cache
+*.swp
+*.swo
+*~
+.history/
+
+# Playwright MCP
+.playwright-mcp/
+
+# ============================================================================
+# Claude Code Local Settings
+# ============================================================================
+
+.claude/settings.local.json
+
+# ============================================================================
+# KEEP COMMITTED (explicitly NOT ignored)
+# ============================================================================
+
+# DO commit these (configuration for AI agents):
+# - CLAUDE.md
+# - AGENTS.md
+# - .claude/skills/
+# - .claude/agents/*.md (task prompts)
+# - docs/
+# - knowledge/
+# - README.md
+# - DEPLOYMENT.md
+
+# DO commit these (examples & templates):
+# - strategies/examples/
+# - .env.example
+# - .dev.vars.example
+# - appsettings.json (NOT Production/Live variants)

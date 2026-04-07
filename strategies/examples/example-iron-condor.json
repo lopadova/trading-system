@@ -1,0 +1,69 @@
+{
+  "strategyName": "Example Iron Condor - QQQ",
+  "description": "Example iron condor strategy on QQQ. DO NOT USE IN LIVE TRADING.",
+  "tradingMode": "paper",
+  "underlying": {
+    "symbol": "QQQ",
+    "exchange": "SMART",
+    "currency": "USD"
+  },
+  "entryRules": {
+    "marketConditions": {
+      "minDaysToExpiration": 30,
+      "maxDaysToExpiration": 45,
+      "ivRankMin": 40,
+      "ivRankMax": 80
+    },
+    "timing": {
+      "entryTimeStart": "10:00:00",
+      "entryTimeEnd": "15:00:00",
+      "daysOfWeek": ["Monday", "Wednesday", "Friday"]
+    }
+  },
+  "position": {
+    "type": "IronCondor",
+    "legs": [
+      {
+        "action": "SELL",
+        "right": "PUT",
+        "strikeSelectionMethod": "DELTA",
+        "strikeValue": -0.20,
+        "quantity": 1
+      },
+      {
+        "action": "BUY",
+        "right": "PUT",
+        "strikeSelectionMethod": "OFFSET",
+        "strikeOffset": -10,
+        "quantity": 1
+      },
+      {
+        "action": "SELL",
+        "right": "CALL",
+        "strikeSelectionMethod": "DELTA",
+        "strikeValue": 0.20,
+        "quantity": 1
+      },
+      {
+        "action": "BUY",
+        "right": "CALL",
+        "strikeSelectionMethod": "OFFSET",
+        "strikeOffset": 10,
+        "quantity": 1
+      }
+    ],
+    "maxPositions": 2,
+    "capitalPerPosition": 2000
+  },
+  "exitRules": {
+    "profitTarget": 0.60,
+    "stopLoss": 2.50,
+    "maxDaysInTrade": 30,
+    "exitTimeOfDay": "15:50:00"
+  },
+  "riskManagement": {
+    "maxTotalCapitalAtRisk": 10000,
+    "maxDrawdownPercent": 15.0,
+    "maxDailyLoss": 1000
+  }
+}
