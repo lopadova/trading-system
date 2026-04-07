@@ -1,0 +1,313 @@
+Esecuzione dei test per C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\tests\SharedKernel.Tests\bin\Debug\net10.0\SharedKernel.Tests.dll (.NETCoreApp,Version=v10.0)
+Esecuzione dei test per C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\tests\TradingSupervisorService.Tests\bin\Debug\net10.0\TradingSupervisorService.Tests.dll (.NETCoreApp,Version=v10.0)
+Esecuzione dei test per C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\tests\OptionsExecutionService.Tests\bin\Debug\net10.0\OptionsExecutionService.Tests.dll (.NETCoreApp,Version=v10.0)
+Un totale di 1 file di test corrisponde al criterio specificato.
+Un totale di 1 file di test corrisponde al criterio specificato.
+Un totale di 1 file di test corrisponde al criterio specificato.
+  Non superato TEST-22-34: OrderTrackingRepository logs and retrieves orders [44 ms]
+  Messaggio di errore:
+   Assert.Equal() Failure: Strings differ
+           ↓ (pos 0)
+Expected: "9724446c-57bd-4dd6-aee3-59f99f670a6b"
+Actual:   ""
+  Analisi dello stack:
+     at OptionsExecutionService.Tests.Repositories.RepositoryIntegrationTests.TEST_22_34_OrderTrackingRepositoryLogsAndRetrievesOrders() in C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\tests\OptionsExecutionService.Tests\Repositories\RepositoryIntegrationTests.cs:line 153
+--- End of stack trace from previous location ---
+  Non superato OptionsExecutionService.Tests.Orders.OrderPlacerTests.PlaceOrderAsync_ValidOrder_Succeeds [12 ms]
+  Messaggio di errore:
+   Assert.Equal() Failure: Strings differ
+           ↓ (pos 0)
+Expected: "test-campaign"
+Actual:   ""
+  Analisi dello stack:
+     at OptionsExecutionService.Tests.Orders.OrderPlacerTests.PlaceOrderAsync_ValidOrder_Succeeds() in C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\tests\OptionsExecutionService.Tests\Orders\OrderPlacerTests.cs:line 101
+--- End of stack trace from previous location ---
+  Non superato OptionsExecutionService.Tests.Orders.OrderPlacerTests.GetOrderStatsAsync_ReturnsCorrectStats [7 ms]
+  Messaggio di errore:
+   Assert.Equal() Failure: Values differ
+Expected: 3
+Actual:   0
+  Analisi dello stack:
+     at OptionsExecutionService.Tests.Orders.OrderPlacerTests.GetOrderStatsAsync_ReturnsCorrectStats() in C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\tests\OptionsExecutionService.Tests\Orders\OrderPlacerTests.cs:line 403
+--- End of stack trace from previous location ---
+  Non superato OptionsExecutionService.Tests.Orders.OrderPlacerTests.PlaceOrderAsync_IbkrNotConnected_Fails [4 ms]
+  Messaggio di errore:
+   Assert.Equal() Failure: Values differ
+Expected: Failed
+Actual:   ValidationFailed
+  Analisi dello stack:
+     at OptionsExecutionService.Tests.Orders.OrderPlacerTests.PlaceOrderAsync_IbkrNotConnected_Fails() in C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\tests\OptionsExecutionService.Tests\Orders\OrderPlacerTests.cs:line 239
+--- End of stack trace from previous location ---
+  Non superato OptionsExecutionService.Tests.Orders.OrderPlacerTests.PlaceOrderAsync_IbkrReturnsFailure_RecordsFailed [2 ms]
+  Messaggio di errore:
+   Assert.Equal() Failure: Values differ
+Expected: Failed
+Actual:   ValidationFailed
+  Analisi dello stack:
+     at OptionsExecutionService.Tests.Orders.OrderPlacerTests.PlaceOrderAsync_IbkrReturnsFailure_RecordsFailed() in C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\tests\OptionsExecutionService.Tests\Orders\OrderPlacerTests.cs:line 265
+--- End of stack trace from previous location ---
+  Non superato OptionsExecutionService.Tests.Orders.OrderPlacerTests.CancelOrderAsync_ValidOrder_CancelsSuccessfully [16 ms]
+  Messaggio di errore:
+   Assert.True() Failure
+Expected: True
+Actual:   False
+  Analisi dello stack:
+     at OptionsExecutionService.Tests.Orders.OrderPlacerTests.CancelOrderAsync_ValidOrder_CancelsSuccessfully() in C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\tests\OptionsExecutionService.Tests\Orders\OrderPlacerTests.cs:line 359
+--- End of stack trace from previous location ---
+  Non superato OptionsExecutionService.Tests.Orders.OrderPlacerTests.CircuitBreaker_TripsAfterThresholdFailures [2 ms]
+  Messaggio di errore:
+   Assert.True() Failure
+Expected: True
+Actual:   False
+  Analisi dello stack:
+     at OptionsExecutionService.Tests.Orders.OrderPlacerTests.CircuitBreaker_TripsAfterThresholdFailures() in C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\tests\OptionsExecutionService.Tests\Orders\OrderPlacerTests.cs:line 296
+--- End of stack trace from previous location ---
+  Non superato OptionsExecutionService.Tests.Orders.OrderPlacerTests.CircuitBreaker_CanBeManuallyReset [2 ms]
+  Messaggio di errore:
+   Assert.True() Failure
+Expected: True
+Actual:   False
+  Analisi dello stack:
+     at OptionsExecutionService.Tests.Orders.OrderPlacerTests.CircuitBreaker_CanBeManuallyReset() in C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\tests\OptionsExecutionService.Tests\Orders\OrderPlacerTests.cs:line 327
+--- End of stack trace from previous location ---
+  Non superato OptionsExecutionService.Tests.Orders.OrderPlacerTests.PlaceOrderAsync_MultipleOrders_TrackedCorrectly [5 ms]
+  Messaggio di errore:
+   Assert.True() Failure
+Expected: True
+Actual:   False
+  Analisi dello stack:
+     at OptionsExecutionService.Tests.Orders.OrderPlacerTests.PlaceOrderAsync_MultipleOrders_TrackedCorrectly() in C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\tests\OptionsExecutionService.Tests\Orders\OrderPlacerTests.cs:line 492
+--- End of stack trace from previous location ---
+  Non superato TEST-22-35: OrderTrackingRepository updates order status [6 ms]
+  Messaggio di errore:
+   Assert.Equal() Failure: Values differ
+Expected: 5
+Actual:   0
+  Analisi dello stack:
+     at OptionsExecutionService.Tests.Repositories.RepositoryIntegrationTests.TEST_22_35_OrderTrackingRepositoryUpdatesOrderStatus() in C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\tests\OptionsExecutionService.Tests\Repositories\RepositoryIntegrationTests.cs:line 203
+--- End of stack trace from previous location ---
+
+Non superato! - Non superati:    10. Superati:    39. Ignorati:     0. Totale:    49. Durata: 251 ms - OptionsExecutionService.Tests.dll (net10.0)
+  Non superato TradingSupervisorService.Tests.Repositories.IvtsRepositoryTests.InsertAlertAsync_ValidAlert_Succeeds [128 ms]
+  Messaggio di errore:
+   Assert.Single() Failure: The collection was empty
+  Analisi dello stack:
+     at TradingSupervisorService.Tests.Repositories.IvtsRepositoryTests.InsertAlertAsync_ValidAlert_Succeeds() in C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\tests\TradingSupervisorService.Tests\Repositories\IvtsRepositoryTests.cs:line 287
+--- End of stack trace from previous location ---
+  Non superato TradingSupervisorService.Tests.Repositories.IvtsRepositoryTests.GetActiveAlertsAsync_OnlyReturnsUnresolvedAlerts [4 ms]
+  Messaggio di errore:
+   Assert.Single() Failure: The collection was empty
+  Analisi dello stack:
+     at TradingSupervisorService.Tests.Repositories.IvtsRepositoryTests.GetActiveAlertsAsync_OnlyReturnsUnresolvedAlerts() in C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\tests\TradingSupervisorService.Tests\Repositories\IvtsRepositoryTests.cs:line 360
+--- End of stack trace from previous location ---
+  Non superato TEST-22-27: OutboxRepository inserts and retrieves pending entries [5 ms]
+  Messaggio di errore:
+   Assert.Equal() Failure: Values differ
+Expected: 2
+Actual:   0
+  Analisi dello stack:
+     at TradingSupervisorService.Tests.Repositories.RepositoryIntegrationTests.TEST_22_27_OutboxRepositoryInsertsAndRetrievesPendingEntries() in C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\tests\TradingSupervisorService.Tests\Repositories\RepositoryIntegrationTests.cs:line 127
+--- End of stack trace from previous location ---
+  Non superato TEST-22-15: Migration 002 creates ivts_snapshots table [72 ms]
+  Messaggio di errore:
+   Assert.Contains() Failure: Item not found in collection
+Collection: ["0", "1", "2", "3", "4", ···]
+Not found:  "snapshot_id"
+  Analisi dello stack:
+     at TradingSupervisorService.Tests.Migrations.MigrationIntegrationTests.TEST_22_15_Migration002CreatesIvtsSnapshotsTable() in C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\tests\TradingSupervisorService.Tests\Migrations\MigrationIntegrationTests.cs:line 148
+   at TradingSupervisorService.Tests.Migrations.MigrationIntegrationTests.TEST_22_15_Migration002CreatesIvtsSnapshotsTable() in C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\tests\TradingSupervisorService.Tests\Migrations\MigrationIntegrationTests.cs:line 152
+--- End of stack trace from previous location ---
+  Non superato TEST-22-12: Migration 001 creates heartbeats table [2 ms]
+  Messaggio di errore:
+   Assert.Equal() Failure: Values differ
+Expected: 1
+Actual:   0
+  Analisi dello stack:
+     at TradingSupervisorService.Tests.Migrations.MigrationIntegrationTests.TEST_22_12_Migration001CreatesHeartbeatsTable() in C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\tests\TradingSupervisorService.Tests\Migrations\MigrationIntegrationTests.cs:line 65
+   at TradingSupervisorService.Tests.Migrations.MigrationIntegrationTests.TEST_22_12_Migration001CreatesHeartbeatsTable() in C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\tests\TradingSupervisorService.Tests\Migrations\MigrationIntegrationTests.cs:line 75
+--- End of stack trace from previous location ---
+  Non superato TEST-22-14: Migration 001 creates alerts table [2 ms]
+  Messaggio di errore:
+   Assert.Equal() Failure: Values differ
+Expected: 1
+Actual:   0
+  Analisi dello stack:
+     at TradingSupervisorService.Tests.Migrations.MigrationIntegrationTests.TEST_22_14_Migration001CreatesAlertsTable() in C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\tests\TradingSupervisorService.Tests\Migrations\MigrationIntegrationTests.cs:line 117
+   at TradingSupervisorService.Tests.Migrations.MigrationIntegrationTests.TEST_22_14_Migration001CreatesAlertsTable() in C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\tests\TradingSupervisorService.Tests\Migrations\MigrationIntegrationTests.cs:line 126
+--- End of stack trace from previous location ---
+  Non superato TEST-22-13: Migration 001 creates outbox table [2 ms]
+  Messaggio di errore:
+   Assert.Equal() Failure: Values differ
+Expected: 1
+Actual:   0
+  Analisi dello stack:
+     at TradingSupervisorService.Tests.Migrations.MigrationIntegrationTests.TEST_22_13_Migration001CreatesOutboxTable() in C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\tests\TradingSupervisorService.Tests\Migrations\MigrationIntegrationTests.cs:line 91
+   at TradingSupervisorService.Tests.Migrations.MigrationIntegrationTests.TEST_22_13_Migration001CreatesOutboxTable() in C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\tests\TradingSupervisorService.Tests\Migrations\MigrationIntegrationTests.cs:line 101
+--- End of stack trace from previous location ---
+  Non superato TEST-22-11: All supervisor migrations apply successfully [4 ms]
+  Messaggio di errore:
+   Microsoft.Data.Sqlite.SqliteException : SQLite Error 1: 'no such table: _migrations'.
+  Analisi dello stack:
+     at Microsoft.Data.Sqlite.SqliteException.ThrowExceptionForRC(Int32 rc, sqlite3 db)
+   at Microsoft.Data.Sqlite.SqliteCommand.PrepareAndEnumerateStatements()+MoveNext()
+   at Microsoft.Data.Sqlite.SqliteCommand.GetStatements()+MoveNext()
+   at Microsoft.Data.Sqlite.SqliteDataReader.NextResult()
+   at Microsoft.Data.Sqlite.SqliteCommand.ExecuteReader(CommandBehavior behavior)
+   at Microsoft.Data.Sqlite.SqliteCommand.ExecuteReaderAsync(CommandBehavior behavior, CancellationToken cancellationToken)
+   at Microsoft.Data.Sqlite.SqliteCommand.ExecuteDbDataReaderAsync(CommandBehavior behavior, CancellationToken cancellationToken)
+   at Dapper.SqlMapper.QueryRowAsync[T](IDbConnection cnn, Row row, Type effectiveType, CommandDefinition command) in /_/Dapper/SqlMapper.Async.cs:line 489
+   at TradingSupervisorService.Tests.Migrations.MigrationIntegrationTests.TEST_22_11_AllSupervisorMigrationsApplySuccessfully() in C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\tests\TradingSupervisorService.Tests\Migrations\MigrationIntegrationTests.cs:line 46
+   at TradingSupervisorService.Tests.Migrations.MigrationIntegrationTests.TEST_22_11_AllSupervisorMigrationsApplySuccessfully() in C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\tests\TradingSupervisorService.Tests\Migrations\MigrationIntegrationTests.cs:line 49
+--- End of stack trace from previous location ---
+
+Superato!     - Non superati:     0. Superati:    58. Ignorati:     0. Totale:    58. Durata: 317 ms - SharedKernel.Tests.dll (net10.0)
+  Non superato tests.TradingSupervisorService.Tests.Workers.LogReaderWorkerTests.LogReaderWorker_WithWarningInLog_CreatesWarningAlert [511 ms]
+  Messaggio di errore:
+   Assert.NotEmpty() Failure: Collection was empty
+  Analisi dello stack:
+     at tests.TradingSupervisorService.Tests.Workers.LogReaderWorkerTests.LogReaderWorker_WithWarningInLog_CreatesWarningAlert() in C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\tests\TradingSupervisorService.Tests\Workers\LogReaderWorkerTests.cs:line 195
+--- End of stack trace from previous location ---
+  Non superato tests.TradingSupervisorService.Tests.Workers.LogReaderWorkerTests.LogReaderWorker_WithErrorInLog_CreatesAlert [511 ms]
+  Messaggio di errore:
+   Assert.NotEmpty() Failure: Collection was empty
+  Analisi dello stack:
+     at tests.TradingSupervisorService.Tests.Workers.LogReaderWorkerTests.LogReaderWorker_WithErrorInLog_CreatesAlert() in C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\tests\TradingSupervisorService.Tests\Workers\LogReaderWorkerTests.cs:line 153
+--- End of stack trace from previous location ---
+  Non superato TradingSupervisorService.Tests.Workers.GreeksMonitorWorkerTests.RunCycle_WithHighDeltaPosition_CreatesDeltaAlert [517 ms]
+  Messaggio di errore:
+   Moq.MockException : 
+Expected invocation on the mock once, but was 0 times: a => a.InsertAsync(It.Is<AlertRecord>(alert => (alert.AlertType == "GreeksDelta" && alert.Severity == "warning") && alert.Message.Contains("0.85")), It.IsAny<CancellationToken>())
+
+Performed invocations:
+
+   Mock<IAlertRepository:16> (a):
+
+      IAlertRepository.InsertAsync(AlertRecord { AlertId = dc0e4e44-b247-4447-9d06-36dc82ae147a, AlertType = GreeksDelta, Severity = warning, Message = High delta risk: position SPY 250101C450 has delta 0,85 (threshold 0,70), DetailsJson = {"position_id":"pos-001","campaign_id":"camp-001","symbol":"SPY","contract_symbol":"SPY 250101C450","quantity":10,"delta":0.85,"threshold":0.7,"underlying_price":450,"greeks_updated_at":"2026-04-07T14:47:07.9151059Z"}, SourceService = TradingSupervisorService, CreatedAt = 2026-04-07T14:47:07.9159644Z, ResolvedAt = , ResolvedBy =  }, CancellationToken)
+
+  Analisi dello stack:
+     at Moq.Mock.Verify(Mock mock, LambdaExpression expression, Times times, String failMessage) in /_/src/Moq/Mock.cs:line 331
+   at Moq.Mock`1.Verify[TResult](Expression`1 expression, Func`1 times) in /_/src/Moq/Mock`1.cs:line 1033
+   at TradingSupervisorService.Tests.Workers.GreeksMonitorWorkerTests.RunCycle_WithHighDeltaPosition_CreatesDeltaAlert() in C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\tests\TradingSupervisorService.Tests\Workers\GreeksMonitorWorkerTests.cs:line 194
+--- End of stack trace from previous location ---
+  Non superato TEST-22-01: All required services are registered in DI container [46 s]
+  Messaggio di errore:
+   System.ArgumentException : Port 4002 is LIVE trading port. Only paper trading ports (7497, 4001) are allowed. (Parameter 'Port')
+  Analisi dello stack:
+     at SharedKernel.Ibkr.IbkrConfig.Validate() in C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\src\SharedKernel\Ibkr\IbkrConfig.cs:line 69
+   at TradingSupervisorService.Ibkr.IbkrClient..ctor(ILogger`1 logger, IbkrConfig config, TwsCallbackHandler wrapper) in C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\src\TradingSupervisorService\Ibkr\IbkrClient.cs:line 42
+   at TradingSupervisorService.Tests.ProgramIntegrationTests.<>c__DisplayClass10_1.<CreateTestHost>b__5(IServiceProvider sp) in C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\tests\TradingSupervisorService.Tests\ProgramIntegrationTests.cs:line 348
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitFactory(FactoryCallSite factoryCallSite, RuntimeResolverContext context)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteVisitor`2.VisitCallSiteMain(ServiceCallSite callSite, TArgument argument)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitRootCache(ServiceCallSite callSite, RuntimeResolverContext context)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteVisitor`2.VisitCallSite(ServiceCallSite callSite, TArgument argument)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.Resolve(ServiceCallSite callSite, ServiceProviderEngineScope scope)
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider.CreateServiceAccessor(ServiceIdentifier serviceIdentifier)
+   at System.Collections.Concurrent.ConcurrentDictionary`2.GetOrAdd(TKey key, Func`2 valueFactory)
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider.GetService(ServiceIdentifier serviceIdentifier, ServiceProviderEngineScope serviceProviderEngineScope)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.ServiceProviderEngineScope.GetService(Type serviceType)
+   at Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService(IServiceProvider provider, Type serviceType)
+   at Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService[T](IServiceProvider provider)
+   at TradingSupervisorService.Tests.ProgramIntegrationTests.TEST_22_01_AllRequiredServicesRegistered() in C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\tests\TradingSupervisorService.Tests\ProgramIntegrationTests.cs:line 66
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+  Non superato TEST-22-03: IBKR client is registered as singleton [7 ms]
+  Messaggio di errore:
+   System.ArgumentException : Port 4002 is LIVE trading port. Only paper trading ports (7497, 4001) are allowed. (Parameter 'Port')
+  Analisi dello stack:
+     at SharedKernel.Ibkr.IbkrConfig.Validate() in C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\src\SharedKernel\Ibkr\IbkrConfig.cs:line 69
+   at TradingSupervisorService.Ibkr.IbkrClient..ctor(ILogger`1 logger, IbkrConfig config, TwsCallbackHandler wrapper) in C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\src\TradingSupervisorService\Ibkr\IbkrClient.cs:line 42
+   at TradingSupervisorService.Tests.ProgramIntegrationTests.<>c__DisplayClass10_1.<CreateTestHost>b__5(IServiceProvider sp) in C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\tests\TradingSupervisorService.Tests\ProgramIntegrationTests.cs:line 348
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitFactory(FactoryCallSite factoryCallSite, RuntimeResolverContext context)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteVisitor`2.VisitCallSiteMain(ServiceCallSite callSite, TArgument argument)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitRootCache(ServiceCallSite callSite, RuntimeResolverContext context)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteVisitor`2.VisitCallSite(ServiceCallSite callSite, TArgument argument)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.Resolve(ServiceCallSite callSite, ServiceProviderEngineScope scope)
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider.CreateServiceAccessor(ServiceIdentifier serviceIdentifier)
+   at System.Collections.Concurrent.ConcurrentDictionary`2.GetOrAdd(TKey key, Func`2 valueFactory)
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider.GetService(ServiceIdentifier serviceIdentifier, ServiceProviderEngineScope serviceProviderEngineScope)
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider.GetService(Type serviceType)
+   at Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService(IServiceProvider provider, Type serviceType)
+   at Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService[T](IServiceProvider provider)
+   at TradingSupervisorService.Tests.ProgramIntegrationTests.TEST_22_03_IbkrClientIsSingleton() in C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\tests\TradingSupervisorService.Tests\ProgramIntegrationTests.cs:line 107
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+  Non superato TEST-22-07: TelegramAlerter service is available [5 ms]
+  Messaggio di errore:
+   System.InvalidOperationException : Failed to convert configuration value 'test-chat-id' at 'Telegram:ChatId' to type 'System.Int64'.
+---- System.ArgumentException : test-chat-id is not a valid value for Int64. (Parameter 'value')
+-------- System.FormatException : The input string 'test-chat-id' was not in a correct format.
+  Analisi dello stack:
+     at Microsoft.Extensions.Configuration.ConfigurationBinder.GetValue(IConfiguration configuration, Type type, String key, Object defaultValue)
+   at Microsoft.Extensions.Configuration.ConfigurationBinder.GetValue[T](IConfiguration configuration, String key, T defaultValue)
+   at Microsoft.Extensions.Configuration.ConfigurationBinder.GetValue[T](IConfiguration configuration, String key)
+   at TradingSupervisorService.Services.TelegramAlerter..ctor(IConfiguration configuration, ILogger`1 logger) in C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\src\TradingSupervisorService\Services\TelegramAlerter.cs:line 97
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Constructor(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeDirectByRefWithFewArgs(Object obj, Span`1 copyOfArgs, BindingFlags invokeAttr)
+   at System.Reflection.RuntimeConstructorInfo.Invoke(BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitConstructor(ConstructorCallSite constructorCallSite, RuntimeResolverContext context)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteVisitor`2.VisitCallSiteMain(ServiceCallSite callSite, TArgument argument)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitRootCache(ServiceCallSite callSite, RuntimeResolverContext context)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteVisitor`2.VisitCallSite(ServiceCallSite callSite, TArgument argument)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.Resolve(ServiceCallSite callSite, ServiceProviderEngineScope scope)
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider.CreateServiceAccessor(ServiceIdentifier serviceIdentifier)
+   at System.Collections.Concurrent.ConcurrentDictionary`2.GetOrAdd(TKey key, Func`2 valueFactory)
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider.GetService(ServiceIdentifier serviceIdentifier, ServiceProviderEngineScope serviceProviderEngineScope)
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider.GetService(Type serviceType)
+   at Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService(IServiceProvider provider, Type serviceType)
+   at Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService[T](IServiceProvider provider)
+   at TradingSupervisorService.Tests.ProgramIntegrationTests.TEST_22_07_TelegramAlerterAvailable() in C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\tests\TradingSupervisorService.Tests\ProgramIntegrationTests.cs:line 186
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+----- Inner Stack Trace -----
+   at System.ComponentModel.BaseNumberConverter.ConvertFrom(ITypeDescriptorContext context, CultureInfo culture, Object value)
+   at Microsoft.Extensions.Configuration.ConfigurationBinder.TryConvertValue(Type type, String value, String path, Object& result, Exception& error)
+----- Inner Stack Trace -----
+   at System.Number.ThrowFormatException[TChar](ReadOnlySpan`1 value)
+   at System.Int64.Parse(String s, NumberStyles style, IFormatProvider provider)
+   at System.ComponentModel.Int64Converter.FromString(String value, NumberFormatInfo formatInfo)
+   at System.ComponentModel.BaseNumberConverter.ConvertFrom(ITypeDescriptorContext context, CultureInfo culture, Object value)
+  Non superato TEST-22-10: All hosted services (workers) are registered [4 ms]
+  Messaggio di errore:
+   System.InvalidOperationException : Failed to convert configuration value 'test-chat-id' at 'Telegram:ChatId' to type 'System.Int64'.
+---- System.ArgumentException : test-chat-id is not a valid value for Int64. (Parameter 'value')
+-------- System.FormatException : The input string 'test-chat-id' was not in a correct format.
+  Analisi dello stack:
+     at Microsoft.Extensions.Configuration.ConfigurationBinder.GetValue(IConfiguration configuration, Type type, String key, Object defaultValue)
+   at Microsoft.Extensions.Configuration.ConfigurationBinder.GetValue[T](IConfiguration configuration, String key, T defaultValue)
+   at Microsoft.Extensions.Configuration.ConfigurationBinder.GetValue[T](IConfiguration configuration, String key)
+   at TradingSupervisorService.Services.TelegramAlerter..ctor(IConfiguration configuration, ILogger`1 logger) in C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\src\TradingSupervisorService\Services\TelegramAlerter.cs:line 97
+   at InvokeStub_TelegramAlerter..ctor(Object, Span`1)
+   at System.Reflection.RuntimeConstructorInfo.Invoke(BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitConstructor(ConstructorCallSite constructorCallSite, RuntimeResolverContext context)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteVisitor`2.VisitCallSiteMain(ServiceCallSite callSite, TArgument argument)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitRootCache(ServiceCallSite callSite, RuntimeResolverContext context)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteVisitor`2.VisitCallSite(ServiceCallSite callSite, TArgument argument)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitConstructor(ConstructorCallSite constructorCallSite, RuntimeResolverContext context)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteVisitor`2.VisitCallSiteMain(ServiceCallSite callSite, TArgument argument)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitRootCache(ServiceCallSite callSite, RuntimeResolverContext context)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteVisitor`2.VisitCallSite(ServiceCallSite callSite, TArgument argument)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitIEnumerable(IEnumerableCallSite enumerableCallSite, RuntimeResolverContext context)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteVisitor`2.VisitCallSiteMain(ServiceCallSite callSite, TArgument argument)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.VisitRootCache(ServiceCallSite callSite, RuntimeResolverContext context)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteVisitor`2.VisitCallSite(ServiceCallSite callSite, TArgument argument)
+   at Microsoft.Extensions.DependencyInjection.ServiceLookup.CallSiteRuntimeResolver.Resolve(ServiceCallSite callSite, ServiceProviderEngineScope scope)
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider.CreateServiceAccessor(ServiceIdentifier serviceIdentifier)
+   at System.Collections.Concurrent.ConcurrentDictionary`2.GetOrAdd(TKey key, Func`2 valueFactory)
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider.GetService(ServiceIdentifier serviceIdentifier, ServiceProviderEngineScope serviceProviderEngineScope)
+   at Microsoft.Extensions.DependencyInjection.ServiceProvider.GetService(Type serviceType)
+   at Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService(IServiceProvider provider, Type serviceType)
+   at Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService[T](IServiceProvider provider)
+   at Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetServices[T](IServiceProvider provider)
+   at TradingSupervisorService.Tests.ProgramIntegrationTests.TEST_22_10_AllHostedServicesRegistered() in C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\tests\TradingSupervisorService.Tests\ProgramIntegrationTests.cs:line 239
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+----- Inner Stack Trace -----
+   at System.ComponentModel.BaseNumberConverter.ConvertFrom(ITypeDescriptorContext context, CultureInfo culture, Object value)
+   at Microsoft.Extensions.Configuration.ConfigurationBinder.TryConvertValue(Type type, String value, String path, Object& result, Exception& error)
+----- Inner Stack Trace -----
+   at System.Number.ThrowFormatException[TChar](ReadOnlySpan`1 value)
+   at System.Int64.Parse(String s, NumberStyles style, IFormatProvider provider)
+   at System.ComponentModel.Int64Converter.FromString(String value, NumberFormatInfo formatInfo)
+   at System.ComponentModel.BaseNumberConverter.ConvertFrom(ITypeDescriptorContext context, CultureInfo culture, Object value)
+
+Non superato! - Non superati:    15. Superati:   156. Ignorati:     0. Totale:   171. Durata: 47 s - TradingSupervisorService.Tests.dll (net10.0)

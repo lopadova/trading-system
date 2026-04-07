@@ -186,17 +186,17 @@ public sealed class GreeksMonitorWorkerTests
 
         // Act
         await worker.StartAsync(cts.Token);
-        await Task.Delay(500);  // Let one cycle run
+        await Task.Delay(5000);  // Give worker time to complete cycle
         await worker.StopAsync(CancellationToken.None);
 
         // Assert
-        // Delta alert should be created
+        // Delta alert should be created (at least once - worker may run multiple cycles)
         alertRepoMock.Verify(
             a => a.InsertAsync(It.Is<AlertRecord>(alert =>
                 alert.AlertType == "GreeksDelta" &&
                 alert.Severity == "warning" &&
                 alert.Message.Contains("0.85")), It.IsAny<CancellationToken>()),
-            Times.Once);
+            Times.AtLeastOnce);
     }
 
     [Fact]
@@ -418,16 +418,18 @@ public sealed class GreeksMonitorWorkerTests
         double deltaThreshold = 0.70,
         double gammaThreshold = 0.05,
         double thetaThreshold = 50.0,
-        double vegaThreshold = 100.0)
+        double vegaThreshold = 100.0,
+        int startupDelaySeconds = 0)  // Default 0 for tests (immediate execution)
     {
         Dictionary<string, string?> inMemorySettings = new()
         {
             { "GreeksMonitor:Enabled", enabled.ToString() },
-            { "GreeksMonitor:IntervalSeconds", intervalSeconds.ToString() },
-            { "GreeksMonitor:DeltaThreshold", deltaThreshold.ToString() },
-            { "GreeksMonitor:GammaThreshold", gammaThreshold.ToString() },
-            { "GreeksMonitor:ThetaThreshold", thetaThreshold.ToString() },
-            { "GreeksMonitor:VegaThreshold", vegaThreshold.ToString() }
+            { "GreeksMonitor:IntervalSeconds", intervalSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture) },
+            { "GreeksMonitor:StartupDelaySeconds", startupDelaySeconds.ToString(System.Globalization.CultureInfo.InvariantCulture) },
+            { "GreeksMonitor:DeltaThreshold", deltaThreshold.ToString(System.Globalization.CultureInfo.InvariantCulture) },
+            { "GreeksMonitor:GammaThreshold", gammaThreshold.ToString(System.Globalization.CultureInfo.InvariantCulture) },
+            { "GreeksMonitor:ThetaThreshold", thetaThreshold.ToString(System.Globalization.CultureInfo.InvariantCulture) },
+            { "GreeksMonitor:VegaThreshold", vegaThreshold.ToString(System.Globalization.CultureInfo.InvariantCulture) }
         };
 
         return new ConfigurationBuilder()

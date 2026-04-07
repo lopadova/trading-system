@@ -1,0 +1,23 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v10.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v10.0": {
+      "temp_keygen/1.0.0": {
+        "runtime": {
+          "temp_keygen.dll": {}
+        }
+      }
+    }
+  },
+  "libraries": {
+    "temp_keygen/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}

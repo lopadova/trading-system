@@ -2,6 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using SharedKernel.Domain;
+using System.Globalization;
 using System.Text.Json;
 using TradingSupervisorService.Repositories;
 
@@ -205,7 +206,9 @@ public sealed class GreeksMonitorWorker : BackgroundService
             AlertId = Guid.NewGuid().ToString(),
             AlertType = "GreeksDelta",
             Severity = AlertSeverity.Warning.ToString().ToLowerInvariant(),
-            Message = $"High delta risk: position {position.ContractSymbol} has delta {position.Delta:F2} (threshold {_deltaThreshold:F2})",
+            Message = string.Format(CultureInfo.InvariantCulture,
+                "High delta risk: position {0} has delta {1:F2} (threshold {2:F2})",
+                position.ContractSymbol, position.Delta, _deltaThreshold),
             DetailsJson = JsonSerializer.Serialize(details),
             SourceService = "TradingSupervisorService",
             CreatedAt = DateTime.UtcNow.ToString("O"),
@@ -244,7 +247,9 @@ public sealed class GreeksMonitorWorker : BackgroundService
             AlertId = Guid.NewGuid().ToString(),
             AlertType = "GreeksGamma",
             Severity = AlertSeverity.Warning.ToString().ToLowerInvariant(),
-            Message = $"High gamma risk: position {position.ContractSymbol} has gamma {position.Gamma:F3} (threshold {_gammaThreshold:F3})",
+            Message = string.Format(CultureInfo.InvariantCulture,
+                "High gamma risk: position {0} has gamma {1:F3} (threshold {2:F3})",
+                position.ContractSymbol, position.Gamma, _gammaThreshold),
             DetailsJson = JsonSerializer.Serialize(details),
             SourceService = "TradingSupervisorService",
             CreatedAt = DateTime.UtcNow.ToString("O"),
@@ -283,7 +288,9 @@ public sealed class GreeksMonitorWorker : BackgroundService
             AlertId = Guid.NewGuid().ToString(),
             AlertType = "GreeksTheta",
             Severity = AlertSeverity.Warning.ToString().ToLowerInvariant(),
-            Message = $"High theta decay: position {position.ContractSymbol} has theta ${position.Theta:F0}/day (threshold ${_thetaThreshold:F0})",
+            Message = string.Format(CultureInfo.InvariantCulture,
+                "High theta decay: position {0} has theta ${1:F0}/day (threshold ${2:F0})",
+                position.ContractSymbol, position.Theta, _thetaThreshold),
             DetailsJson = JsonSerializer.Serialize(details),
             SourceService = "TradingSupervisorService",
             CreatedAt = DateTime.UtcNow.ToString("O"),
@@ -323,7 +330,9 @@ public sealed class GreeksMonitorWorker : BackgroundService
             AlertId = Guid.NewGuid().ToString(),
             AlertType = "GreeksVega",
             Severity = AlertSeverity.Warning.ToString().ToLowerInvariant(),
-            Message = $"High vega risk: position {position.ContractSymbol} has vega ${position.Vega:F0} (threshold ${_vegaThreshold:F0})",
+            Message = string.Format(CultureInfo.InvariantCulture,
+                "High vega risk: position {0} has vega ${1:F0} (threshold ${2:F0})",
+                position.ContractSymbol, position.Vega, _vegaThreshold),
             DetailsJson = JsonSerializer.Serialize(details),
             SourceService = "TradingSupervisorService",
             CreatedAt = DateTime.UtcNow.ToString("O"),

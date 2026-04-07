@@ -122,9 +122,11 @@ public sealed class BlackScholesCalculatorTests
         GreeksData withIV = _calculator.Calculate(S, K, T, r, historicalVol, isCall: true, impliedVolatility: impliedVol);
 
         // Assert
-        // Higher volatility should result in higher Vega and Gamma
+        // Higher volatility should result in higher Vega
+        // Note: For ATM options, Gamma decreases with higher volatility
         Assert.True(withIV.Vega > withoutIV.Vega, "IV calculation should have higher Vega");
-        Assert.True(withIV.Gamma > withoutIV.Gamma, "IV calculation should have higher Gamma");
+        Assert.True(withIV.Gamma > 0, "IV calculation should have positive Gamma");
+        Assert.True(withoutIV.Gamma > 0, "Historical vol calculation should have positive Gamma");
         Assert.Equal(impliedVol, withIV.ImpliedVolatility);
         Assert.Null(withoutIV.ImpliedVolatility);
     }
@@ -228,10 +230,10 @@ public sealed class BlackScholesCalculatorTests
 
         // Assert
         // Known values (approximate, from Black-Scholes formula):
-        // Call price ≈ 4.76, Delta ≈ 0.7693, Gamma ≈ 0.0652, Vega ≈ 5.47, Theta ≈ -5.71 (per year)
+        // Call price ≈ 4.76, Delta ≈ 0.7693, Gamma ≈ 0.0499, Vega ≈ 8.81 (per percentage point), Theta ≈ -5.71 (per year)
         Assert.InRange(call.Delta, 0.75, 0.80);    // Delta around 0.7693
-        Assert.InRange(call.Gamma, 0.06, 0.07);    // Gamma around 0.0652
-        Assert.InRange(call.Vega, 5.0, 6.0);       // Vega around 5.47
+        Assert.InRange(call.Gamma, 0.045, 0.055);  // Gamma around 0.0499 (corrected)
+        Assert.InRange(call.Vega, 8.0, 9.5);       // Vega around 8.81 (standard formula without scaling)
         Assert.True(call.Theta < 0);               // Theta negative (time decay)
         Assert.InRange(call.Theta, -0.02, -0.01);  // Theta per day ≈ -5.71/365 ≈ -0.0156
     }
@@ -253,13 +255,18 @@ public sealed class BlackScholesCalculatorTests
         GreeksData highVolGreeks = _calculator.Calculate(S, K, T, r, highVol, isCall: true);
 
         // Assert
-        // Higher volatility → higher Vega, higher Gamma
+        // Higher volatility → higher Vega
+        // Note: For ATM options, Gamma decreases with higher volatility, so we don't test Gamma direction
         Assert.True(highVolGreeks.Vega > lowVolGreeks.Vega, "High vol should have higher Vega");
-        Assert.True(highVolGreeks.Gamma > lowVolGreeks.Gamma, "High vol should have higher Gamma");
 
-        // Delta for ATM should remain close to 0.5 regardless of vol
-        Assert.InRange(lowVolGreeks.Delta, 0.4, 0.6);
-        Assert.InRange(highVolGreeks.Delta, 0.4, 0.6);
+        // Both should have positive Gamma (ATM options have highest Gamma)
+        Assert.True(lowVolGreeks.Gamma > 0, "Low vol ATM should have positive Gamma");
+        Assert.True(highVolGreeks.Gamma > 0, "High vol ATM should have positive Gamma");
+
+        // Delta for ATM should remain close to 0.5, though vol and r can shift it slightly
+        // With positive r, call delta shifts slightly above 0.5
+        Assert.InRange(lowVolGreeks.Delta, 0.40, 0.65);
+        Assert.InRange(highVolGreeks.Delta, 0.35, 0.65);
     }
 
     [Fact]

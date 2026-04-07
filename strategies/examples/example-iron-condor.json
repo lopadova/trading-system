@@ -1,6 +1,6 @@
 {
-  "strategyName": "Example Iron Condor - QQQ",
-  "description": "Example iron condor strategy on QQQ. DO NOT USE IN LIVE TRADING.",
+  "strategyName": "Example Iron Condor - Educational Only",
+  "description": "Generic example showing Iron Condor structure. FOR EDUCATIONAL PURPOSES ONLY - DO NOT USE IN LIVE TRADING.",
   "tradingMode": "paper",
   "underlying": {
     "symbol": "QQQ",
@@ -9,34 +9,20 @@
   },
   "entryRules": {
     "marketConditions": {
-      "minDaysToExpiration": 30,
-      "maxDaysToExpiration": 45,
-      "ivRankMin": 40,
-      "ivRankMax": 80
+      "minDaysToExpiration": 35,
+      "maxDaysToExpiration": 50,
+      "ivRankMin": 25,
+      "ivRankMax": 75
     },
     "timing": {
       "entryTimeStart": "10:00:00",
-      "entryTimeEnd": "15:00:00",
-      "daysOfWeek": ["Monday", "Wednesday", "Friday"]
+      "entryTimeEnd": "14:00:00",
+      "daysOfWeek": ["Tuesday", "Wednesday", "Thursday"]
     }
   },
   "position": {
     "type": "IronCondor",
     "legs": [
-      {
-        "action": "SELL",
-        "right": "PUT",
-        "strikeSelectionMethod": "DELTA",
-        "strikeValue": -0.20,
-        "quantity": 1
-      },
-      {
-        "action": "BUY",
-        "right": "PUT",
-        "strikeSelectionMethod": "OFFSET",
-        "strikeOffset": -10,
-        "quantity": 1
-      },
       {
         "action": "SELL",
         "right": "CALL",
@@ -50,20 +36,34 @@
         "strikeSelectionMethod": "OFFSET",
         "strikeOffset": 10,
         "quantity": 1
+      },
+      {
+        "action": "SELL",
+        "right": "PUT",
+        "strikeSelectionMethod": "DELTA",
+        "strikeValue": -0.20,
+        "quantity": 1
+      },
+      {
+        "action": "BUY",
+        "right": "PUT",
+        "strikeSelectionMethod": "OFFSET",
+        "strikeOffset": -10,
+        "quantity": 1
       }
     ],
     "maxPositions": 2,
     "capitalPerPosition": 2000
   },
   "exitRules": {
-    "profitTarget": 0.60,
-    "stopLoss": 2.50,
-    "maxDaysInTrade": 30,
+    "profitTarget": 0.40,
+    "stopLoss": 1.50,
+    "maxDaysInTrade": 28,
     "exitTimeOfDay": "15:50:00"
   },
   "riskManagement": {
-    "maxTotalCapitalAtRisk": 10000,
+    "maxTotalCapitalAtRisk": 8000,
     "maxDrawdownPercent": 15.0,
-    "maxDailyLoss": 1000
+    "maxDailyLoss": 800
   }
 }

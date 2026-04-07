@@ -265,13 +265,19 @@ public sealed class ProgramIntegrationTests
             ["IBKR:MaxReconnectAttempts"] = "10",
             ["IBKR:ConnectionTimeoutSeconds"] = "30",
             ["Monitoring:HeartbeatIntervalSeconds"] = "60",
+            ["Monitoring:HeartbeatStartupDelaySeconds"] = "0",
             ["Monitoring:OutboxSyncIntervalSeconds"] = "30",
+            ["Monitoring:OutboxSyncStartupDelaySeconds"] = "0",
             ["Monitoring:TelegramIntervalSeconds"] = "10",
+            ["Monitoring:TelegramStartupDelaySeconds"] = "0",
             ["Monitoring:LogReaderIntervalSeconds"] = "120",
+            ["LogReader:StartupDelaySeconds"] = "0",
             ["Monitoring:IvtsIntervalSeconds"] = "300",
+            ["IvtsMonitor:StartupDelaySeconds"] = "0",
             ["Monitoring:GreeksIntervalSeconds"] = "300",
+            ["GreeksMonitor:StartupDelaySeconds"] = "0",
             ["Telegram:BotToken"] = "test-token",
-            ["Telegram:ChatId"] = "test-chat-id",
+            ["Telegram:ChatId"] = "123456789",
             ["Telegram:Enabled"] = "false",
             ["OutboxSync:CloudflareWorkerUrl"] = "http://localhost:8787",
         };
@@ -316,7 +322,18 @@ public sealed class ProgramIntegrationTests
                 services.AddSingleton<IMachineMetricsCollector, WindowsMachineMetricsCollector>();
 
                 // IBKR client (singleton - shared across all workers)
-                services.AddSingleton<TwsCallbackHandler>();
+                services.AddSingleton<TwsCallbackHandler>(sp =>
+                {
+                    ILogger<TwsCallbackHandler> handlerLogger = sp.GetRequiredService<ILogger<TwsCallbackHandler>>();
+
+                    // Connection state callback - logs state changes
+                    Action<ConnectionState> onConnectionStateChanged = state =>
+                    {
+                        handlerLogger.LogInformation("IBKR connection state changed: {State}", state);
+                    };
+
+                    return new TwsCallbackHandler(handlerLogger, onConnectionStateChanged);
+                });
                 services.AddSingleton<IIbkrClient>(sp =>
                 {
                     ILogger<IbkrClient> logger = sp.GetRequiredService<ILogger<IbkrClient>>();

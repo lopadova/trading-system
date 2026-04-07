@@ -107,7 +107,7 @@ public sealed class OrderPlacer : IOrderPlacer
 
                 await RecordFailureAsync(ct);
 
-                return OrderResult.Fail(OrderStatus.Failed, "IBKR PlaceOrder returned false");
+                return OrderResult.Fail(orderId, OrderStatus.Failed, "IBKR PlaceOrder returned false");
             }
 
             // STEP 7: Update status to Submitted

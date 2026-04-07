@@ -76,7 +76,7 @@ public sealed class ProgramIntegrationTests
         // Assert
         Assert.NotNull(config);
         Assert.Equal("127.0.0.1", config.Host);
-        Assert.Equal(4002, config.Port); // Paper port
+        Assert.Equal(4002, config.Port); // IB Gateway Paper port
         Assert.Equal(2, config.ClientId);
         Assert.Equal(SharedKernel.Domain.TradingMode.Paper, config.TradingMode);
 
@@ -117,16 +117,20 @@ public sealed class ProgramIntegrationTests
         // Arrange
         IHost host = CreateTestHost();
 
-        // Act
+        // Act: Test singleton services (IBKR client, strategy services)
         IIbkrClient client1 = host.Services.GetRequiredService<IIbkrClient>();
         IIbkrClient client2 = host.Services.GetRequiredService<IIbkrClient>();
 
-        IOrderPlacer placer1 = host.Services.GetRequiredService<IOrderPlacer>();
-        IOrderPlacer placer2 = host.Services.GetRequiredService<IOrderPlacer>();
+        IStrategyValidator validator1 = host.Services.GetRequiredService<IStrategyValidator>();
+        IStrategyValidator validator2 = host.Services.GetRequiredService<IStrategyValidator>();
+
+        IGreeksCalculator greeks1 = host.Services.GetRequiredService<IGreeksCalculator>();
+        IGreeksCalculator greeks2 = host.Services.GetRequiredService<IGreeksCalculator>();
 
         // Assert: Singletons should be the same instance
         Assert.Same(client1, client2);
-        Assert.Same(placer1, placer2);
+        Assert.Same(validator1, validator2);
+        Assert.Same(greeks1, greeks2);
     }
 
     [Fact(DisplayName = "TEST-09-05: Scoped services return different instances across scopes")]
@@ -135,21 +139,34 @@ public sealed class ProgramIntegrationTests
         // Arrange
         IHost host = CreateTestHost();
 
-        // Act
+        // Act: Test scoped services across different scopes
         ICampaignManager manager1;
+        IOrderPlacer placer1;
         using (IServiceScope scope1 = host.Services.CreateScope())
         {
             manager1 = scope1.ServiceProvider.GetRequiredService<ICampaignManager>();
+            placer1 = scope1.ServiceProvider.GetRequiredService<IOrderPlacer>();
         }
 
         ICampaignManager manager2;
+        IOrderPlacer placer2;
         using (IServiceScope scope2 = host.Services.CreateScope())
         {
             manager2 = scope2.ServiceProvider.GetRequiredService<ICampaignManager>();
+            placer2 = scope2.ServiceProvider.GetRequiredService<IOrderPlacer>();
         }
 
         // Assert: Scoped services should be different instances across scopes
         Assert.NotSame(manager1, manager2);
+        Assert.NotSame(placer1, placer2);
+
+        // But within the same scope, they should be the same instance
+        using (IServiceScope scope3 = host.Services.CreateScope())
+        {
+            IOrderPlacer placerA = scope3.ServiceProvider.GetRequiredService<IOrderPlacer>();
+            IOrderPlacer placerB = scope3.ServiceProvider.GetRequiredService<IOrderPlacer>();
+            Assert.Same(placerA, placerB);
+        }
     }
 
     /// <summary>
@@ -172,7 +189,7 @@ public sealed class ProgramIntegrationTests
             ["Safety:MaxPositionSize"] = "10",
             ["Safety:MaxPositionValueUsd"] = "50000",
             ["Safety:MinAccountBalanceUsd"] = "10000",
-            ["Safety:MaxPositionPctOfAccount"] = "5.0",
+            ["Safety:MaxPositionPctOfAccount"] = "0.05",
             ["Safety:CircuitBreakerFailureThreshold"] = "3",
             ["Safety:CircuitBreakerWindowMinutes"] = "60",
             ["Safety:CircuitBreakerCooldownMinutes"] = "120",
@@ -237,8 +254,11 @@ public sealed class ProgramIntegrationTests
 
                 services.AddSingleton(safetyConfig);
 
-                // Register order placer
-                services.AddSingleton<IOrderPlacer, OrderPlacer>();
+                // Register time provider
+                services.AddSingleton<OptionsExecutionService.Common.ITimeProvider, OptionsExecutionService.Common.SystemTimeProvider>();
+
+                // Register order placer (scoped to match repository lifetime)
+                services.AddScoped<IOrderPlacer, OrderPlacer>();
 
                 // Register campaign manager
                 services.AddScoped<ICampaignManager, CampaignManager>();

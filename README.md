@@ -4,6 +4,31 @@ Production-ready automated trading system for options strategies via Interactive
 
 ---
 
+## Table of Contents
+
+- [Documentation](#documentation)
+  - [⭐ New Developers Start Here](#-new-developers-start-here)
+  - [Getting Started](#getting-started)
+  - [Architecture & Design](#architecture--design)
+  - [Operations & Deployment](#operations--deployment)
+  - [Development](#development)
+  - [Knowledge Base](#knowledge-base)
+  - [CI/CD](#cicd)
+- [Quick Start](#quick-start)
+- [Architecture](#architecture)
+- [Key Features](#key-features)
+- [Project Structure](#project-structure)
+- [Development Workflow](#development-workflow)
+- [Deployment](#deployment)
+- [Monitoring](#monitoring)
+- [Security Best Practices](#security-best-practices)
+- [Troubleshooting](#troubleshooting)
+- [Technology Stack](#technology-stack)
+- [Support](#support)
+- [License](#license)
+
+---
+
 ## Documentation
 
 ### ⭐ New Developers Start Here
@@ -27,6 +52,7 @@ Production-ready automated trading system for options strategies via Interactive
 - **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Common issues and solutions
 
 ### Development
+- **[Development Setup](DEVELOPMENT_SETUP.md)** - Complete environment setup (IDE, build, AVIRA/antivirus, strong-name signing)
 - **[Onboarding](docs/ONBOARDING.md)** - Developer quick start (NEW)
 - **[Contributing Guide](docs/CONTRIBUTING.md)** - How to extend the system
 - **[Dashboard Guide](docs/DASHBOARD_GUIDE.md)** - React dashboard development
@@ -407,6 +433,69 @@ cd dashboard && bun run dev
 ```
 
 ### Testing
+
+#### Windows Defender Setup (IMPORTANT)
+
+On Windows, Windows Defender Application Control may block test DLL execution with error `0x800711C7`. This affects **49 tests** in OptionsExecutionService.Tests.
+
+**🚀 RECOMMENDED: All-in-One Unlock Script** (Administrator required):
+
+```powershell
+# This script does EVERYTHING:
+# 1. Temporarily disables Windows Defender Real-Time Protection
+# 2. Cleans + builds solution
+# 3. Unblocks ALL test DLLs
+# 4. Runs FULL test suite
+# 5. Re-enables Windows Defender automatically
+
+.\scripts\unlock-and-test-all.ps1
+```
+
+**Expected Result**: 276/278 tests PASS (99.3% coverage) ✅
+
+---
+
+**Alternative: Standard Setup** (if you prefer permanent exclusions):
+
+```powershell
+# Automated setup (requires Administrator privileges)
+.\scripts\run-tests-with-exclusion.ps1
+
+# If PowerShell policy blocks the script, use manual setup:
+# See ADD_EXCLUSIONS_MANUAL.md for step-by-step GUI instructions
+```
+
+**What it does**:
+1. Adds Windows Defender exclusions for project directories (permanent)
+2. Cleans and rebuilds the solution
+3. Unblocks pre-compiled DLLs
+4. Runs the test suite
+
+---
+
+**Manual alternative** (if both scripts fail):
+
+```powershell
+# 1. Unblock existing DLLs
+.\scripts\unblock-test-dlls.ps1
+
+# 2. Add exclusions via Windows Security GUI
+# See ADD_EXCLUSIONS_MANUAL.md for detailed steps
+
+# 3. Clean and rebuild
+dotnet clean
+dotnet build
+dotnet test
+```
+
+---
+
+📖 **Complete Guide**: See [WINDOWS_DEFENDER_UNLOCK.md](WINDOWS_DEFENDER_UNLOCK.md) for:
+- Detailed troubleshooting
+- CI/CD alternatives (GitHub Actions, WSL2, Docker)
+- Expected test results breakdown
+
+#### Running Tests
 
 ```powershell
 # Run all tests

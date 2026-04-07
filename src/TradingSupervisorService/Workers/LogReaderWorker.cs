@@ -61,6 +61,9 @@ public sealed class LogReaderWorker : BackgroundService
     {
         try
         {
+            // Check cancellation early - before starting work
+            ct.ThrowIfCancellationRequested();
+
             // Get current log file path (Serilog uses daily rolling: options-execution-20260405.log)
             string currentLogFile = GetCurrentLogFilePath();
 
@@ -76,7 +79,8 @@ public sealed class LogReaderWorker : BackgroundService
             long currentSize = fileInfo.Length;
 
             // Get last read position from database
-            LogReaderStateRecord? state = await _stateRepo.GetStateAsync(currentLogFile, ct);
+            // Use CancellationToken.None for DB reads - we want these to complete even during shutdown
+            LogReaderStateRecord? state = await _stateRepo.GetStateAsync(currentLogFile, CancellationToken.None);
 
             long startPosition;
             if (state == null)
@@ -112,16 +116,18 @@ public sealed class LogReaderWorker : BackgroundService
             }
 
             // Read new log entries
+            // Note: Pass ct to allow cancellation during file reading (non-critical operation)
             int linesProcessed = await ReadAndProcessLogEntriesAsync(currentLogFile, startPosition, currentSize, ct);
 
             // Update state in database
+            // Use CancellationToken.None - state updates must complete to avoid re-processing lines
             await _stateRepo.UpsertStateAsync(new LogReaderStateRecord
             {
                 FilePath = currentLogFile,
                 LastPosition = currentSize,
                 LastSize = currentSize,
                 UpdatedAt = DateTime.UtcNow.ToString("O")
-            }, ct);
+            }, CancellationToken.None);
 
             if (linesProcessed > 0)
             {
@@ -141,9 +147,14 @@ public sealed class LogReaderWorker : BackgroundService
     }
 
     /// <summary>
-    /// Reads log file from startPosition to endPosition and processes each line.
+    /// Reads log file from startPosition to end of file and processes each line.
     /// Detects error/warning/fatal levels and creates alerts.
     /// Returns number of lines processed.
+    ///
+    /// Note: endPosition parameter represents current file size for state tracking,
+    /// not a read limit. We read all available lines from startPosition to EOF
+    /// because StreamReader buffers data internally and tracking position per-line
+    /// is unreliable (buffer reads jump file position in chunks, not line-by-line).
     /// </summary>
     private async Task<int> ReadAndProcessLogEntriesAsync(string filePath, long startPosition, long endPosition, CancellationToken ct)
     {
@@ -157,8 +168,10 @@ public sealed class LogReaderWorker : BackgroundService
 
             using StreamReader reader = new(fs);
 
-            // Read until we reach endPosition
-            while (!reader.EndOfStream && fs.Position < endPosition)
+            // Read all lines from startPosition to end of stream
+            // We cannot reliably check fs.Position during line reading because StreamReader
+            // buffers data in chunks (1KB+), causing fs.Position to jump ahead of actual consumption
+            while (!reader.EndOfStream)
             {
                 string? line = await reader.ReadLineAsync(ct);
                 if (line == null)
@@ -219,6 +232,7 @@ public sealed class LogReaderWorker : BackgroundService
 
     /// <summary>
     /// Creates an alert record for a detected error/warning in the log.
+    /// Uses CancellationToken.None to ensure alert insertion completes even during shutdown.
     /// </summary>
     private async Task CreateAlertFromLogLineAsync(string logLine, AlertSeverity severity, string timestamp, string sourceFile, CancellationToken ct)
     {
@@ -246,7 +260,9 @@ public sealed class LogReaderWorker : BackgroundService
                 ResolvedBy = null
             };
 
-            await _alertRepo.InsertAsync(alert, ct);
+            // Use CancellationToken.None to ensure alert is persisted even during shutdown
+            // Critical: alerts must not be lost when service stops
+            await _alertRepo.InsertAsync(alert, CancellationToken.None);
 
             _logger.LogInformation("Created alert {AlertId} from log entry: severity={Severity} message={Message}",
                 alert.AlertId, severity, message);

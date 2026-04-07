@@ -233,3 +233,7 @@ $RECYCLE.BIN/
 # - .env.example
 # - .dev.vars.example
 # - appsettings.json (NOT Production/Live variants)
+
+# Strong-name key (KEEP SECRET!)
+*.snk
+TradingSystem.snk

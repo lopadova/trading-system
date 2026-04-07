@@ -31,7 +31,7 @@ public sealed class IbkrConfigTests
         // Arrange
         IbkrConfig config = new()
         {
-            Port = 4001, // IB Gateway Paper
+            Port = 4002, // IB Gateway Paper
             TradingMode = SharedKernel.Domain.TradingMode.Paper
         };
 
@@ -56,12 +56,12 @@ public sealed class IbkrConfigTests
     }
 
     [Fact]
-    public void Validate_LiveTradingPort4002_Throws()
+    public void Validate_LiveTradingPort4001_Throws()
     {
         // Arrange
         IbkrConfig config = new()
         {
-            Port = 4002, // IB Gateway Live - FORBIDDEN
+            Port = 4001, // IB Gateway Live - FORBIDDEN
             TradingMode = SharedKernel.Domain.TradingMode.Paper
         };
 

@@ -64,4 +64,19 @@ public sealed record OrderResult
             Error = error
         };
     }
+
+    /// <summary>
+    /// Creates a failed result with order ID (when order was logged before failure).
+    /// </summary>
+    public static OrderResult Fail(string orderId, OrderStatus status, string error)
+    {
+        return new OrderResult
+        {
+            Success = false,
+            OrderId = orderId,
+            IbkrOrderId = null,
+            Status = status,
+            Error = error
+        };
+    }
 }

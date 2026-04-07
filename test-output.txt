@@ -1,0 +1,363 @@
+Compilazione avviata 07/04/2026 17:51:57.
+     1>Progetto "C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\TradingSystem.sln" sul nodo 1 (destinazioni: VSTest).
+     1>ValidateSolutionConfiguration:
+         Compilazione della configurazione di soluzione "Debug|Any CPU" in corso.
+Esecuzione dei test per C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\tests\SharedKernel.Tests\bin\Debug\net10.0\SharedKernel.Tests.dll (.NETCoreApp,Version=v10.0)
+Esecuzione dei test per C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\tests\TradingSupervisorService.Tests\bin\Debug\net10.0\TradingSupervisorService.Tests.dll (.NETCoreApp,Version=v10.0)
+Esecuzione dei test per C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\tests\OptionsExecutionService.Tests\bin\Debug\net10.0\OptionsExecutionService.Tests.dll (.NETCoreApp,Version=v10.0)
+Un totale di 1 file di test corrisponde al criterio specificato.
+Un totale di 1 file di test corrisponde al criterio specificato.
+Un totale di 1 file di test corrisponde al criterio specificato.
+[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v2.5.6+bf9b858c26 (64-bit .NET 10.0.5)
+[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v2.5.6+bf9b858c26 (64-bit .NET 10.0.5)
+[xUnit.net 00:00:00.08]   Discovering: SharedKernel.Tests
+[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v2.5.6+bf9b858c26 (64-bit .NET 10.0.5)
+[xUnit.net 00:00:00.11]   Discovered:  SharedKernel.Tests
+[xUnit.net 00:00:00.11]   Starting:    SharedKernel.Tests
+  Superato SharedKernel.Tests.DomainTypesTests.AlertSeverity_DefaultValue_IsInfo [6 ms]
+  Superato SharedKernel.Tests.Configuration.ValidationResultTests.Success_ReturnsValidResult [6 ms]
+  Superato SharedKernel.Tests.Strategy.StrategyLoaderTests.LoadStrategyAsync_FileNotFound_ThrowsFileNotFoundException [11 ms]
+  Superato SharedKernel.Tests.DomainTypesTests.AlertType_HasExpectedValues [< 1 ms]
+  Superato SharedKernel.Tests.DomainTypesTests.AlertSeverity_HasExpectedOrder [< 1 ms]
+  Superato SharedKernel.Tests.DomainTypesTests.TradingMode_LiveValue_IsOne [< 1 ms]
+  Superato SharedKernel.Tests.DomainTypesTests.TradingMode_DefaultValue_IsPaper [2 ms]
+  Superato SharedKernel.Tests.Configuration.ValidationResultTests.SuccessWithWarnings_ReturnsValidResultWithWarnings [2 ms]
+  Superato SharedKernel.Tests.Configuration.ValidationResultTests.ValidationResult_IsImmutable [< 1 ms]
+  Superato SharedKernel.Tests.Configuration.ValidationResultTests.Failure_WithErrors_ReturnsInvalidResult [< 1 ms]
+  Superato SharedKernel.Tests.Configuration.ValidationResultTests.Failure_WithErrorsAndWarnings_ReturnsInvalidResult [< 1 ms]
+  Superato SharedKernel.Tests.Strategy.StrategyValidatorTests.Validate_InvalidStrategyType_ReturnsFailure [17 ms]
+  Superato SharedKernel.Tests.Strategy.StrategyValidatorTests.Validate_InvalidIvRank_ReturnsFailure [< 1 ms]
+  Superato SharedKernel.Tests.Strategy.StrategyValidatorTests.Validate_AllValidStrategyTypes_ReturnsSuccess [< 1 ms]
+  Superato SharedKernel.Tests.Strategy.StrategyValidatorTests.Validate_NullStrategy_ReturnsFailure [4 ms]
+  Superato SharedKernel.Tests.Strategy.StrategyValidatorTests.Validate_InvalidProfitTarget_ReturnsFailure [< 1 ms]
+  Superato SharedKernel.Tests.Strategy.StrategyValidatorTests.Validate_InvalidMaxPositions_ReturnsFailure [< 1 ms]
+  Superato SharedKernel.Tests.Strategy.StrategyValidatorTests.Validate_EmptyStrategyName_ReturnsFailure [< 1 ms]
+  Superato SharedKernel.Tests.Strategy.StrategyValidatorTests.Validate_DeltaMethodWithoutStrikeValue_ReturnsFailure [< 1 ms]
+  Superato SharedKernel.Tests.Strategy.StrategyValidatorTests.Validate_OffsetMethodWithoutStrikeOffset_ReturnsFailure [< 1 ms]
+  Superato SharedKernel.Tests.Strategy.StrategyValidatorTests.Validate_InvalidMaxDrawdownPercent_ReturnsFailure [< 1 ms]
+  Superato SharedKernel.Tests.Strategy.StrategyValidatorTests.Validate_InvalidLegAction_ReturnsFailure [< 1 ms]
+  Superato SharedKernel.Tests.Strategy.StrategyValidatorTests.Validate_NoLegs_ReturnsFailure [< 1 ms]
+  Superato SharedKernel.Tests.Strategy.StrategyValidatorTests.Validate_InvalidDaysToExpiration_ReturnsFailure [< 1 ms]
+  Superato SharedKernel.Tests.Strategy.StrategyValidatorTests.Validate_ValidStrategy_ReturnsSuccess [< 1 ms]
+  Superato SharedKernel.Tests.Options.BlackScholesCalculatorTests.Calculate_KnownValues_MatchesExpectedResults [55 ms]
+  Superato SharedKernel.Tests.Options.BlackScholesCalculatorTests.Calculate_HighVolatility_IncreasesPremiumAndVega [< 1 ms]
+  Superato SharedKernel.Tests.Options.BlackScholesCalculatorTests.Calculate_PutCallParity_GammaAndVegaMatch [< 1 ms]
+  Superato SharedKernel.Tests.Options.BlackScholesCalculatorTests.Calculate_DeepInTheMoneyCall_ReturnsHighDelta [< 1 ms]
+  Superato SharedKernel.Tests.Options.BlackScholesCalculatorTests.Calculate_InvalidInputs_ReturnsEmptyGreeks [1 ms]
+  Superato SharedKernel.Tests.Options.BlackScholesCalculatorTests.Calculate_DeepOutOfTheMoneyPut_ReturnsLowDelta [< 1 ms]
+  Superato SharedKernel.Tests.Options.BlackScholesCalculatorTests.Calculate_ShortTimeToExpiry_HighGamma [< 1 ms]
+  Superato SharedKernel.Tests.Options.BlackScholesCalculatorTests.Calculate_WithImpliedVolatility_UsesIVInsteadOfHistorical [1 ms]
+  Superato SharedKernel.Tests.Options.BlackScholesCalculatorTests.Calculate_DeltaRange_PutBetweenNegative1And0 [< 1 ms]
+  Superato SharedKernel.Tests.Options.BlackScholesCalculatorTests.Calculate_AtTheMoneyPut_ReturnsExpectedDelta [< 1 ms]
+  Superato SharedKernel.Tests.Options.BlackScholesCalculatorTests.Calculate_DeltaRange_CallBetween0And1 [< 1 ms]
+  Superato SharedKernel.Tests.Options.BlackScholesCalculatorTests.Calculate_AtTheMoneyCall_ReturnsExpectedDelta [< 1 ms]
+  Superato SharedKernel.Tests.Options.BlackScholesCalculatorTests.GreeksData_Empty_ReturnsZeroValues [< 1 ms]
+  Superato SharedKernel.Tests.Strategy.StrategyLoaderTests.LoadStrategyAsync_MissingRequiredFields_ThrowsInvalidOperationException [58 ms]
+  Superato SharedKernel.Tests.Strategy.StrategyLoaderTests.LoadAllStrategiesAsync_EmptyDirectory_ReturnsEmptyList [2 ms]
+  Superato SharedKernel.Tests.Strategy.StrategyLoaderTests.LoadAllStrategiesAsync_DirectoryNotFound_ReturnsEmptyList [< 1 ms]
+  Superato SharedKernel.Tests.Data.MigrationRunnerTests.RunAsync_RollsBackFailedMigration [85 ms]
+  Superato SharedKernel.Tests.Data.MigrationRunnerTests.RunAsync_AppliesMigrationsInOrder [4 ms]
+  Superato SharedKernel.Tests.Data.MigrationRunnerTests.RunAsync_SkipsAlreadyAppliedMigrations [1 ms]
+  Superato SharedKernel.Tests.Data.MigrationRunnerTests.RunAsync_HandlesEmptyMigrationList [1 ms]
+  Superato SharedKernel.Tests.Data.MigrationRunnerTests.RunAsync_CreatesSchemaMigrationsTable [1 ms]
+  Superato SharedKernel.Tests.Strategy.StrategyLoaderTests.LoadStrategyAsync_ValidFile_ParsesPositionConfigCorrectly [26 ms]
+  Superato SharedKernel.Tests.Strategy.StrategyLoaderTests.LoadPrivateStrategiesAsync_LoadsFromPrivateFolder [1 ms]
+  Superato SharedKernel.Tests.Strategy.StrategyLoaderTests.LoadStrategyAsync_NullFilePath_ThrowsArgumentException [< 1 ms]
+  Superato SharedKernel.Tests.Strategy.StrategyLoaderTests.LoadExampleStrategiesAsync_LoadsFromExamplesFolder [1 ms]
+  Superato SharedKernel.Tests.Strategy.StrategyLoaderTests.LoadStrategyAsync_EmptyFilePath_ThrowsArgumentException [< 1 ms]
+  Superato SharedKernel.Tests.Strategy.StrategyLoaderTests.LoadStrategyAsync_ValidFile_ParsesRiskManagementCorrectly [< 1 ms]
+  Superato SharedKernel.Tests.Strategy.StrategyLoaderTests.LoadStrategyAsync_InvalidJson_ThrowsInvalidOperationException [1 ms]
+  Superato SharedKernel.Tests.Strategy.StrategyLoaderTests.LoadStrategyAsync_ValidFile_ParsesEntryRulesCorrectly [5 ms]
+  Superato SharedKernel.Tests.Strategy.StrategyLoaderTests.LoadStrategyAsync_ValidFile_ReturnsStrategy [1 ms]
+  Superato SharedKernel.Tests.Strategy.StrategyLoaderTests.LoadStrategyAsync_ValidFile_ParsesExitRulesCorrectly [1 ms]
+  Superato SharedKernel.Tests.Strategy.StrategyLoaderTests.LoadAllStrategiesAsync_ValidDirectory_ReturnsAllValidStrategies [5 ms]
+  Superato SharedKernel.Tests.Data.MigrationRunnerTests.RunAsync_RecordsMigrationMetadata [43 ms]
+[xUnit.net 00:00:00.29]   Finished:    SharedKernel.Tests
+
+L'esecuzione dei test è riuscita.
+Totale test: 58
+     Superati: 58
+ Tempo totale: 1,1907 Secondi
+[xUnit.net 00:00:01.15]   Discovering: TradingSupervisorService.Tests
+[xUnit.net 00:00:01.20]   Discovered:  TradingSupervisorService.Tests
+[xUnit.net 00:00:01.20]   Starting:    TradingSupervisorService.Tests
+  Superato TradingSupervisorService.Tests.Ibkr.IbkrConfigTests.Validate_InvalidPort_Throws [158 ms]
+  Superato TradingSupervisorService.Tests.Ibkr.ConnectionStateTests.ConnectionState_CanConvertToString [159 ms]
+  Superato TradingSupervisorService.Tests.PlaceholderTests.Placeholder_AlwaysPasses [158 ms]
+  Superato TradingSupervisorService.Tests.Ibkr.IbkrConfigTests.Validate_NegativeClientId_Throws [< 1 ms]
+  Superato TradingSupervisorService.Tests.Ibkr.ConnectionStateTests.ConnectionState_DefaultIsDisconnected [5 ms]
+  Superato TradingSupervisorService.Tests.Ibkr.IbkrConfigTests.Validate_LiveTradingPort7496_Throws [5 ms]
+  Superato TradingSupervisorService.Tests.Ibkr.ConnectionStateTests.ConnectionState_AllValuesAreValid [1 ms]
+  Superato TradingSupervisorService.Tests.Ibkr.IbkrConfigTests.Validate_ValidPaperConfig_DoesNotThrow [3 ms]
+  Superato TradingSupervisorService.Tests.Ibkr.IbkrConfigTests.Validate_ZeroConnectionTimeout_Throws [< 1 ms]
+  Superato TradingSupervisorService.Tests.Ibkr.IbkrConfigTests.Validate_NegativeMaxReconnectAttempts_Throws [1 ms]
+  Superato TradingSupervisorService.Tests.Ibkr.IbkrConfigTests.Validate_LiveTradingMode_Throws [1 ms]
+  Superato TradingSupervisorService.Tests.Ibkr.IbkrConfigTests.Validate_IbGatewayPaperPort_DoesNotThrow [< 1 ms]
+  Superato TradingSupervisorService.Tests.Ibkr.IbkrConfigTests.Validate_PortTooHigh_Throws [< 1 ms]
+  Superato TradingSupervisorService.Tests.Ibkr.IbkrConfigTests.Validate_ZeroReconnectDelay_Throws [< 1 ms]
+  Superato TradingSupervisorService.Tests.Ibkr.IbkrConfigTests.Validate_LiveTradingPort4001_Throws [< 1 ms]
+  Superato TradingSupervisorService.Tests.Ibkr.IbkrConfigTests.Validate_MaxDelayLessThanInitialDelay_Throws [< 1 ms]
+  Superato TradingSupervisorService.Tests.Configuration.SupervisorConfigurationValidatorTests.Validate_WithMissingDatabasePath_ReturnsError [179 ms]
+  Superato TradingSupervisorService.Tests.Configuration.SupervisorConfigurationValidatorTests.Validate_WithLiveTradingMode_ReturnsError [2 ms]
+  Superato TradingSupervisorService.Tests.Ibkr.IbkrConfigTests.DefaultConfig_IsPaperMode [4 ms]
+  Superato TradingSupervisorService.Tests.Configuration.SupervisorConfigurationValidatorTests.Validate_WithTelegramEnabledButMissingConfig_ReturnsWarning [2 ms]
+  Superato TradingSupervisorService.Tests.Ibkr.IbkrConfigTests.Validate_EmptyHost_Throws [< 1 ms]
+  Superato TradingSupervisorService.Tests.Configuration.SupervisorConfigurationValidatorTests.Validate_WithIvtsMonitorEnabledButMissingSymbol_ReturnsWarning [< 1 ms]
+  Superato TradingSupervisorService.Tests.Configuration.SupervisorConfigurationValidatorTests.Validate_WithMissingTradingMode_ReturnsError [< 1 ms]
+  Superato TradingSupervisorService.Tests.Configuration.SupervisorConfigurationValidatorTests.Validate_WithInvalidPortNumbers_ReturnsError [< 1 ms]
+  Superato TradingSupervisorService.Tests.Configuration.SupervisorConfigurationValidatorTests.Validate_WithValidPaperConfiguration_ReturnsSuccess [2 ms]
+  Superato TradingSupervisorService.Tests.Configuration.SupervisorConfigurationValidatorTests.Validate_WithNonStandardPaperPort_ReturnsWarning [< 1 ms]
+  Superato TradingSupervisorService.Tests.Configuration.SupervisorConfigurationValidatorTests.Validate_WithInvalidTradingMode_ReturnsError [< 1 ms]
+  Superato TradingSupervisorService.Tests.Configuration.SupervisorConfigurationValidatorTests.Validate_WithInvalidCloudflareUrl_ReturnsWarning [< 1 ms]
+  Superato TradingSupervisorService.Tests.Configuration.SupervisorConfigurationValidatorTests.Validate_WithNegativeClientId_ReturnsError [< 1 ms]
+  Superato TradingSupervisorService.Tests.Configuration.SupervisorConfigurationValidatorTests.Validate_WithMissingIbkrHost_ReturnsError [< 1 ms]
+  Superato TradingSupervisorService.Tests.Services.MarketDataServiceTests.Unsubscribe_ValidRequestId_RemovesSubscription [23 ms]
+  Superato TradingSupervisorService.Tests.Services.MarketDataServiceTests.GetSnapshot_AfterSubscribe_ReturnsEmptySnapshot [2 ms]
+  Superato TradingSupervisorService.Tests.Services.MarketDataServiceTests.OnTickPrice_BidAndAsk_CalculatesSpread [4 ms]
+  Superato TradingSupervisorService.Tests.Services.MarketDataServiceTests.Subscribe_SameSymbolTwice_ReturnsSameRequestId [1 ms]
+  Superato TradingSupervisorService.Tests.Services.MarketDataServiceTests.MarketDataUpdated_Event_RaisedOnPriceUpdate [< 1 ms]
+  Superato TradingSupervisorService.Tests.Services.MarketDataServiceTests.OnTickOptionComputation_InvalidValues_IgnoresNegativeGreeks [2 ms]
+  Superato TradingSupervisorService.Tests.Services.MarketDataServiceTests.CalculateDTE_InvalidFormat_ReturnsNull [< 1 ms]
+  Superato TradingSupervisorService.Tests.Services.MarketDataServiceTests.GetSnapshotBySymbol_UnsubscribedSymbol_ReturnsNull [< 1 ms]
+  Superato TradingSupervisorService.Tests.Services.MarketDataServiceTests.GetSnapshotBySymbol_SubscribedSymbol_ReturnsSnapshot [< 1 ms]
+  Superato TradingSupervisorService.Tests.Services.MarketDataServiceTests.Dispose_CancelsAllSubscriptions [< 1 ms]
+  Superato TradingSupervisorService.Tests.Services.MarketDataServiceTests.OnTickOptionComputation_UpdatesGreeks [< 1 ms]
+  Superato TradingSupervisorService.Tests.Services.MarketDataServiceTests.Subscribe_WithGreeks_RequestsGreeksTickType [< 1 ms]
+  Superato TradingSupervisorService.Tests.Services.MarketDataServiceTests.CalculateDTE_PastDate_ReturnsZero [3 ms]
+  Superato TradingSupervisorService.Tests.Services.MarketDataServiceTests.Subscribe_ValidSymbol_ReturnsRequestId [1 ms]
+  Superato TradingSupervisorService.Tests.Services.MarketDataServiceTests.CalculateDTE_Today_ReturnsZero [< 1 ms]
+  Superato TradingSupervisorService.Tests.Services.MarketDataServiceTests.CalculateDTE_ValidExpirationDate_ReturnsCorrectDays [< 1 ms]
+  Superato TradingSupervisorService.Tests.Services.MarketDataServiceTests.OnTickSize_UpdatesBidAskSize [13 ms]
+  Superato TradingSupervisorService.Tests.Services.MarketDataServiceTests.GetActiveSubscriptions_MultipleSubscriptions_ReturnsAll [< 1 ms]
+  Superato TradingSupervisorService.Tests.Services.MarketDataServiceTests.SubscribeOption_ValidParameters_CalculatesDTE [4 ms]
+  Superato TradingSupervisorService.Tests.Services.MarketDataServiceTests.OnTickPrice_UpdatesSnapshot [< 1 ms]
+  Superato TradingSupervisorService.Tests.Ibkr.TwsCallbackHandlerTests.TickSize_DoesNotThrow [266 ms]
+  Superato TradingSupervisorService.Tests.Workers.GreeksMonitorWorkerTests.Constructor_WithInvalidIntervalSeconds_ThrowsArgumentException(intervalSeconds: 0) [264 ms]
+dbug: TradingSupervisorService.Ibkr.TwsCallbackHandler[0]
+      Tick size: reqId=1001 field=0 size=100
+dbug: TradingSupervisorService.Ibkr.TwsCallbackHandler[0]
+      IBKR server time: 2026-04-07T15:52:01.0000000Z
+  Superato TradingSupervisorService.Tests.Workers.GreeksMonitorWorkerTests.Constructor_WithInvalidIntervalSeconds_ThrowsArgumentException(intervalSeconds: -1) [< 1 ms]
+  Superato TradingSupervisorService.Tests.Repositories.PositionsRepositoryTests.GetPositionByIdAsync_WithNonExistentPositionId_ReturnsNull [3 ms]
+  Superato TradingSupervisorService.Tests.Workers.GreeksMonitorWorkerTests.Constructor_WithInvalidDeltaThreshold_ThrowsArgumentException(deltaThreshold: -0,10000000000000001) [1 ms]
+  Superato TradingSupervisorService.Tests.Ibkr.TwsCallbackHandlerTests.Constructor_NullCallback_Throws [2 ms]
+  Superato TradingSupervisorService.Tests.Workers.GreeksMonitorWorkerTests.Constructor_WithInvalidDeltaThreshold_ThrowsArgumentException(deltaThreshold: 1,5) [< 1 ms]
+  Superato TradingSupervisorService.Tests.Workers.GreeksMonitorWorkerTests.Constructor_WithValidConfiguration_Succeeds [< 1 ms]
+  Superato TradingSupervisorService.Tests.Repositories.AlertRepositoryTests.GetUnresolvedAsync_MultipleAlerts_ReturnsOnlyUnresolved [102 ms]
+  Superato tests.TradingSupervisorService.Tests.Repositories.LogReaderStateRepositoryTests.UpsertStateAsync_WhenNewFile_InsertsRecord [39 ms]
+  Superato TEST-22-30: IvtsRepository stores and queries snapshots [19 ms]
+  Superato TradingSupervisorService.Tests.Repositories.AlertRepositoryTests.ResolveAsync_NonExistentAlert_LogsWarningButDoesNotThrow [3 ms]
+  Superato TradingSupervisorService.Tests.Services.TelegramAlerterTests.Constructor_WhenMissingChatId_DisablesAlerting [276 ms]
+  Superato TradingSupervisorService.Tests.Repositories.PositionsRepositoryTests.GetActivePositionsWithGreeksAsync_WithPositionsWithoutGreeks_ReturnsEmptyList [6 ms]
+  Superato TradingSupervisorService.Tests.Ibkr.TwsCallbackHandlerTests.CurrentTime_UpdatesLastServerTime [7 ms]
+warn: TradingSupervisorService.Ibkr.TwsCallbackHandler[0]
+      IBKR connection closed
+  Superato TradingSupervisorService.Tests.Services.TelegramAlerterTests.TelegramConfig_Validate_SkipsValidationWhenDisabled [< 1 ms]
+  Superato tests.TradingSupervisorService.Tests.Repositories.LogReaderStateRepositoryTests.UpsertStateAsync_WithEmptyFilePath_ThrowsArgumentException [3 ms]
+  Superato TradingSupervisorService.Tests.Workers.IvtsMonitorWorkerTests.Constructor_InvalidIntervalSeconds_ThrowsArgumentException [91 ms]
+  Superato TradingSupervisorService.Tests.Workers.IvtsMonitorWorkerTests.Constructor_ValidConfiguration_Succeeds [1 ms]
+  Superato TradingSupervisorService.Tests.Ibkr.TwsCallbackHandlerTests.ConnectionClosed_InvokesCallback [3 ms]
+  Superato TradingSupervisorService.Tests.Repositories.AlertRepositoryTests.InsertAsync_ValidAlert_InsertsSuccessfully [5 ms]
+  Superato TEST-22-28: AlertRepository inserts and retrieves unresolved alerts [4 ms]
+  Superato TradingSupervisorService.Tests.Services.TelegramAlerterTests.SendImmediateAsync_WhenDisabled_ReturnsFalse [3 ms]
+  Superato TradingSupervisorService.Tests.Workers.IvtsMonitorWorkerTests.Constructor_InvalidIvrThreshold_ThrowsArgumentException [< 1 ms]
+  Superato TradingSupervisorService.Tests.Workers.IvtsMonitorWorkerTests.Constructor_MissingConfiguration_UsesDefaults [< 1 ms]
+  Superato TradingSupervisorService.Tests.Repositories.PositionsRepositoryTests.GetActivePositionsWithGreeksAsync_WithMultiplePositions_ReturnsOrderedBySymbol [4 ms]
+  Superato tests.TradingSupervisorService.Tests.Repositories.LogReaderStateRepositoryTests.GetStateAsync_WithMultipleFiles_ReturnCorrectState [2 ms]
+  Superato TradingSupervisorService.Tests.Workers.IvtsMonitorWorkerTests.Constructor_DisabledInConfig_WorkerDoesNotStart [< 1 ms]
+  Superato TradingSupervisorService.Tests.Ibkr.TwsCallbackHandlerTests.AllUnusedCallbacks_DoNotThrow [1 ms]
+  Superato TradingSupervisorService.Tests.Services.TelegramAlerterTests.QueueAlertAsync_WhenDisabled_DoesNotThrow [1 ms]
+  Superato TradingSupervisorService.Tests.Services.TelegramAlerterTests.Constructor_WhenMissingBotToken_DisablesAlerting [< 1 ms]
+  Superato TradingSupervisorService.Tests.Services.TelegramAlerterTests.TelegramConfig_Validate_RejectsInvalidRetryDelaySeconds [< 1 ms]
+info: TradingSupervisorService.Ibkr.TwsCallbackHandler[0]
+      IBKR connection restored 1101: Connection restored
+  Superato TradingSupervisorService.Tests.Services.TelegramAlerterTests.Constructor_WhenDisabled_InitializesSuccessfully [< 1 ms]
+  Superato tests.TradingSupervisorService.Tests.Repositories.LogReaderStateRepositoryTests.UpsertStateAsync_WithNegativePosition_ThrowsArgumentException [1 ms]
+  Superato TradingSupervisorService.Tests.Services.TelegramAlerterTests.TelegramConfig_Validate_AcceptsValidConfiguration [< 1 ms]
+  Superato TradingSupervisorService.Tests.Services.TelegramAlerterTests.TelegramConfig_Validate_RejectsInvalidMaxRetryAttempts [< 1 ms]
+  Superato TradingSupervisorService.Tests.Repositories.AlertRepositoryTests.ResolveAsync_ExistingAlert_MarksAsResolved [3 ms]
+  Superato TradingSupervisorService.Tests.Services.TelegramAlerterTests.GetPendingCount_ReturnsZero_WhenDisabled [< 1 ms]
+  Superato TradingSupervisorService.Tests.Ibkr.TwsCallbackHandlerTests.Error_ConnectionRestored1101_InvokesConnectedCallback [2 ms]
+warn: TradingSupervisorService.Ibkr.TwsCallbackHandler[0]
+      IBKR connection lost 1100: Connection lost
+dbug: TradingSupervisorService.Ibkr.TwsCallbackHandler[0]
+      Option computation: reqId=2000 field=10 IV=0.2500 delta=-0.4500 gamma=0.1500 vega=0.0800 theta=-0.0500
+dbug: TradingSupervisorService.Ibkr.TwsCallbackHandler[0]
+      Tick price: reqId=1001 field=4 price=4500.5 canAutoExecute=False pastLimit=False
+dbug: TradingSupervisorService.Ibkr.TwsCallbackHandler[0]
+      IBKR info 2104: Market data farm OK
+  Superato tests.TradingSupervisorService.Tests.Repositories.LogReaderStateRepositoryTests.UpsertStateAsync_WhenExistingFile_UpdatesRecord [2 ms]
+  Superato TradingSupervisorService.Tests.Ibkr.TwsCallbackHandlerTests.Error_ConnectionLost1100_InvokesDisconnectedCallback [1 ms]
+  Superato tests.TradingSupervisorService.Tests.Repositories.LogReaderStateRepositoryTests.GetStateAsync_WhenFileNotTracked_ReturnsNull [1 ms]
+  Superato TradingSupervisorService.Tests.Ibkr.TwsCallbackHandlerTests.TickOptionComputation_DoesNotThrow [1 ms]
+  Superato TradingSupervisorService.Tests.Repositories.AlertRepositoryTests.GetBySeverityAsync_FiltersCorrectly [4 ms]
+  Superato TradingSupervisorService.Tests.Ibkr.TwsCallbackHandlerTests.TickPrice_DoesNotThrow [1 ms]
+  Superato TradingSupervisorService.Tests.Repositories.AlertRepositoryTests.InsertAsync_NullAlert_ThrowsArgumentNullException [1 ms]
+  Superato TradingSupervisorService.Tests.Repositories.PositionsRepositoryTests.GetPositionCountsBySymbolAsync_WithMultipleSymbols_ReturnsCountDictionary [8 ms]
+info: TradingSupervisorService.Ibkr.TwsCallbackHandler[0]
+      IBKR connection acknowledged
+  Superato TradingSupervisorService.Tests.Ibkr.TwsCallbackHandlerTests.Error_InformationalCode2104_DoesNotThrow [1 ms]
+  Superato TEST-22-27: OutboxRepository inserts and retrieves pending entries [9 ms]
+  Superato TradingSupervisorService.Tests.Repositories.PositionsRepositoryTests.GetPositionByIdAsync_WithValidPositionId_ReturnsPosition [1 ms]
+  Superato TradingSupervisorService.Tests.Ibkr.TwsCallbackHandlerTests.ConnectAck_InvokesCallback [2 ms]
+  Superato TradingSupervisorService.Tests.Repositories.PositionsRepositoryTests.GetActivePositionsWithGreeksAsync_WithNoPositions_ReturnsEmptyList [1 ms]
+  Superato TradingSupervisorService.Tests.Ibkr.TwsCallbackHandlerTests.Constructor_NullLogger_Throws [1 ms]
+  Superato TradingSupervisorService.Tests.Repositories.PositionsRepositoryTests.GetActivePositionsWithGreeksAsync_WithPositionsWithGreeks_ReturnsPositions [1 ms]
+  Superato TradingSupervisorService.Tests.Repositories.AlertRepositoryTests.GetUnresolvedCountsAsync_ReturnsCorrectCounts [7 ms]
+  Superato TradingSupervisorService.Tests.Repositories.PositionsRepositoryTests.GetPositionCountsBySymbolAsync_WithNoPositions_ReturnsEmptyDictionary [2 ms]
+  Superato TEST-22-15: Migration 002 creates ivts_snapshots table [92 ms]
+  Superato TradingSupervisorService.Tests.Repositories.PositionsRepositoryTests.GetPositionsByCampaignAsync_WithNullCampaignId_ThrowsArgumentException [1 ms]
+  Superato TEST-22-26: HeartbeatRepository upserts and retrieves heartbeats [7 ms]
+  Superato TradingSupervisorService.Tests.Repositories.PositionsRepositoryTests.GetPositionsByCampaignAsync_WithValidCampaignId_ReturnsPositions [1 ms]
+  Superato TEST-22-12: Migration 001 creates service_heartbeats table [2 ms]
+  Superato TradingSupervisorService.Tests.Repositories.IvtsRepositoryTests.InsertAlertAsync_ValidAlert_Succeeds [303 ms]
+  Superato TEST-22-29: LogReaderStateRepository upserts and retrieves state [1 ms]
+  Superato TEST-22-14: Migration 001 creates alert_history table [1 ms]
+  Superato TradingSupervisorService.Tests.Repositories.IvtsRepositoryTests.GetActiveAlertsAsync_OnlyReturnsUnresolvedAlerts [3 ms]
+  Superato TEST-22-13: Migration 001 creates sync_outbox table [2 ms]
+  Superato TradingSupervisorService.Tests.Repositories.IvtsRepositoryTests.GetLatestSnapshotAsync_NoData_ReturnsNull [1 ms]
+  Superato TEST-22-11: All supervisor migrations apply successfully [1 ms]
+  Superato TradingSupervisorService.Tests.Repositories.IvtsRepositoryTests.Get52WeekIvRangeAsync_WithData_ReturnsMinMax [7 ms]
+  Superato tests.TradingSupervisorService.Tests.Workers.LogReaderWorkerTests.LogReaderWorker_WithNonExistentLogFile_DoesNotCrash [315 ms]
+[xUnit.net 00:00:01.63] Skipping: OptionsExecutionService.Tests (could not load dependent assembly 'OptionsExecutionService.Tests'): Could not load file or assembly 'C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\tests\OptionsExecutionService.Tests\bin\Debug\net10.0\OptionsExecutionService.Tests.dll'. Un criterio di controllo dell'applicazione ha bloccato il file. (0x800711C7)
+Non ci sono test disponibili in C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\tests\OptionsExecutionService.Tests\bin\Debug\net10.0\OptionsExecutionService.Tests.dll. Assicurarsi che l'agente di individuazione test e gli executor di test siano registrati e che le impostazioni delle versioni di piattaforma e framework siano appropriate, quindi riprovare.
+
+  Superato TradingSupervisorService.Tests.Repositories.IvtsRepositoryTests.InsertSnapshotAsync_ValidSnapshot_Succeeds [4 ms]
+  Superato TradingSupervisorService.Tests.Repositories.IvtsRepositoryTests.ResolveAlertAsync_ExistingAlert_UpdatesResolvedFields [1 ms]
+  Superato TradingSupervisorService.Tests.Repositories.IvtsRepositoryTests.Get52WeekIvRangeAsync_NoData_ReturnsNull [< 1 ms]
+  Superato TradingSupervisorService.Tests.Repositories.IvtsRepositoryTests.GetLatestSnapshotAsync_MultipleSnapshots_ReturnsNewest [1 ms]
+  Superato TEST-22-22: OutboxSyncWorker starts and stops gracefully [680 ms]
+  Superato TradingSupervisorService.Tests.Workers.GreeksMonitorWorkerTests.RunCycle_WithHighThetaPosition_CreatesThetaAlert [519 ms]
+  Superato TradingSupervisorService.Tests.Workers.GreeksMonitorWorkerTests.RunCycle_WithNoPositions_DoesNotCreateAlerts [517 ms]
+  Superato TradingSupervisorService.Tests.Workers.GreeksMonitorWorkerTests.ExecuteAsync_WhenDisabled_ExitsImmediately [106 ms]
+  Superato TradingSupervisorService.Tests.Workers.GreeksMonitorWorkerTests.RunCycle_WithHighVegaPosition_CreatesVegaAlert [514 ms]
+  Superato TradingSupervisorService.Tests.Workers.GreeksMonitorWorkerTests.RunCycle_WithMultipleThresholdBreaches_CreatesMultipleAlerts [511 ms]
+  Superato TradingSupervisorService.Tests.Workers.HeartbeatWorkerTests.ExecuteAsync_ContinuesOnError [2 s]
+  Superato TEST-22-25: Multiple workers can run concurrently [2 s]
+  Superato TEST-22-23: TelegramWorker handles cancellation correctly [508 ms]
+  Superato TEST-22-24: LogReaderWorker starts with valid configuration [507 ms]
+  Superato TradingSupervisorService.Tests.Workers.HeartbeatWorkerTests.ExecuteAsync_HandlesTradingModeCorrectly(configValue: "live", expectedMode: "live") [1 s]
+[xUnit.net 00:00:06.57]     tests.TradingSupervisorService.Tests.Workers.LogReaderWorkerTests.LogReaderWorker_WithWarningInLog_CreatesWarningAlert [FAIL]
+[xUnit.net 00:00:06.58]       Assert.NotEmpty() Failure: Collection was empty
+[xUnit.net 00:00:06.58]       Stack Trace:
+[xUnit.net 00:00:06.58]         C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\tests\TradingSupervisorService.Tests\Workers\LogReaderWorkerTests.cs(195,0): at tests.TradingSupervisorService.Tests.Workers.LogReaderWorkerTests.LogReaderWorker_WithWarningInLog_CreatesWarningAlert()
+[xUnit.net 00:00:06.58]         --- End of stack trace from previous location ---
+  Non superato tests.TradingSupervisorService.Tests.Workers.LogReaderWorkerTests.LogReaderWorker_WithWarningInLog_CreatesWarningAlert [5 s]
+  Messaggio di errore:
+   Assert.NotEmpty() Failure: Collection was empty
+  Analisi dello stack:
+     at tests.TradingSupervisorService.Tests.Workers.LogReaderWorkerTests.LogReaderWorker_WithWarningInLog_CreatesWarningAlert() in C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\tests\TradingSupervisorService.Tests\Workers\LogReaderWorkerTests.cs:line 195
+--- End of stack trace from previous location ---
+  Superato TradingSupervisorService.Tests.Workers.HeartbeatWorkerTests.ExecuteAsync_HandlesTradingModeCorrectly(configValue: "LIVE", expectedMode: "live") [1 s]
+  Superato TEST-22-21: HeartbeatWorker starts and executes cycle [2 s]
+  Superato tests.TradingSupervisorService.Tests.Workers.LogReaderWorkerTests.LogReaderWorker_WithInfoLog_DoesNotCreateAlert [516 ms]
+  Superato tests.TradingSupervisorService.Tests.Workers.LogReaderWorkerTests.ExtractLogMessage_WithErrorLevel_ReturnsMessage [< 1 ms]
+  Superato tests.TradingSupervisorService.Tests.Workers.LogReaderWorkerTests.LogReaderWorker_CanBeInstantiated [1 ms]
+  Superato TradingSupervisorService.Tests.Workers.OutboxSyncWorkerTests.ExponentialBackoff_CalculatesCorrectly [6 s]
+  Superato TradingSupervisorService.Tests.Workers.HeartbeatWorkerTests.ExecuteAsync_HandlesTradingModeCorrectly(configValue: "", expectedMode: "paper") [1 s]
+[xUnit.net 00:00:08.70]     TradingSupervisorService.Tests.Workers.GreeksMonitorWorkerTests.RunCycle_WithHighDeltaPosition_CreatesDeltaAlert [FAIL]
+[xUnit.net 00:00:08.70]       Moq.MockException : 
+[xUnit.net 00:00:08.70]       Expected invocation on the mock once, but was 5 times: a => a.InsertAsync(It.Is<AlertRecord>(alert => (alert.AlertType == "GreeksDelta" && alert.Severity == "warning") && alert.Message.Contains("0.85")), It.IsAny<CancellationToken>())
+[xUnit.net 00:00:08.70]       
+[xUnit.net 00:00:08.70]       Performed invocations:
+[xUnit.net 00:00:08.70]       
+[xUnit.net 00:00:08.70]          Mock<IAlertRepository:16> (a):
+[xUnit.net 00:00:08.70]       
+[xUnit.net 00:00:08.70]             IAlertRepository.InsertAsync(AlertRecord { AlertId = 61f0c36a-3ff1-4a48-a90a-598698ae6b45, AlertType = GreeksDelta, Severity = warning, Message = High delta risk: position SPY 250101C450 has delta 0.85 (threshold 0.70), DetailsJson = {"position_id":"pos-001","campaign_id":"camp-001","symbol":"SPY","contract_symbol":"SPY 250101C450","quantity":10,"delta":0.85,"threshold":0.7,"underlying_price":450,"greeks_updated_at":"2026-04-07T15:52:03.9207830Z"}, SourceService = TradingSupervisorService, CreatedAt = 2026-04-07T15:52:03.9215452Z, ResolvedAt = , ResolvedBy =  }, CancellationToken)
+[xUnit.net 00:00:08.70]             IAlertRepository.InsertAsync(AlertRecord { AlertId = 29f46dd3-f448-4124-bf08-c43d9cc42bbb, AlertType = GreeksDelta, Severity = warning, Message = High delta risk: position SPY 250101C450 has delta 0.85 (threshold 0.70), DetailsJson = {"position_id":"pos-001","campaign_id":"camp-001","symbol":"SPY","contract_symbol":"SPY 250101C450","quantity":10,"delta":0.85,"threshold":0.7,"underlying_price":450,"greeks_updated_at":"2026-04-07T15:52:03.9207830Z"}, SourceService = TradingSupervisorService, CreatedAt = 2026-04-07T15:52:04.9275246Z, ResolvedAt = , ResolvedBy =  }, CancellationToken)
+[xUnit.net 00:00:08.70]             IAlertRepository.InsertAsync(AlertRecord { AlertId = b2e6a5be-f220-4d7f-b138-72eb1a073bf5, AlertType = GreeksDelta, Severity = warning, Message = High delta risk: position SPY 250101C450 has delta 0.85 (threshold 0.70), DetailsJson = {"position_id":"pos-001","campaign_id":"camp-001","symbol":"SPY","contract_symbol":"SPY 250101C450","quantity":10,"delta":0.85,"threshold":0.7,"underlying_price":450,"greeks_updated_at":"2026-04-07T15:52:03.9207830Z"}, SourceService = TradingSupervisorService, CreatedAt = 2026-04-07T15:52:05.9401451Z, ResolvedAt = , ResolvedBy =  }, CancellationToken)
+[xUnit.net 00:00:08.70]             IAlertRepository.InsertAsync(AlertRecord { AlertId = a29588b9-cca1-4a2a-8e09-1723298cfb0a, AlertType = GreeksDelta, Severity = warning, Message = High delta risk: position SPY 250101C450 has delta 0.85 (threshold 0.70), DetailsJson = {"position_id":"pos-001","campaign_id":"camp-001","symbol":"SPY","contract_symbol":"SPY 250101C450","quantity":10,"delta":0.85,"threshold":0.7,"underlying_price":450,"greeks_updated_at":"2026-04-07T15:52:03.9207830Z"}, SourceService = TradingSupervisorService, CreatedAt = 2026-04-07T15:52:06.9402175Z, ResolvedAt = , ResolvedBy =  }, CancellationToken)
+[xUnit.net 00:00:08.70]             IAlertRepository.InsertAsync(AlertRecord { AlertId = 8978749c-2771-4651-9fb8-2f5b1888216a, AlertType = GreeksDelta, Severity = warning, Message = High delta risk: position SPY 250101C450 has delta 0.85 (threshold 0.70), DetailsJson = {"position_id":"pos-001","campaign_id":"camp-001","symbol":"SPY","contract_symbol":"SPY 250101C450","quantity":10,"delta":0.85,"threshold":0.7,"underlying_price":450,"greeks_updated_at":"2026-04-07T15:52:03.9207830Z"}, SourceService = TradingSupervisorService, CreatedAt = 2026-04-07T15:52:07.9549052Z, ResolvedAt = , ResolvedBy =  }, CancellationToken)
+[xUnit.net 00:00:08.70]       
+[xUnit.net 00:00:08.70]       Stack Trace:
+[xUnit.net 00:00:08.70]         /_/src/Moq/Mock.cs(331,0): at Moq.Mock.Verify(Mock mock, LambdaExpression expression, Times times, String failMessage)
+[xUnit.net 00:00:08.70]         /_/src/Moq/Mock`1.cs(1033,0): at Moq.Mock`1.Verify[TResult](Expression`1 expression, Func`1 times)
+[xUnit.net 00:00:08.70]         C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\tests\TradingSupervisorService.Tests\Workers\GreeksMonitorWorkerTests.cs(194,0): at TradingSupervisorService.Tests.Workers.GreeksMonitorWorkerTests.RunCycle_WithHighDeltaPosition_CreatesDeltaAlert()
+[xUnit.net 00:00:08.70]         --- End of stack trace from previous location ---
+  Non superato TradingSupervisorService.Tests.Workers.GreeksMonitorWorkerTests.RunCycle_WithHighDeltaPosition_CreatesDeltaAlert [5 s]
+  Messaggio di errore:
+   Moq.MockException : 
+Expected invocation on the mock once, but was 5 times: a => a.InsertAsync(It.Is<AlertRecord>(alert => (alert.AlertType == "GreeksDelta" && alert.Severity == "warning") && alert.Message.Contains("0.85")), It.IsAny<CancellationToken>())
+
+Performed invocations:
+
+   Mock<IAlertRepository:16> (a):
+
+      IAlertRepository.InsertAsync(AlertRecord { AlertId = 61f0c36a-3ff1-4a48-a90a-598698ae6b45, AlertType = GreeksDelta, Severity = warning, Message = High delta risk: position SPY 250101C450 has delta 0.85 (threshold 0.70), DetailsJson = {"position_id":"pos-001","campaign_id":"camp-001","symbol":"SPY","contract_symbol":"SPY 250101C450","quantity":10,"delta":0.85,"threshold":0.7,"underlying_price":450,"greeks_updated_at":"2026-04-07T15:52:03.9207830Z"}, SourceService = TradingSupervisorService, CreatedAt = 2026-04-07T15:52:03.9215452Z, ResolvedAt = , ResolvedBy =  }, CancellationToken)
+      IAlertRepository.InsertAsync(AlertRecord { AlertId = 29f46dd3-f448-4124-bf08-c43d9cc42bbb, AlertType = GreeksDelta, Severity = warning, Message = High delta risk: position SPY 250101C450 has delta 0.85 (threshold 0.70), DetailsJson = {"position_id":"pos-001","campaign_id":"camp-001","symbol":"SPY","contract_symbol":"SPY 250101C450","quantity":10,"delta":0.85,"threshold":0.7,"underlying_price":450,"greeks_updated_at":"2026-04-07T15:52:03.9207830Z"}, SourceService = TradingSupervisorService, CreatedAt = 2026-04-07T15:52:04.9275246Z, ResolvedAt = , ResolvedBy =  }, CancellationToken)
+      IAlertRepository.InsertAsync(AlertRecord { AlertId = b2e6a5be-f220-4d7f-b138-72eb1a073bf5, AlertType = GreeksDelta, Severity = warning, Message = High delta risk: position SPY 250101C450 has delta 0.85 (threshold 0.70), DetailsJson = {"position_id":"pos-001","campaign_id":"camp-001","symbol":"SPY","contract_symbol":"SPY 250101C450","quantity":10,"delta":0.85,"threshold":0.7,"underlying_price":450,"greeks_updated_at":"2026-04-07T15:52:03.9207830Z"}, SourceService = TradingSupervisorService, CreatedAt = 2026-04-07T15:52:05.9401451Z, ResolvedAt = , ResolvedBy =  }, CancellationToken)
+      IAlertRepository.InsertAsync(AlertRecord { AlertId = a29588b9-cca1-4a2a-8e09-1723298cfb0a, AlertType = GreeksDelta, Severity = warning, Message = High delta risk: position SPY 250101C450 has delta 0.85 (threshold 0.70), DetailsJson = {"position_id":"pos-001","campaign_id":"camp-001","symbol":"SPY","contract_symbol":"SPY 250101C450","quantity":10,"delta":0.85,"threshold":0.7,"underlying_price":450,"greeks_updated_at":"2026-04-07T15:52:03.9207830Z"}, SourceService = TradingSupervisorService, CreatedAt = 2026-04-07T15:52:06.9402175Z, ResolvedAt = , ResolvedBy =  }, CancellationToken)
+      IAlertRepository.InsertAsync(AlertRecord { AlertId = 8978749c-2771-4651-9fb8-2f5b1888216a, AlertType = GreeksDelta, Severity = warning, Message = High delta risk: position SPY 250101C450 has delta 0.85 (threshold 0.70), DetailsJson = {"position_id":"pos-001","campaign_id":"camp-001","symbol":"SPY","contract_symbol":"SPY 250101C450","quantity":10,"delta":0.85,"threshold":0.7,"underlying_price":450,"greeks_updated_at":"2026-04-07T15:52:03.9207830Z"}, SourceService = TradingSupervisorService, CreatedAt = 2026-04-07T15:52:07.9549052Z, ResolvedAt = , ResolvedBy =  }, CancellationToken)
+
+  Analisi dello stack:
+     at Moq.Mock.Verify(Mock mock, LambdaExpression expression, Times times, String failMessage) in /_/src/Moq/Mock.cs:line 331
+   at Moq.Mock`1.Verify[TResult](Expression`1 expression, Func`1 times) in /_/src/Moq/Mock`1.cs:line 1033
+   at TradingSupervisorService.Tests.Workers.GreeksMonitorWorkerTests.RunCycle_WithHighDeltaPosition_CreatesDeltaAlert() in C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\tests\TradingSupervisorService.Tests\Workers\GreeksMonitorWorkerTests.cs:line 194
+--- End of stack trace from previous location ---
+  Superato TradingSupervisorService.Tests.Workers.GreeksMonitorWorkerTests.RunCycle_WithHighGammaPosition_CreatesGammaAlert [508 ms]
+  Superato TradingSupervisorService.Tests.Workers.HeartbeatWorkerTests.ExecuteAsync_HandlesTradingModeCorrectly(configValue: "paper", expectedMode: "paper") [1 s]
+  Superato TradingSupervisorService.Tests.Workers.HeartbeatWorkerTests.ExecuteAsync_HandlesTradingModeCorrectly(configValue: "invalid", expectedMode: "paper") [1 s]
+[xUnit.net 00:00:12.10]     tests.TradingSupervisorService.Tests.Workers.LogReaderWorkerTests.LogReaderWorker_WithErrorInLog_CreatesAlert [FAIL]
+[xUnit.net 00:00:12.10]       Assert.NotEmpty() Failure: Collection was empty
+[xUnit.net 00:00:12.10]       Stack Trace:
+[xUnit.net 00:00:12.10]         C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\tests\TradingSupervisorService.Tests\Workers\LogReaderWorkerTests.cs(153,0): at tests.TradingSupervisorService.Tests.Workers.LogReaderWorkerTests.LogReaderWorker_WithErrorInLog_CreatesAlert()
+[xUnit.net 00:00:12.10]         --- End of stack trace from previous location ---
+  Non superato tests.TradingSupervisorService.Tests.Workers.LogReaderWorkerTests.LogReaderWorker_WithErrorInLog_CreatesAlert [5 s]
+  Messaggio di errore:
+   Assert.NotEmpty() Failure: Collection was empty
+  Analisi dello stack:
+     at tests.TradingSupervisorService.Tests.Workers.LogReaderWorkerTests.LogReaderWorker_WithErrorInLog_CreatesAlert() in C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\tests\TradingSupervisorService.Tests\Workers\LogReaderWorkerTests.cs:line 153
+--- End of stack trace from previous location ---
+  Superato TradingSupervisorService.Tests.Workers.HeartbeatWorkerTests.ExecuteAsync_HandlesTradingModeCorrectly(configValue: "PAPER", expectedMode: "paper") [1 s]
+  Superato TradingSupervisorService.Tests.Workers.OutboxSyncWorkerTests.RunCycle_SuccessfulSync_MarksEventAsSent [6 s]
+  Superato TradingSupervisorService.Tests.Workers.OutboxSyncWorkerTests.RunCycle_NoPendingEvents_DoesNotSendRequests [108 ms]
+  Superato TradingSupervisorService.Tests.Workers.OutboxSyncWorkerTests.Constructor_MissingWorkerUrl_LogsWarning [14 ms]
+  Superato TradingSupervisorService.Tests.Workers.HeartbeatWorkerTests.ExecuteAsync_CollectsMetricsAndWritesHeartbeat [1 s]
+  Superato TradingSupervisorService.Tests.Workers.HeartbeatWorkerTests.Constructor_ThrowsOnInvalidInterval [< 1 ms]
+  Superato TradingSupervisorService.Tests.Workers.OutboxSyncWorkerTests.RunCycle_FailedSync_MarksEventAsFailed [6 s]
+info: TradingSupervisorService.Ibkr.IbkrClient[0]
+      IbkrClient initialized. Host=127.0.0.1 Port=4002 ClientId=1 Mode=Paper
+  Superato TradingSupervisorService.Tests.Collectors.WindowsMachineMetricsCollectorTests.Dispose_PreventsSubsequentCalls [24 s]
+info: TradingSupervisorService.Services.TelegramAlerter[0]
+      Telegram alerting is disabled in configuration
+info: TradingSupervisorService.Ibkr.IbkrClient[0]
+      IbkrClient initialized. Host=127.0.0.1 Port=4002 ClientId=1 Mode=Paper
+info: TradingSupervisorService.Services.TelegramAlerter[0]
+      Telegram alerting is disabled in configuration
+  Superato TEST-22-01: All required services are registered in DI container [24 s]
+  Superato TradingSupervisorService.Tests.Collectors.WindowsMachineMetricsCollectorTests.CollectAsync_ReturnsValidMetrics [4 ms]
+  Superato TEST-22-04: Repository services are registered correctly [9 ms]
+  Superato TEST-22-03: IBKR client is registered as singleton [4 ms]
+  Superato TEST-22-02: Service startup validates configuration correctly [3 ms]
+  Superato TEST-22-09: Positions repository uses separate database [4 ms]
+  Superato TEST-22-05: Metrics collector is available for workers [3 ms]
+  Superato TEST-22-07: TelegramAlerter service is available [2 ms]
+info: TradingSupervisorService.Services.TelegramAlerter[0]
+      Telegram alerting is disabled in configuration
+info: TradingSupervisorService.Ibkr.IbkrClient[0]
+      IbkrClient initialized. Host=127.0.0.1 Port=4002 ClientId=1 Mode=Paper
+[xUnit.net 00:00:25.67]   Finished:    TradingSupervisorService.Tests
+  Superato TEST-22-08: Database connection factory creates valid connections [5 ms]
+  Superato TEST-22-06: HttpClientFactory is registered for OutboxSyncWorker [10 ms]
+  Superato TEST-22-10: All hosted services (workers) are registered [4 ms]
+  Superato TradingSupervisorService.Tests.Collectors.WindowsMachineMetricsCollectorTests.CollectAsync_SecondCallReturnsAccurateCpu [110 ms]
+  Superato TradingSupervisorService.Tests.Collectors.WindowsMachineMetricsCollectorTests.CollectAsync_WithCancellation_ThrowsOperationCanceledException [2 ms]
+  Superato TradingSupervisorService.Tests.Collectors.WindowsMachineMetricsCollectorTests.CollectAsync_MetricsAreRounded [3 ms]
+  Superato TradingSupervisorService.Tests.Collectors.WindowsMachineMetricsCollectorTests.Dispose_CanBeCalledMultipleTimes [< 1 ms]
+
+L'esecuzione dei test non è riuscita.
+Totale test: 171
+     Superati: 168
+     Non superati: 3
+ Tempo totale: 26,6638 Secondi
+     1>Compilazione di "C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\tests\TradingSupervisorService.Tests\TradingSupervisorService.Tests.csproj" (3) dal progetto "C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\TradingSystem.sln" (1) sul nodo 2 (destinazioni: VSTest).
+     3>_VSTestConsole:
+         MSB4181: l'attività "VSTestTask" ha restituito false, ma non è stato registrato alcun errore.
+     3>Compilazione progetto "C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\tests\TradingSupervisorService.Tests\TradingSupervisorService.Tests.csproj" (destinazioni: VSTest) NON RIUSCITA.
+     1>Compilazione progetto "C:\Users\lopad\Documents\DocLore\Visual Basic\_NET\Applicazioni\trading-system\TradingSystem.sln" (destinazioni: VSTest) NON RIUSCITA.
+
+Compilazione NON RIUSCITA.
+    Avvisi: 0
+    Errori: 0
+
+Tempo trascorso 00:00:28.65

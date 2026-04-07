@@ -44,9 +44,9 @@ public sealed class MigrationIntegrationTests : IAsyncLifetime
         // Assert: Verify migrations table exists and has correct count
         await using SqliteConnection conn = await _factory.OpenAsync();
         int count = await conn.QuerySingleAsync<int>(
-            "SELECT COUNT(*) FROM _migrations WHERE name LIKE '001_%' OR name LIKE '002_%' OR name LIKE '003_%'");
+            "SELECT COUNT(*) FROM schema_migrations");
 
-        Assert.True(count >= 3, $"Expected at least 3 migrations applied, found {count}");
+        Assert.Equal(3, count);
     }
 
     [Fact(DisplayName = "TEST-22-17: Migration 001 creates campaigns table")]
@@ -65,8 +65,8 @@ public sealed class MigrationIntegrationTests : IAsyncLifetime
         Assert.Equal(1, tableExists);
 
         // Verify table structure
-        var columns = await conn.QueryAsync<string>("PRAGMA table_info(campaigns)");
-        List<string> columnNames = columns.Select(c => c).ToList();
+        var columns = await conn.QueryAsync<dynamic>("PRAGMA table_info(campaigns)");
+        List<string> columnNames = columns.Select(c => (string)c.name).ToList();
 
         Assert.Contains("campaign_id", columnNames, StringComparer.OrdinalIgnoreCase);
         Assert.Contains("strategy_name", columnNames, StringComparer.OrdinalIgnoreCase);
@@ -90,8 +90,8 @@ public sealed class MigrationIntegrationTests : IAsyncLifetime
         Assert.Equal(1, tableExists);
 
         // Verify table structure
-        var columns = await conn.QueryAsync<string>("PRAGMA table_info(positions)");
-        List<string> columnNames = columns.Select(c => c).ToList();
+        var columns = await conn.QueryAsync<dynamic>("PRAGMA table_info(positions)");
+        List<string> columnNames = columns.Select(c => (string)c.name).ToList();
 
         Assert.Contains("position_id", columnNames, StringComparer.OrdinalIgnoreCase);
         Assert.Contains("campaign_id", columnNames, StringComparer.OrdinalIgnoreCase);
@@ -135,8 +135,8 @@ public sealed class MigrationIntegrationTests : IAsyncLifetime
         Assert.Equal(1, tableExists);
 
         // Verify table structure
-        var columns = await conn.QueryAsync<string>("PRAGMA table_info(order_tracking)");
-        List<string> columnNames = columns.Select(c => c).ToList();
+        var columns = await conn.QueryAsync<dynamic>("PRAGMA table_info(order_tracking)");
+        List<string> columnNames = columns.Select(c => (string)c.name).ToList();
 
         Assert.Contains("order_id", columnNames, StringComparer.OrdinalIgnoreCase);
         Assert.Contains("ibkr_order_id", columnNames, StringComparer.OrdinalIgnoreCase);

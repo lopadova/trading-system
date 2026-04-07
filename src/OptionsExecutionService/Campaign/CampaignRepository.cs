@@ -257,9 +257,9 @@ public sealed class CampaignRepository : ICampaignRepository
             CampaignId = metadata.CampaignId,
             Strategy = strategy,
             State = state,
-            CreatedAt = DateTime.Parse(metadata.CreatedAt),
-            ActivatedAt = metadata.ActivatedAt != null ? DateTime.Parse(metadata.ActivatedAt) : null,
-            ClosedAt = metadata.ClosedAt != null ? DateTime.Parse(metadata.ClosedAt) : null,
+            CreatedAt = DateTime.Parse(metadata.CreatedAt, null, System.Globalization.DateTimeStyles.RoundtripKind),
+            ActivatedAt = metadata.ActivatedAt != null ? DateTime.Parse(metadata.ActivatedAt, null, System.Globalization.DateTimeStyles.RoundtripKind) : null,
+            ClosedAt = metadata.ClosedAt != null ? DateTime.Parse(metadata.ClosedAt, null, System.Globalization.DateTimeStyles.RoundtripKind) : null,
             CloseReason = metadata.CloseReason,
             RealizedPnL = metadata.RealizedPnL,
             StateJson = metadata.StateJson

@@ -12,7 +12,7 @@ namespace TradingSupervisorService.Workers;
 public sealed class TelegramWorker : BackgroundService
 {
     private readonly ILogger<TelegramWorker> _logger;
-    private readonly TelegramAlerter _alerter;
+    private readonly ITelegramAlerter _alerter;
     private readonly int _processIntervalSeconds;
 
     public TelegramWorker(
@@ -21,11 +21,7 @@ public sealed class TelegramWorker : BackgroundService
         IConfiguration configuration)
     {
         _logger = logger;
-
-        // Cast to concrete type to access ProcessQueueAsync
-        // (interface doesn't expose it as it's internal implementation detail)
-        _alerter = (TelegramAlerter)alerter;
-
+        _alerter = alerter;
         _processIntervalSeconds = configuration.GetValue<int>("Telegram:ProcessIntervalSeconds", 5);
     }
 

@@ -37,6 +37,7 @@ public sealed class OutboxSyncWorkerTests
         SetupConfigValue("OutboxSync:InitialRetryDelaySeconds", "5");
         SetupConfigValue("OutboxSync:MaxRetryDelaySeconds", "300");
         SetupConfigValue("OutboxSync:MaxRetries", "10");
+        SetupConfigValue("OutboxSync:StartupDelaySeconds", "0");  // No delay for tests
 
         // Setup HttpClient factory to return client with mocked handler
         HttpClient httpClient = new(_mockHttpHandler.Object)

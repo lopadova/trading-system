@@ -393,4 +393,64 @@ public sealed class TelegramWorker : BackgroundService
 
 ---
 
-*Skill version: 2.0 — Ultima modifica: Legacy Tests Fix — Data: 2026-04-07*
+## Culture-Invariant Formatting — CRITICAL PRODUCTION RULE
+
+**Problem**: String interpolation uses `Thread.CurrentThread.CurrentCulture` for formatting. On Italian Windows: `$"{0.85:F2}"` → `"0,85"` instead of `"0.85"`, breaking log parsing, API integration, tests.
+
+**Rule**: **NEVER use string interpolation** `$"{number:F2}"` **for production code paths** (alerts, logs, CSV, JSON, SQL, API).
+
+### ❌ WRONG: Culture-dependent (uses CurrentCulture)
+
+```csharp
+// BUG: Formats as "0,85" on Italian systems, breaks log parsing and tests
+string message = $"Delta {position.Delta:F2} threshold {_deltaThreshold:F2}";
+```
+
+### ✅ CORRECT: Culture-invariant (always dot separator)
+
+```csharp
+// ALWAYS use string.Format with InvariantCulture for production
+string message = string.Format(CultureInfo.InvariantCulture,
+    "Delta {0:F2} threshold {1:F2}",
+    position.Delta, _deltaThreshold);
+```
+
+**When to use InvariantCulture**: Alerts, logs, CSV, JSON (manual), SQL queries, API payloads, file names  
+**When to use CurrentCulture**: UI display to end users ONLY
+
+**Reference**: ERR-015, LL-177, skill-testing.md (Culture-Invariant Test Data)
+
+---
+
+## BackgroundService CancellationToken Pattern — Database Operations
+
+**Problem**: Passing `stoppingToken` to database writes causes silent data loss during shutdown.
+
+**Rule**: Use **`CancellationToken.None`** for critical database writes (alerts, state updates).
+
+```csharp
+private async Task RunCycleAsync(CancellationToken stoppingToken)
+{
+    try
+    {
+        stoppingToken.ThrowIfCancellationRequested();  // Early exit
+        
+        // File I/O - OK to cancel
+        string data = await File.ReadAllTextAsync(filePath, stoppingToken);
+        
+        // Database writes - MUST complete
+        await _alertRepo.InsertAsync(alert, CancellationToken.None);
+        await _stateRepo.UpdateAsync(state, CancellationToken.None);
+    }
+    catch (OperationCanceledException)
+    {
+        // Cancellation during file I/O - OK, will retry
+    }
+}
+```
+
+**Reference**: ERR-014, LL-176
+
+---
+
+*Skill version: 2.1 — Ultima modifica: Test Coverage Sprint — Data: 2026-04-07*

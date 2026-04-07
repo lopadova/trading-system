@@ -226,8 +226,9 @@ public sealed class OrderPlacerTests : IAsyncDisposable
             Symbol = "SPX",
             ContractSymbol = "SPX   250321P05000000",
             Side = OrderSide.Buy,
-            Type = OrderType.Market,
-            Quantity = 2,
+            Type = OrderType.Limit,
+            Quantity = 1,  // Reduced to pass safety checks
+            LimitPrice = 15.50m,  // 1 * 15.50 * 100 = 1550 < 10000
             StrategyName = "TestStrategy"
         };
 
@@ -236,7 +237,7 @@ public sealed class OrderPlacerTests : IAsyncDisposable
 
         // Assert
         Assert.False(result.Success);
-        Assert.Equal(OrderStatus.Failed, result.Status);
+        Assert.Equal(OrderStatus.Failed, result.Status);  // Connection check happens AFTER safety
         Assert.Contains("not connected", result.Error);
     }
 
@@ -252,8 +253,9 @@ public sealed class OrderPlacerTests : IAsyncDisposable
             Symbol = "SPX",
             ContractSymbol = "SPX   250321P05000000",
             Side = OrderSide.Buy,
-            Type = OrderType.Market,
-            Quantity = 2,
+            Type = OrderType.Limit,
+            Quantity = 1,  // Reduced to pass safety checks
+            LimitPrice = 15.50m,
             StrategyName = "TestStrategy"
         };
 
@@ -275,6 +277,12 @@ public sealed class OrderPlacerTests : IAsyncDisposable
     {
         // Arrange: configure mock to fail all orders
         _mockIbkr.ShouldPlaceOrderSucceed = false;
+
+        // Set account balance to pass safety checks
+        // Position value will be: 2 * 100 * 100 = 20,000
+        // Need balance such that 20,000 <= 20% of balance
+        // Therefore balance >= 100,000
+        _orderPlacer.UpdateAccountBalance(100000m);
 
         OrderRequest request = new()
         {
@@ -316,7 +324,7 @@ public sealed class OrderPlacerTests : IAsyncDisposable
             ContractSymbol = "SPX   250321P05000000",
             Side = OrderSide.Buy,
             Type = OrderType.Market,
-            Quantity = 2,
+            Quantity = 1,
             StrategyName = "TestStrategy"
         };
 
@@ -384,8 +392,9 @@ public sealed class OrderPlacerTests : IAsyncDisposable
             Symbol = "SPX",
             ContractSymbol = "SPX   250321P05000000",
             Side = OrderSide.Buy,
-            Type = OrderType.Market,
-            Quantity = 2,
+            Type = OrderType.Limit,
+            Quantity = 1,  // Reduced to pass safety checks
+            LimitPrice = 15.50m,  // Explicit price for safety calc: 1 * 15.50 * 100 = 1550 < 10000
             StrategyName = "TestStrategy"
         };
 
@@ -469,6 +478,7 @@ public sealed class OrderPlacerTests : IAsyncDisposable
             Side = OrderSide.Buy,
             Type = OrderType.Market,
             Quantity = 2,
+            LimitPrice = 15.50m, // Provide price estimate for safety validation
             StrategyName = "Strategy1"
         };
 

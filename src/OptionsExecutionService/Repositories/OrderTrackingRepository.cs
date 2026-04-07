@@ -234,12 +234,26 @@ public sealed class OrderTrackingRepository : IOrderTrackingRepository
         }
 
         const string sql = """
-            SELECT order_id, ibkr_order_id, campaign_id, position_id,
-                   symbol, contract_symbol, side, order_type,
-                   quantity, limit_price, stop_price, time_in_force,
-                   status, filled_quantity, avg_fill_price,
-                   strategy_name, metadata_json,
-                   created_at, submitted_at, completed_at
+            SELECT order_id AS OrderId,
+                   ibkr_order_id AS IbkrOrderId,
+                   campaign_id AS CampaignId,
+                   position_id AS PositionId,
+                   symbol AS Symbol,
+                   contract_symbol AS ContractSymbol,
+                   side AS Side,
+                   order_type AS Type,
+                   quantity AS Quantity,
+                   limit_price AS LimitPrice,
+                   stop_price AS StopPrice,
+                   time_in_force AS TimeInForce,
+                   status AS Status,
+                   filled_quantity AS FilledQuantity,
+                   avg_fill_price AS AvgFillPrice,
+                   strategy_name AS StrategyName,
+                   metadata_json AS MetadataJson,
+                   created_at AS CreatedAt,
+                   submitted_at AS SubmittedAt,
+                   completed_at AS CompletedAt
             FROM order_tracking
             WHERE order_id = @OrderId
             """;
@@ -262,12 +276,26 @@ public sealed class OrderTrackingRepository : IOrderTrackingRepository
     public async Task<OrderRecord?> GetOrderByIbkrIdAsync(int ibkrOrderId, CancellationToken ct = default)
     {
         const string sql = """
-            SELECT order_id, ibkr_order_id, campaign_id, position_id,
-                   symbol, contract_symbol, side, order_type,
-                   quantity, limit_price, stop_price, time_in_force,
-                   status, filled_quantity, avg_fill_price,
-                   strategy_name, metadata_json,
-                   created_at, submitted_at, completed_at
+            SELECT order_id AS OrderId,
+                   ibkr_order_id AS IbkrOrderId,
+                   campaign_id AS CampaignId,
+                   position_id AS PositionId,
+                   symbol AS Symbol,
+                   contract_symbol AS ContractSymbol,
+                   side AS Side,
+                   order_type AS Type,
+                   quantity AS Quantity,
+                   limit_price AS LimitPrice,
+                   stop_price AS StopPrice,
+                   time_in_force AS TimeInForce,
+                   status AS Status,
+                   filled_quantity AS FilledQuantity,
+                   avg_fill_price AS AvgFillPrice,
+                   strategy_name AS StrategyName,
+                   metadata_json AS MetadataJson,
+                   created_at AS CreatedAt,
+                   submitted_at AS SubmittedAt,
+                   completed_at AS CompletedAt
             FROM order_tracking
             WHERE ibkr_order_id = @IbkrOrderId
             """;
@@ -297,12 +325,26 @@ public sealed class OrderTrackingRepository : IOrderTrackingRepository
         DateTime cutoffTime = DateTime.UtcNow.AddMinutes(-windowMinutes);
 
         const string sql = """
-            SELECT order_id, ibkr_order_id, campaign_id, position_id,
-                   symbol, contract_symbol, side, order_type,
-                   quantity, limit_price, stop_price, time_in_force,
-                   status, filled_quantity, avg_fill_price,
-                   strategy_name, metadata_json,
-                   created_at, submitted_at, completed_at
+            SELECT order_id AS OrderId,
+                   ibkr_order_id AS IbkrOrderId,
+                   campaign_id AS CampaignId,
+                   position_id AS PositionId,
+                   symbol AS Symbol,
+                   contract_symbol AS ContractSymbol,
+                   side AS Side,
+                   order_type AS Type,
+                   quantity AS Quantity,
+                   limit_price AS LimitPrice,
+                   stop_price AS StopPrice,
+                   time_in_force AS TimeInForce,
+                   status AS Status,
+                   filled_quantity AS FilledQuantity,
+                   avg_fill_price AS AvgFillPrice,
+                   strategy_name AS StrategyName,
+                   metadata_json AS MetadataJson,
+                   created_at AS CreatedAt,
+                   submitted_at AS SubmittedAt,
+                   completed_at AS CompletedAt
             FROM order_tracking
             WHERE status IN ('Failed', 'Rejected')
               AND created_at >= @CutoffTime
@@ -328,11 +370,11 @@ public sealed class OrderTrackingRepository : IOrderTrackingRepository
     {
         const string sql = """
             SELECT
-                COUNT(*) as TotalOrders,
-                SUM(CASE WHEN status = 'Filled' THEN 1 ELSE 0 END) as FilledOrders,
-                SUM(CASE WHEN status IN ('Failed', 'Rejected') THEN 1 ELSE 0 END) as FailedOrders,
-                SUM(CASE WHEN status IN ('PendingSubmit', 'Submitted', 'Active', 'PartiallyFilled') THEN 1 ELSE 0 END) as ActiveOrders,
-                SUM(CASE WHEN status = 'Cancelled' THEN 1 ELSE 0 END) as CancelledOrders
+                CAST(COUNT(*) AS INTEGER) as TotalOrders,
+                CAST(COALESCE(SUM(CASE WHEN status = 'Filled' THEN 1 ELSE 0 END), 0) AS INTEGER) as FilledOrders,
+                CAST(COALESCE(SUM(CASE WHEN status IN ('Failed', 'Rejected', 'ValidationFailed') THEN 1 ELSE 0 END), 0) AS INTEGER) as FailedOrders,
+                CAST(COALESCE(SUM(CASE WHEN status IN ('PendingSubmit', 'Submitted', 'Active', 'PartiallyFilled') THEN 1 ELSE 0 END), 0) AS INTEGER) as ActiveOrders,
+                CAST(COALESCE(SUM(CASE WHEN status = 'Cancelled' THEN 1 ELSE 0 END), 0) AS INTEGER) as CancelledOrders
             FROM order_tracking
             """;
 

@@ -1,0 +1,10 @@
+<Project>
+  <PropertyGroup>
+    <!-- Strong-Name Signing Configuration -->
+    <SignAssembly>true</SignAssembly>
+    <AssemblyOriginatorKeyFile>$(MSBuildThisFileDirectory)TradingSystem.snk</AssemblyOriginatorKeyFile>
+
+    <!-- Public Key Token will be calculated after first build -->
+    <PublicSign>false</PublicSign>
+  </PropertyGroup>
+</Project>

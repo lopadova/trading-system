@@ -1,6 +1,7 @@
 namespace OptionsExecutionService.Campaign;
 
 using Microsoft.Extensions.Logging;
+using OptionsExecutionService.Common;
 using OptionsExecutionService.Orders;
 using SharedKernel.Domain;
 using SharedKernel.Strategy;
@@ -15,17 +16,20 @@ public sealed class CampaignManager : ICampaignManager
     private readonly IStrategyLoader _strategyLoader;
     private readonly ICampaignRepository _repository;
     private readonly IOrderPlacer _orderPlacer;
+    private readonly ITimeProvider _timeProvider;
     private readonly ILogger<CampaignManager> _logger;
 
     public CampaignManager(
         IStrategyLoader strategyLoader,
         ICampaignRepository repository,
         IOrderPlacer orderPlacer,
+        ITimeProvider timeProvider,
         ILogger<CampaignManager> logger)
     {
         _strategyLoader = strategyLoader;
         _repository = repository;
         _orderPlacer = orderPlacer;
+        _timeProvider = timeProvider;
         _logger = logger;
     }
 
@@ -252,7 +256,7 @@ public sealed class CampaignManager : ICampaignManager
     /// </summary>
     private bool CheckEntryConditions(Campaign campaign)
     {
-        DateTime now = DateTime.UtcNow;
+        DateTime now = _timeProvider.UtcNow;
         TimeOnly nowTime = TimeOnly.FromDateTime(now);
         DayOfWeek nowDayOfWeek = now.DayOfWeek;
 
@@ -318,7 +322,7 @@ public sealed class CampaignManager : ICampaignManager
         // Check max days in trade
         if (campaign.ActivatedAt.HasValue)
         {
-            TimeSpan timeInTrade = DateTime.UtcNow - campaign.ActivatedAt.Value;
+            TimeSpan timeInTrade = _timeProvider.UtcNow - campaign.ActivatedAt.Value;
 
             if (timeInTrade.TotalDays >= exit.MaxDaysInTrade)
             {
@@ -327,7 +331,7 @@ public sealed class CampaignManager : ICampaignManager
         }
 
         // Check time-based exit (force exit at specific time of day)
-        TimeOnly nowTime = TimeOnly.FromDateTime(DateTime.UtcNow);
+        TimeOnly nowTime = TimeOnly.FromDateTime(_timeProvider.UtcNow);
 
         if (nowTime >= exit.ExitTimeOfDay)
         {

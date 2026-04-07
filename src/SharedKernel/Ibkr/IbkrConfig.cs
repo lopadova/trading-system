@@ -13,7 +13,8 @@ public sealed record IbkrConfig
     /// <summary>
     /// IBKR port.
     /// 7497 = TWS Paper, 7496 = TWS Live
-    /// 4001 = IB Gateway Paper, 4002 = IB Gateway Live
+    /// 4002 = IB Gateway Paper, 4001 = IB Gateway Live
+    /// NOTE: Only paper ports (7497, 4002) are allowed by Validate().
     /// </summary>
     public int Port { get; init; } = 7497;
 
@@ -63,10 +64,10 @@ public sealed record IbkrConfig
         }
 
         // SAFETY: Enforce paper trading only
-        if (Port == 7496 || Port == 4002)
+        if (Port == 7496 || Port == 4001)
         {
             throw new ArgumentException(
-                $"Port {Port} is LIVE trading port. Only paper trading ports (7497, 4001) are allowed.",
+                $"Port {Port} is LIVE trading port. Only paper trading ports (7497, 4002) are allowed.",
                 nameof(Port));
         }
 

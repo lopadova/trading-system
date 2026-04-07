@@ -1,0 +1,43 @@
+name: Full Test Suite (Tag Only)
+
+on:
+  push:
+    tags:
+      - 'v*'  # Trigger only on version tags (v1.0.0, v1.2.3, etc.)
+      - 'test-*'  # Or manual test tags (test-20260407, etc.)
+
+jobs:
+  test:
+    name: Run Full Test Suite on Linux
+    runs-on: ubuntu-latest  # Linux = NO Windows Defender! 🎉
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore --configuration Release
+
+      - name: Run tests
+        run: dotnet test --no-build --configuration Release --verbosity normal --logger "trx;LogFileName=test-results.trx"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: '**/TestResults/*.trx'
+
+      - name: Test Summary
+        if: always()
+        run: |
+          echo "## Test Results" >> $GITHUB_STEP_SUMMARY
+          dotnet test --no-build --configuration Release --verbosity minimal >> $GITHUB_STEP_SUMMARY 2>&1 || true

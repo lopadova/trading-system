@@ -30,6 +30,7 @@ public sealed class OutboxSyncWorker : BackgroundService
     private readonly int _initialRetryDelaySeconds;
     private readonly int _maxRetryDelaySeconds;
     private readonly int _maxRetries;
+    private readonly int _startupDelaySeconds;
 
     public OutboxSyncWorker(
         ILogger<OutboxSyncWorker> logger,
@@ -50,6 +51,7 @@ public sealed class OutboxSyncWorker : BackgroundService
         _initialRetryDelaySeconds = config.GetValue("OutboxSync:InitialRetryDelaySeconds", 5);
         _maxRetryDelaySeconds = config.GetValue("OutboxSync:MaxRetryDelaySeconds", 300);
         _maxRetries = config.GetValue("OutboxSync:MaxRetries", 10);
+        _startupDelaySeconds = config.GetValue("OutboxSync:StartupDelaySeconds", 5);
 
         // Validate critical configuration
         if (string.IsNullOrWhiteSpace(_workerUrl))
@@ -71,8 +73,11 @@ public sealed class OutboxSyncWorker : BackgroundService
         _logger.LogInformation("{Worker} started. Interval={Interval}s, BatchSize={BatchSize}, WorkerUrl={WorkerUrl}",
             nameof(OutboxSyncWorker), _intervalSeconds, _batchSize, _workerUrl);
 
-        // Wait a few seconds on startup to let other services initialize
-        await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken).ConfigureAwait(false);
+        // Wait on startup to let other services initialize (configurable for testing)
+        if (_startupDelaySeconds > 0)
+        {
+            await Task.Delay(TimeSpan.FromSeconds(_startupDelaySeconds), stoppingToken).ConfigureAwait(false);
+        }
 
         while (!stoppingToken.IsCancellationRequested)
         {

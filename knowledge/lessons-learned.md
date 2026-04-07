@@ -2295,3 +2295,370 @@ let mockConversionState: {
   - Pattern: Always create migration guide when making breaking changes to APIs
   - Investment: ~30 minutes to document, saves hours for future work
 
+- **LESSON-157**: [Testing] BackgroundService startup delay must be configurable for unit tests
+  - Context: OutboxSyncWorker test failure - mock verification fails because worker never executes
+  - Discovery: Workers with hardcoded startup delays (e.g., 5 seconds) prevent tests from running within test timeouts
+  - Root cause: Worker has `await Task.Delay(TimeSpan.FromSeconds(5))` before entering main loop, test waits only 100ms
+  - Pattern violation: LL-038 suggests startup delay for production, but didn't account for testing
+  - Fix applied:
+    - Made delay configurable: `_startupDelaySeconds = config.GetValue("OutboxSync:StartupDelaySeconds", 5)`
+    - Production uses default 5s (allows dependencies to initialize)
+    - Tests override with 0s (immediate execution)
+  - Test configuration: `SetupConfigValue("OutboxSync:StartupDelaySeconds", "0")`
+  - Impact: All BackgroundService workers (HeartbeatWorker, AlertDispatchWorker, CampaignMonitorWorker, etc.)
+  - Rule: ALWAYS make timing-related values configurable (intervals, timeouts, delays) for testing
+  - Testing benefit: Reduces test execution time from 6+ seconds to <200ms for simple cases
+  - Reference: ERR-012, LL-038 (BackgroundService startup delay pattern)
+
+---
+
+## LL-176 — LogReaderWorker Fix: CancellationToken.None for critical database operations
+
+**Categoria**: BackgroundService, testing, concurrency  
+**Scoperta**: When BackgroundService workers pass `stoppingToken` to database operations, those operations can be aborted during shutdown before completing, leading to silent data loss. Tests revealed this issue when alerts were correctly detected but never persisted to the database because `cts.Cancel()` was called before `INSERT` completed. The `OperationCanceledException` was caught and swallowed in the error handler, making the failure invisible until tests asserted on the expected data.
+
+**Context**:
+- During LogReaderWorker test debugging for ERR-014
+- Tests were failing: `Assert.NotEmpty() Failure: Collection was empty`
+- Worker was reading log files correctly and detecting ERROR/WARNING entries
+- Database operations were being canceled mid-execution during test teardown
+- No exceptions visible because `catch (OperationCanceledException)` swallowed them
+
+**Key Discovery**:
+Critical database operations (alert creation, state updates, audit writes) MUST use `CancellationToken.None` instead of the BackgroundService's `stoppingToken`. This ensures:
+1. Alerts are never lost due to service shutdown timing
+2. State tracking (e.g., log file read position) is always updated (prevents duplicate processing)
+3. Data consistency is maintained during graceful shutdown
+4. Audit/compliance records are complete
+
+**Pattern**:
+```csharp
+protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+{
+    while (!stoppingToken.IsCancellationRequested)
+    {
+        await RunCycleAsync(stoppingToken);
+        await Task.Delay(_intervalMs, stoppingToken);  // This SHOULD cancel
+    }
+}
+
+private async Task RunCycleAsync(CancellationToken stoppingToken)
+{
+    try
+    {
+        // Early exit if canceled (before starting work)
+        stoppingToken.ThrowIfCancellationRequested();
+        
+        // File I/O - OK to cancel (will retry next cycle)
+        var data = await File.ReadAllTextAsync(path, stoppingToken);
+        
+        // Process data...
+        var alert = CreateAlert(data);
+        
+        // Critical database write - MUST complete even during shutdown
+        await _alertRepo.InsertAsync(alert, CancellationToken.None);
+        
+        // State update - MUST complete to prevent re-processing
+        await _stateRepo.UpdateAsync(position, CancellationToken.None);
+    }
+    catch (OperationCanceledException)
+    {
+        // Cancellation during file I/O - OK, will retry
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Cycle failed");
+        // Do not rethrow - worker survives errors
+    }
+}
+```
+
+**Rules**:
+1. **Use CancellationToken.None for**:
+   - Alert creation (never lose critical notifications)
+   - State/position updates (prevents duplicate processing)
+   - Audit/compliance writes (regulatory requirement)
+   - Order status updates (trading state consistency)
+   - Any database write that affects system correctness
+
+2. **Use stoppingToken for**:
+   - File I/O operations (can retry on next cycle)
+   - HTTP requests (can retry)
+   - `Task.Delay` (should cancel for fast shutdown)
+   - Non-critical read operations
+
+3. **Check cancellation early**:
+   - `stoppingToken.ThrowIfCancellationRequested()` at start of RunCycleAsync
+   - Allows fast exit before starting new work
+   - Doesn't abort in-progress critical operations
+
+**Testing Impact**:
+- Tests that use `cts.Cancel()` + `StopAsync()` pattern must allow time for critical operations
+- OR verify that critical operations use `CancellationToken.None`
+- Test delays (500ms in LogReaderWorkerTests) may not be enough if passing stoppingToken to DB
+
+**Audit Required**:
+Review all BackgroundService workers for this pattern:
+- ✅ LogReaderWorker (fixed in this task)
+- ⚠️ PositionMonitorWorker - check position update operations
+- ⚠️ HeartbeatWorker - check heartbeat inserts
+- ⚠️ OutboxSyncWorker - check outbox updates
+- ⚠️ CampaignMonitorWorker - check campaign state updates
+
+**Files Changed**:
+- `src/TradingSupervisorService/Workers/LogReaderWorker.cs`
+  - Line ~81: `GetStateAsync(file, CancellationToken.None)`
+  - Line ~119: `UpsertStateAsync(state, CancellationToken.None)`
+  - Line ~251: `InsertAsync(alert, CancellationToken.None)`
+
+**Rilevante per task**: All tasks involving BackgroundService workers (T-02, T-03, T-04, T-05, T-08, T-13, T-17, T-18, T-23)
+
+**Reference**: ERR-014, skill-dotnet.md (BackgroundService patterns)
+
+---
+
+## LL-177 — Test Coverage Sprint: ALWAYS use CultureInfo.InvariantCulture for production numeric formatting
+
+**Task**: Test Coverage Sprint
+**Categoria**: testing, production-critical
+**Data**: 2026-04-07
+**Severity**: CRITICAL
+
+**Scoperta**: String interpolation uses CurrentCulture for formatting, causing production bugs in non-US locales. GreeksMonitorWorker test failed because Italian Windows formatted `{0.85:F2}` as "0,85" instead of "0.85", breaking:
+- Test assertions expecting dot decimal separator
+- Log parsing (grep for "0.85" fails)
+- External API integration (JSON, CSV expect invariant format)
+- SQL query strings with embedded numbers
+
+**Root Cause**: 
+```csharp
+// BUG: Uses CurrentCulture (Italian = "0,85", US = "0.85")
+Message = $"Delta {position.Delta:F2} threshold {_deltaThreshold:F2}"
+```
+
+**Fix**:
+```csharp
+// CORRECT: Always produces "0.85" regardless of locale
+Message = string.Format(CultureInfo.InvariantCulture,
+    "Delta {0:F2} threshold {1:F2}",
+    position.Delta, _deltaThreshold)
+```
+
+**When to use InvariantCulture** (ALWAYS):
+- Alert messages (for grep/parsing consistency)
+- Log entries (for analysis tools)
+- CSV/TSV exports (standard format)
+- JSON construction (if manual, not via JsonSerializer)
+- SQL query strings with numbers
+- File names with timestamps/numbers
+- External API payloads
+- Any production string that might be parsed programmatically
+
+**When to use CurrentCulture** (ONLY):
+- UI display to end users (dashboard numbers, reports)
+- Localized user-facing output
+
+**Detection**:
+```bash
+# Find all risky string interpolation patterns
+grep -rn '\$".*{.*:[FfGgDd][0-9]' src/
+```
+
+**Applicazione**:
+1. Add coding standard: "NEVER use string interpolation for numeric values outside UI code"
+2. Add CI check: Run all tests with `Thread.CurrentThread.CurrentCulture = new CultureInfo("it-IT")` to catch locale bugs
+3. Audit ALL existing alert/log messages for culture-dependent formatting
+4. Consider analyzer rule to flag `$"{number:F2}"` patterns
+
+**Files Fixed**:
+- `src/TradingSupervisorService/Workers/GreeksMonitorWorker.cs` (4 alert methods)
+
+**Files to Audit**:
+- All workers creating alerts
+- All log formatters
+- All CSV/JSON exporters
+- All SQL query builders
+
+**Rilevante per task**: All tasks creating alerts, logs, exports (T-02, T-03, T-04, T-08, T-13, T-15, T-17, T-18)
+
+**Reference**: ERR-015, skill-dotnet.md (Culture-Invariant Formatting), skill-testing.md (Culture-Aware Testing)
+
+---
+
+## LL-178 — Test Coverage Sprint: Distinguish Windows Defender vs AVIRA Security vs Smart App Control
+
+**Task**: Test Coverage Sprint
+**Categoria**: tooling, antivirus, environment
+**Data**: 2026-04-07
+
+**Scoperta**: Error 0x800711C7 "Application Control Policy blocked file" has multiple root causes that require different solutions. Initial diagnosis as "Windows Defender blocking" was WRONG - actual cause was AVIRA Security controlling Smart App Control.
+
+**Key Distinctions**:
+
+**Windows Defender Real-Time Protection**:
+- Can be temporarily disabled by user
+- Respects folder exclusions immediately
+- Shows notifications when blocking files
+- Common on consumer Windows
+
+**Windows Defender Application Control (WDAC)**:
+- Enterprise/Group Policy managed
+- CANNOT be disabled by local user
+- Blocks unsigned executables/DLLs
+- Common on domain-joined corporate machines
+
+**Smart App Control** (Windows 11):
+- User-level application reputation system
+- Can be managed by Windows Defender OR third-party AV
+- Blocks apps without valid signature
+- Shows "Unrecognized app" warnings
+
+**AVIRA Security** (Third-party AV):
+- Takes control of Smart App Control when installed
+- Blocks unsigned DLLs even with folder exclusions
+- Re-scans on file rebuild (exclusions ineffective)
+- Requires DLL signing for permanent fix
+
+**Detection**:
+```powershell
+# Check which AV is active
+Get-Process | Where-Object { $_.ProcessName -like "*Avira*" -or $_.ProcessName -like "*Defender*" }
+
+# Check Defender status
+Get-MpPreference | Select-Object DisableRealtimeMonitoring
+
+# Check Smart App Control (Windows 11)
+Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppHost" -Name "EnableWebContentEvaluation"
+```
+
+**Solutions by Root Cause**:
+
+**If Windows Defender Real-Time**: 
+```powershell
+Add-MpPreference -ExclusionPath "C:\path\to\project"  # Works immediately
+```
+
+**If WDAC (Enterprise)**:
+- Contact IT admin for exclusion policy
+- OR use CI/CD on Linux (no WDAC)
+- OR code signing certificate
+
+**If AVIRA Security**:
+- Strong-name signing (permanent, recommended)
+- Temporary disable (.\scripts\unlock-and-test-all.ps1)
+- WSL2/Docker (isolated environment)
+
+**Applicazione**:
+1. NEVER assume "Windows Defender" without checking running processes
+2. Document antivirus configuration in DEVELOPMENT_SETUP.md
+3. Provide multiple solutions for different environments
+4. Test development setup on clean Windows 11 with default security settings
+
+**Files Created**:
+- `WINDOWS_DEFENDER_UNLOCK.md` - Complete troubleshooting guide
+- `DEVELOPMENT_SETUP.md` - Environment setup with AV handling
+- `scripts/unlock-and-test-all.ps1` - All-in-one unlock script
+- `scripts/unlock-with-avira.ps1` - AVIRA-specific handler
+- `scripts/setup-strong-name-signing.ps1` - Signing automation
+
+**Rilevante per task**: All tasks requiring local testing on Windows (T-00 through T-27)
+
+**Reference**: ERR-016, skill-testing.md (Antivirus Handling), skill-windows-service.md (Strong-Name Signing)
+
+---
+
+## LL-179 — Test Coverage Sprint: StreamReader buffering breaks FileStream.Position tracking
+
+**Task**: Test Coverage Sprint
+**Categoria**: pattern, file-i/o, testing
+**Data**: 2026-04-07
+
+**Scoperta**: LogReaderWorker tests failed because loop condition `fs.Position < endPosition` NEVER executed when mixing `FileStream` + `StreamReader`. Root cause: `StreamReader` reads data in 1KB+ buffer chunks, not line-by-line, causing `fs.Position` to jump ahead of actual line consumption.
+
+**Bug Pattern**:
+```csharp
+// BUG: fs.Position jumps to EOF on first StreamReader read
+FileStream fs = new(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+fs.Seek(startPosition, SeekOrigin.Begin);
+StreamReader reader = new(fs);
+
+while (!reader.EndOfStream && fs.Position < endPosition)  // BUG: fs.Position already at EOF
+{
+    string line = await reader.ReadLineAsync();  // NEVER EXECUTED
+}
+```
+
+**Why This Fails**:
+1. Small test file (67 bytes)
+2. `StreamReader` constructor reads 1KB buffer
+3. `fs.Position` jumps to 67 (EOF)
+4. Loop check: `67 < 67` → false
+5. Zero lines processed
+
+**Correct Pattern**:
+```csharp
+// CORRECT: Use StreamReader abstractions only, no fs.Position mixing
+FileStream fs = new(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+fs.Seek(startPosition, SeekOrigin.Begin);
+StreamReader reader = new(fs);
+
+// Just read until EndOfStream - position tracking at higher level
+while (!reader.EndOfStream)
+{
+    string line = await reader.ReadLineAsync();
+    if (line == null) break;
+    ProcessLine(line);
+}
+
+// Track position using file size (external observable), not fs.Position
+await SaveState(filePath, currentFileSize, currentFileSize);
+```
+
+**Alternative if Precise Position Needed**:
+```csharp
+// Use FileStream.Read directly (no StreamReader buffering)
+byte[] buffer = new byte[1024];
+while (fs.Position < endPosition)
+{
+    int bytesRead = fs.Read(buffer, 0, buffer.Length);
+    // Manual line parsing from buffer
+}
+```
+
+**Rules**:
+1. **NEVER mix StreamReader + FileStream.Position** - buffering makes Position unreliable
+2. **Use StreamReader OR FileStream**, not both for position tracking
+3. **StreamReader.EndOfStream is authoritative** for buffered reading
+4. **Track logical position separately** from physical FileStream.Position
+
+**Testing Impact**:
+- Small test files (< 1KB) expose this bug immediately
+- Production files (> 1KB) may work by accident if loop executes at least once
+- Always test with files smaller than StreamReader buffer (1024 bytes)
+
+**Detection**:
+```bash
+# Find all risky patterns mixing StreamReader + FileStream.Position
+grep -rn "StreamReader" src/ | xargs grep -l "\.Position"
+```
+
+**Applicazione**:
+1. Audit all log tailing / file monitoring code
+2. Add analyzer rule: Flag `fs.Position` access when `StreamReader` is in scope
+3. Document pattern in skill-dotnet.md (File I/O section)
+4. Test file readers with < 100 byte files to catch buffering bugs
+
+**Files Fixed**:
+- `src/TradingSupervisorService/Workers/LogReaderWorker.cs`
+
+**Files to Audit**:
+- Any worker reading files incrementally
+- Any CSV/TSV parsers using StreamReader
+- Any log processors
+
+**Rilevante per task**: All tasks involving file I/O (T-02 LogReader, T-13 audit log processing, any CSV import/export)
+
+**Reference**: ERR-017, skill-dotnet.md (File I/O Patterns, StreamReader Buffering)
+
+---
+

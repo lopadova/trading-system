@@ -52,7 +52,8 @@ public sealed class LogReaderWorkerTests : IAsyncDisposable
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["LogReader:OptionsServiceLogPath"] = Path.Combine(_testLogDir, "test-.log"),
-                ["LogReader:IntervalSeconds"] = "1"
+                ["LogReader:IntervalSeconds"] = "1",
+                ["LogReader:StartupDelaySeconds"] = "0"
             })
             .Build();
 
@@ -78,7 +79,8 @@ public sealed class LogReaderWorkerTests : IAsyncDisposable
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["LogReader:OptionsServiceLogPath"] = logFilePath,
-                ["LogReader:IntervalSeconds"] = "1"
+                ["LogReader:IntervalSeconds"] = "1",
+                ["LogReader:StartupDelaySeconds"] = "0"
             })
             .Build();
 
@@ -117,17 +119,34 @@ public sealed class LogReaderWorkerTests : IAsyncDisposable
         // Arrange
         await CreateSchemaAsync();
 
+        // Use fixed date to avoid midnight UTC rollover issue
         string logFileName = $"test-{DateTime.UtcNow:yyyyMMdd}.log";
         string logFilePath = Path.Combine(_testLogDir, logFileName);
 
-        // Write a log file with an error entry
+        // Write a log file with an error entry BEFORE starting worker
         await File.WriteAllTextAsync(logFilePath,
             "[2026-04-05 10:30:15 ERR] Failed to connect to IBKR: connection refused\n");
 
+        // CRITICAL: Ensure file is fully written and flushed to disk
+        using (FileStream fs = File.OpenRead(logFilePath))
+        {
+            // Force file system to acknowledge the file exists and has content
+            Assert.True(fs.Length > 0, "Log file should have content before starting worker");
+        }
+
+        // CRITICAL: Ensure no previous state exists for this file (clean slate)
+        // The worker should read from position 0
+        await using (var conn = await _dbFactory.OpenAsync(CancellationToken.None))
+        {
+            await conn.ExecuteAsync("DELETE FROM log_reader_state WHERE file_path = @path",
+                new { path = logFilePath });
+        }
+
+        // Pass exact file path instead of pattern to avoid date resolution issues
         IConfiguration config = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["LogReader:OptionsServiceLogPath"] = Path.Combine(_testLogDir, "test-.log"),
+                ["LogReader:OptionsServiceLogPath"] = logFilePath,  // Exact path, not pattern
                 ["LogReader:IntervalSeconds"] = "1"
             })
             .Build();
@@ -138,10 +157,10 @@ public sealed class LogReaderWorkerTests : IAsyncDisposable
             _alertRepo,
             config);
 
-        // Act - run worker for one cycle
+        // Act - run worker for multiple cycles to ensure processing
         CancellationTokenSource cts = new();
         Task workerTask = worker.StartAsync(cts.Token);
-        await Task.Delay(500);  // Give worker time to process
+        await Task.Delay(3000);  // Give worker time to process multiple cycles
         cts.Cancel();
         await worker.StopAsync(CancellationToken.None);
 
@@ -158,17 +177,34 @@ public sealed class LogReaderWorkerTests : IAsyncDisposable
         // Arrange
         await CreateSchemaAsync();
 
+        // Use fixed date to avoid midnight UTC rollover issue
         string logFileName = $"test-{DateTime.UtcNow:yyyyMMdd}.log";
         string logFilePath = Path.Combine(_testLogDir, logFileName);
 
-        // Write a log file with warning entry
+        // Write a log file with warning entry BEFORE starting worker
         await File.WriteAllTextAsync(logFilePath,
             "[2026-04-05 10:30:15 WRN] Order execution delayed: market volatility\n");
 
+        // CRITICAL: Ensure file is fully written and flushed to disk
+        using (FileStream fs = File.OpenRead(logFilePath))
+        {
+            // Force file system to acknowledge the file exists and has content
+            Assert.True(fs.Length > 0, "Log file should have content before starting worker");
+        }
+
+        // CRITICAL: Ensure no previous state exists for this file (clean slate)
+        // The worker should read from position 0
+        await using (var conn = await _dbFactory.OpenAsync(CancellationToken.None))
+        {
+            await conn.ExecuteAsync("DELETE FROM log_reader_state WHERE file_path = @path",
+                new { path = logFilePath });
+        }
+
+        // Pass exact file path instead of pattern to avoid date resolution issues
         IConfiguration config = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["LogReader:OptionsServiceLogPath"] = Path.Combine(_testLogDir, "test-.log"),
+                ["LogReader:OptionsServiceLogPath"] = logFilePath,  // Exact path, not pattern
                 ["LogReader:IntervalSeconds"] = "1"
             })
             .Build();
@@ -179,10 +215,10 @@ public sealed class LogReaderWorkerTests : IAsyncDisposable
             _alertRepo,
             config);
 
-        // Act
+        // Act - run worker for multiple cycles to ensure processing
         CancellationTokenSource cts = new();
         Task workerTask = worker.StartAsync(cts.Token);
-        await Task.Delay(500);
+        await Task.Delay(3000);  // Give worker time to complete multiple cycles
         cts.Cancel();
         await worker.StopAsync(CancellationToken.None);
 
@@ -209,7 +245,8 @@ public sealed class LogReaderWorkerTests : IAsyncDisposable
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["LogReader:OptionsServiceLogPath"] = Path.Combine(_testLogDir, "test-.log"),
-                ["LogReader:IntervalSeconds"] = "1"
+                ["LogReader:IntervalSeconds"] = "1",
+                ["LogReader:StartupDelaySeconds"] = "0"
             })
             .Build();
 

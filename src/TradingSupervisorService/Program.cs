@@ -110,7 +110,18 @@ try
             services.AddSingleton<IMachineMetricsCollector, WindowsMachineMetricsCollector>();
 
             // IBKR client (singleton - shared across all workers)
-            services.AddSingleton<TwsCallbackHandler>();
+            services.AddSingleton<TwsCallbackHandler>(sp =>
+            {
+                ILogger<TwsCallbackHandler> handlerLogger = sp.GetRequiredService<ILogger<TwsCallbackHandler>>();
+
+                // Connection state callback - logs state changes
+                Action<ConnectionState> onConnectionStateChanged = state =>
+                {
+                    handlerLogger.LogInformation("IBKR connection state changed: {State}", state);
+                };
+
+                return new TwsCallbackHandler(handlerLogger, onConnectionStateChanged);
+            });
             services.AddSingleton<IIbkrClient>(sp =>
             {
                 ILogger<IbkrClient> logger = sp.GetRequiredService<ILogger<IbkrClient>>();

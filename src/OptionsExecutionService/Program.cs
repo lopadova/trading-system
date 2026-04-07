@@ -151,8 +151,11 @@ try
 
     builder.Services.AddSingleton(safetyConfig);
 
-    // Register order placer service
-    builder.Services.AddSingleton<IOrderPlacer, OrderPlacer>();
+    // Register time provider
+    builder.Services.AddSingleton<OptionsExecutionService.Common.ITimeProvider, OptionsExecutionService.Common.SystemTimeProvider>();
+
+    // Register order placer service (scoped to match repository lifetime)
+    builder.Services.AddScoped<IOrderPlacer, OrderPlacer>();
 
     // Register campaign manager
     builder.Services.AddScoped<ICampaignManager, CampaignManager>();

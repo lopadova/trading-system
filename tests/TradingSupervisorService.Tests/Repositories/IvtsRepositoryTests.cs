@@ -274,7 +274,7 @@ public sealed class IvtsRepositoryTests : IDisposable
             Symbol = "SPX",
             Message = "IVR is 85%",
             SnapshotId = Guid.NewGuid().ToString(),
-            DetailsJson = "{\"ivr\":0.85}",
+            DetailsJson = "{\"symbol\":\"SPX\",\"ivr\":0.85}",
             SourceService = "TradingSupervisorService",
             CreatedAt = now.ToString("O")
         };
@@ -331,6 +331,7 @@ public sealed class IvtsRepositoryTests : IDisposable
             Symbol = "SPX",
             Message = "Alert 1",
             SnapshotId = Guid.NewGuid().ToString(),
+            DetailsJson = "{\"symbol\":\"SPX\"}",
             SourceService = "TradingSupervisorService",
             CreatedAt = now.ToString("O")
         };
@@ -343,6 +344,7 @@ public sealed class IvtsRepositoryTests : IDisposable
             Symbol = "SPX",
             Message = "Alert 2",
             SnapshotId = Guid.NewGuid().ToString(),
+            DetailsJson = "{\"symbol\":\"SPX\"}",
             SourceService = "TradingSupervisorService",
             CreatedAt = now.ToString("O")
         };

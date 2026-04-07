@@ -97,7 +97,7 @@ public sealed class RepositoryIntegrationTests : IAsyncLifetime
             Status = "pending",
             RetryCount = 0,
             LastError = null,
-            NextRetryAt = DateTime.UtcNow.ToString("O"),
+            NextRetryAt = null,  // Null = ready for immediate processing
             CreatedAt = DateTime.UtcNow.ToString("O"),
             SentAt = null
         };
@@ -111,7 +111,7 @@ public sealed class RepositoryIntegrationTests : IAsyncLifetime
             Status = "pending",
             RetryCount = 0,
             LastError = null,
-            NextRetryAt = DateTime.UtcNow.ToString("O"),
+            NextRetryAt = null,  // Null = ready for immediate processing
             CreatedAt = DateTime.UtcNow.ToString("O"),
             SentAt = null
         };

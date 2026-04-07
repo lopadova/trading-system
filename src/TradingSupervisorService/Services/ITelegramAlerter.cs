@@ -28,4 +28,13 @@ public interface ITelegramAlerter
     /// Gets count of pending alerts in queue.
     /// </summary>
     int GetPendingCount();
+
+    /// <summary>
+    /// Processes queued alerts asynchronously.
+    /// Called by TelegramWorker background service.
+    /// Returns number of alerts successfully processed.
+    /// </summary>
+    /// <param name="ct">Cancellation token</param>
+    /// <returns>Number of alerts processed</returns>
+    Task<int> ProcessQueueAsync(CancellationToken ct);
 }

@@ -161,3 +161,69 @@
 **Impatto**: No skill changes required. Future integration testing tasks can reference T-21 test files as examples. Added 5 new lessons learned (LL-061 through LL-065) documenting integration test patterns: backend requirement, @testing-library/react setup, QueryClient wrapper pattern, localStorage mock pattern, and test file organization.
 
 ---
+
+## 2026-04-07 — OutboxSyncWorker Test Fix
+
+**Skill**: skill-testing.md (BackgroundService Testing — Configurable Timing)
+**Sezione**: New section added after Namespace Conflict Resolution
+**Tipo**: aggiunta
+**Problema risolto**: BackgroundService workers with hardcoded startup delays (e.g., 5 seconds) prevent unit tests from executing within test timeouts. Test waits 100ms, worker waits 5000ms before entering main loop, so mock method never gets called and verification fails. Solution: Make ALL timing values (startup delay, interval) configurable via IConfiguration with production defaults. Tests override to 0 for immediate execution.
+**Pattern aggiunto**:
+- Worker implementation: Load `_startupDelaySeconds` from config with default 5
+- Worker ExecuteAsync: Check `if (_startupDelaySeconds > 0)` before delay
+- Test setup: `SetupConfigValue("OutboxSync:StartupDelaySeconds", "0")`
+- Production config: Default 5s for dependency initialization
+**Impatto**: ALL BackgroundService tests must configure timing values. Applies to HeartbeatWorker, OutboxSyncWorker, AlertDispatchWorker, CampaignMonitorWorker, OrderExecutorWorker, and future workers. Benefits: Fast tests (0ms vs 5000ms), reliable verification, flexible integration testing. Related: ERR-012, LESSON-157, LL-038.
+
+---
+
+## 2026-04-07 — Test Coverage Sprint
+
+**Skills Updated**: 
+- skill-testing.md v3.1 → v3.2 (3 new sections)
+- skill-dotnet.md v2.0 → v2.1 (2 new sections)
+
+**Sezioni Aggiunte**:
+
+**skill-testing.md**:
+1. **Culture-Invariant Test Data — CRITICAL**: Test failures on non-US locales due to culture-specific decimal formatting (Italian: "0,85" vs US: "0.85"). Pattern: ALWAYS use `CultureInfo.InvariantCulture` for production string formatting (alerts, logs, CSV, API). Test with multiple cultures or run CI with `DOTNET_CLI_UI_LANGUAGE=it-IT` to catch bugs.
+
+2. **Windows Antivirus Handling in Tests**: Error 0x800711C7 blocks unsigned test DLLs. Root causes: Windows Defender, AVIRA Security, Smart App Control, Enterprise WDAC (each requires different solution). Permanent fix: Strong-name signing. Temporary: `unlock-and-test-all.ps1`. Alternatives: GitHub Actions (Linux), WSL2, Docker. Detection scripts and documentation references included.
+
+3. **File-Based Testing: StreamReader Buffering Gotcha**: LogReaderWorker tests failed because `StreamReader` buffers 1KB+ chunks, making `FileStream.Position` unreliable for line-by-line tracking. Loop condition `fs.Position < endPosition` fails for small test files (< 1KB). Fix: Use `StreamReader.EndOfStream` only, track position using file size externally. ALWAYS test file readers with < 100 byte files to catch buffering bugs.
+
+**skill-dotnet.md**:
+1. **Culture-Invariant Formatting — CRITICAL PRODUCTION RULE**: String interpolation `$"{number:F2}"` uses `CurrentCulture`, breaking logs/API on Italian Windows ("0,85"). NEVER use interpolation for production paths. Pattern: `string.Format(CultureInfo.InvariantCulture, ...)` for alerts, logs, CSV, JSON, SQL, API payloads. Use `CurrentCulture` ONLY for UI display to end users.
+
+2. **BackgroundService CancellationToken Pattern**: Passing `stoppingToken` to database writes causes silent data loss during shutdown (OperationCanceledException swallowed by error handler). Rule: Use `CancellationToken.None` for critical writes (alerts, state updates, audit logs). Use `stoppingToken` for cancelable operations (file I/O, HTTP, delays).
+
+**Problema risolto**: 
+- ERR-015: Culture-specific formatting in GreeksMonitorWorker (4 alert messages fixed)
+- ERR-016: Windows Defender/AVIRA blocking 49 tests (documentation + scripts created)
+- ERR-017: StreamReader buffering in LogReaderWorker (file position tracking fixed)
+
+**Test Results**:
+- BEFORE: 227/229 passing (99.1%), 2 LogReaderWorker tests failing, 49 AVIRA-blocked
+- AFTER: 229/229 passing (100%) without AVIRA, 278/278 (100%) with strong-name signing
+
+**Files Created**:
+- `WINDOWS_DEFENDER_UNLOCK.md` - Complete antivirus troubleshooting guide
+- `DEVELOPMENT_SETUP.md` - Environment setup with IDE, AVIRA, strong-name signing
+- `scripts/unlock-and-test-all.ps1` - All-in-one unlock script (temporary solution)
+- `scripts/unlock-with-avira.ps1` - AVIRA-specific handler
+- `scripts/setup-strong-name-signing.ps1` - Strong-name signing automation
+
+**Knowledge Base Updates**:
+- Added ERR-015, ERR-016, ERR-017 to errors-registry.md
+- Added LL-177 (Culture-Invariant), LL-178 (Antivirus), LL-179 (StreamReader) to lessons-learned.md
+
+**Impatto**: 
+- CRITICAL: All production code creating alerts/logs/CSV/API MUST use InvariantCulture
+- CI/CD: Run tests with non-US culture to catch formatting bugs
+- Development: Document antivirus requirements, provide strong-name signing setup
+- Testing: NEVER mix StreamReader + FileStream.Position, test file readers with < 100 byte files
+- BackgroundService: Audit all workers for CancellationToken usage in database operations
+
+**Related**: ERR-015, ERR-016, ERR-017, LL-177, LL-178, LL-179
+
+---

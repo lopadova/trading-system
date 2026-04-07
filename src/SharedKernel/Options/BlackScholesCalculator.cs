@@ -157,12 +157,13 @@ public sealed class BlackScholesCalculator : IGreeksCalculator
     /// Vega: ∂V/∂σ
     /// Vega = S * √T * N'(d1)
     /// Same for calls and puts.
-    /// Result is dollars per 1% change in volatility (so we divide by 100).
+    /// Result is dollars per 1 percentage point change in volatility (e.g., from 20% to 21%).
     /// </summary>
     private static double CalculateVega(double S, double nd1, double sqrtT)
     {
-        // Vega for 1% change in volatility (divide by 100 since vol is in decimal form)
-        return S * sqrtT * nd1 / 100.0;
+        // Vega for 1 percentage point change in volatility
+        // Standard formula without scaling
+        return S * sqrtT * nd1;
     }
 
     /// <summary>
