@@ -9,6 +9,9 @@ import type { Env } from './types/env'
 import { positions } from './routes/positions'
 import { alerts } from './routes/alerts'
 import { heartbeats } from './routes/heartbeats'
+import { strategiesConvert } from './routes/strategies-convert'
+import { botTelegram } from './routes/bot-telegram'
+import { botDiscord } from './routes/bot-discord'
 import { rateLimitMiddleware } from './middleware/rate-limit'
 
 const app = new Hono<{ Bindings: Env }>()
@@ -44,6 +47,11 @@ app.use('*', rateLimitMiddleware({ maxRequests: 100, windowMs: 60000 }))
 app.route('/api/positions', positions)
 app.route('/api/alerts', alerts)
 app.route('/api/heartbeats', heartbeats)
+app.route('/api/v1/strategies', strategiesConvert)
+
+// Mount bot routes (no rate limiting on webhooks)
+app.route('/api/bot', botTelegram)
+app.route('/api/bot', botDiscord)
 
 /**
  * GET /api/health
@@ -76,7 +84,10 @@ app.get('/', (c) => {
       'GET /api/alerts/:alert_id',
       'GET /api/heartbeats',
       'GET /api/heartbeats/:service_name',
-      'GET /api/heartbeats/stale/:threshold_seconds'
+      'GET /api/heartbeats/stale/:threshold_seconds',
+      'POST /api/v1/strategies/convert-el',
+      'POST /api/bot/webhook/telegram',
+      'POST /api/bot/webhook/discord'
     ]
   })
 })

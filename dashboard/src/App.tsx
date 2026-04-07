@@ -5,9 +5,24 @@ import { PositionsPage } from './pages/PositionsPage'
 import { AlertsPage } from './pages/AlertsPage'
 import { CampaignsPage } from './pages/CampaignsPage'
 import { SettingsPage } from './pages/SettingsPage'
+import { StrategyWizardPage } from './pages/StrategyWizardPage'
+import { StrategyImportPage } from './pages/StrategyImportPage'
+import { StrategyConvertPage } from './pages/StrategyConvertPage'
 import { ToastContainer } from './components/ui/Toast'
 
-type Route = '/' | '/positions' | '/campaigns' | '/health' | '/ivts' | '/alerts' | '/logs' | '/settings'
+type Route =
+  | '/'
+  | '/positions'
+  | '/campaigns'
+  | '/health'
+  | '/ivts'
+  | '/alerts'
+  | '/logs'
+  | '/settings'
+  | '/strategies/new'
+  | '/strategies/import'
+  | '/strategies/convert'
+  | `/strategies/${string}/edit`
 
 function App() {
   const [currentRoute, setCurrentRoute] = useState<Route>('/')
@@ -39,6 +54,21 @@ function App() {
   }, [])
 
   const renderPage = () => {
+    // Handle dynamic routes
+    if (currentRoute.startsWith('/strategies/') && currentRoute.includes('/edit')) {
+      const strategyId = currentRoute.split('/')[2] || ''
+      if (!strategyId) {
+        return (
+          <div className="text-center py-12">
+            <h1 className="text-2xl font-bold mb-2">Invalid Strategy ID</h1>
+            <p className="text-muted">Strategy ID is required for edit mode</p>
+          </div>
+        )
+      }
+      return <StrategyWizardPage mode="edit" strategyId={strategyId} />
+    }
+
+    // Handle static routes
     switch (currentRoute) {
       case '/positions':
         return <PositionsPage />
@@ -48,6 +78,12 @@ function App() {
         return <AlertsPage />
       case '/settings':
         return <SettingsPage />
+      case '/strategies/new':
+        return <StrategyWizardPage mode="new" />
+      case '/strategies/import':
+        return <StrategyImportPage />
+      case '/strategies/convert':
+        return <StrategyConvertPage />
       case '/':
         return <HomePage />
       default:

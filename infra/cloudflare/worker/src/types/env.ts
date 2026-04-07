@@ -12,4 +12,9 @@ export interface Env {
 
   // Secrets (set via wrangler secret put)
   API_KEY: string
+  ANTHROPIC_API_KEY: string
+  TELEGRAM_BOT_TOKEN: string
+  DISCORD_BOT_TOKEN: string
+  DISCORD_PUBLIC_KEY: string
+  BOT_WHITELIST: string
 }

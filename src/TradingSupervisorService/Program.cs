@@ -3,6 +3,7 @@ using SharedKernel.Configuration;
 using SharedKernel.Data;
 using SharedKernel.Domain;
 using SharedKernel.Ibkr;
+using TradingSupervisorService.Bot;
 using TradingSupervisorService.Collectors;
 using TradingSupervisorService.Configuration;
 using TradingSupervisorService.Ibkr;
@@ -150,7 +151,10 @@ try
             // Telegram alerting service
             services.AddSingleton<ITelegramAlerter, TelegramAlerter>();
 
-            // HttpClient factory for OutboxSyncWorker
+            // Bot configuration
+            services.Configure<BotOptions>(config.GetSection("Bots"));
+
+            // HttpClient factory for OutboxSyncWorker and BotWebhookRegistrar
             services.AddHttpClient();
 
             // Workers (hosted services)
@@ -160,6 +164,9 @@ try
             services.AddHostedService<LogReaderWorker>();
             services.AddHostedService<IvtsMonitorWorker>();
             services.AddHostedService<GreeksMonitorWorker>();
+
+            // Bot webhook registrar (runs at startup)
+            services.AddHostedService<BotWebhookRegistrar>();
         })
         .Build();
 

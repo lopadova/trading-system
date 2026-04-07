@@ -1,0 +1,91 @@
+name: .NET Build & Test
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  DOTNET_VERSION: '10.0.x'
+
+jobs:
+  build-and-test:
+    name: Build and Test .NET Services
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Restore dependencies
+      run: dotnet restore TradingSystem.sln
+
+    - name: Build solution
+      run: dotnet build TradingSystem.sln --configuration Release --no-restore
+
+    - name: Run tests
+      run: dotnet test TradingSystem.sln --configuration Release --no-build --verbosity normal --logger "trx;LogFileName=test-results.trx"
+
+    - name: Publish test results
+      uses: dorny/test-reporter@v1
+      if: always()
+      with:
+        name: .NET Test Results
+        path: '**/test-results.trx'
+        reporter: dotnet-trx
+
+    - name: Upload artifacts
+      if: success()
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-artifacts
+        path: |
+          src/*/bin/Release/**
+          !src/*/bin/Release/**/ref/**
+        retention-days: 7
+
+  publish-services:
+    name: Publish Windows Services
+    runs-on: windows-latest
+    needs: build-and-test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Publish TradingSupervisorService
+      run: |
+        dotnet publish src/TradingSupervisorService/TradingSupervisorService.csproj `
+          -c Release `
+          -r win-x64 `
+          --self-contained true `
+          -p:PublishSingleFile=true `
+          -o publish/TradingSupervisorService
+
+    - name: Publish OptionsExecutionService
+      run: |
+        dotnet publish src/OptionsExecutionService/OptionsExecutionService.csproj `
+          -c Release `
+          -r win-x64 `
+          --self-contained true `
+          -p:PublishSingleFile=true `
+          -o publish/OptionsExecutionService
+
+    - name: Upload publish artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-services
+        path: publish/
+        retention-days: 30

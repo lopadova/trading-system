@@ -6,27 +6,43 @@ Production-ready automated trading system for options strategies via Interactive
 
 ## Documentation
 
+### ⭐ New Developers Start Here
+- **[Onboarding Guide](docs/ONBOARDING.md)** - 30-minute quick start for new team members
+- **[Architecture Overview](docs/ARCHITECTURE_OVERVIEW.md)** - Complete system design and data flows
+
 ### Getting Started
 - **[Getting Started Guide](docs/GETTING_STARTED.md)** - Installation and first steps
 - **[Configuration Reference](docs/CONFIGURATION.md)** - All configuration options
 - **[Strategy Format Guide](docs/STRATEGY_FORMAT.md)** - How to create strategies
 
 ### Architecture & Design
-- **[Architecture Overview](docs/ARCHITECTURE.md)** - System design and components
-- **[Database Schema](docs/database-schema.md)** - Complete schema reference
+- **[Architecture Overview (NEW)](docs/ARCHITECTURE_OVERVIEW.md)** - System design, components, database schema
+- **[Database Schema](docs/database-schema.md)** - Legacy schema reference (see ARCHITECTURE_OVERVIEW.md for latest)
 - **[Telegram Integration](docs/telegram-integration.md)** - Alert configuration
 
 ### Operations
-- **[Deployment Guide](docs/DEPLOYMENT.md)** - Production deployment (created in T-24)
+- **[Deployment Guide (NEW)](docs/DEPLOYMENT_GUIDE.md)** - Complete deployment instructions (manual + CI/CD)
+- **[Deployment Guide (Legacy)](docs/DEPLOYMENT.md)** - Original deployment guide (T-24)
 - **[Monitoring Guide](docs/MONITORING.md)** - Observability and alerting
 - **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Common issues and solutions
 
 ### Development
+- **[Onboarding](docs/ONBOARDING.md)** - Developer quick start (NEW)
 - **[Contributing Guide](docs/CONTRIBUTING.md)** - How to extend the system
 - **[Dashboard Guide](docs/DASHBOARD_GUIDE.md)** - React dashboard development
 - **[Workflow Nuove Feature](docs/WORKFLOW-NUOVE-FEATURE.md)** - Complete workflow for new features
 - **[Quick Start Nuova Feature](docs/QUICK-START-NUOVA-FEATURE.md)** - Quick reference for developers
 - **[FAQ Workflow](docs/FAQ-WORKFLOW.md)** - Frequently asked questions
+
+### Knowledge Base
+- **[Errors Registry](knowledge/errors-registry.md)** - 11 documented errors with root causes and fixes
+- **[Lessons Learned](knowledge/lessons-learned.md)** - 156 lessons from development
+- **[Skills](\.claude\skills\)** - Coding patterns (.NET, Testing, SQLite, IBKR, Cloudflare)
+
+### CI/CD
+- **[GitHub Actions](.github/workflows/)** - Automated build, test, and deployment
+  - `dotnet-build-test.yml` - .NET services build and test
+  - `cloudflare-deploy.yml` - Worker and Dashboard deployment
 
 ---
 

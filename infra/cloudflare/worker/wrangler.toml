@@ -20,3 +20,5 @@ DASHBOARD_ORIGIN = "http://localhost:5173"
 # ANTHROPIC_API_KEY - For EasyLanguage → SDF conversion in wizard
 # TELEGRAM_BOT_TOKEN - For Telegram bot integration
 # DISCORD_BOT_TOKEN - For Discord bot integration (optional)
+# DISCORD_PUBLIC_KEY - For Discord webhook signature verification
+# BOT_WHITELIST - Comma-separated list of allowed user IDs (Telegram or Discord)

@@ -3,8 +3,12 @@
  * Runs before all tests to configure test environment
  */
 
-import { afterEach } from 'vitest'
+import { afterEach, expect } from 'vitest'
 import { cleanup } from '@testing-library/react'
+import * as matchers from '@testing-library/jest-dom/matchers'
+
+// Extend vitest matchers with jest-dom
+expect.extend(matchers)
 
 // Cleanup after each test (unmount React components)
 afterEach(() => {
