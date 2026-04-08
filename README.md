@@ -655,12 +655,6 @@ Start with [Getting Started Guide](docs/GETTING_STARTED.md) for installation.
 2. Review logs for error details
 3. Search knowledge base in `knowledge/`
 
-### Contact
-Email: lorenzo.padovani@padosoft.com
-
 ---
 
-## License
-
-Proprietary - Lorenzo Padovani - All rights reserved
-
+Developed with ❤️ by Lorenzo Padovani Padosoft for accelerating enterprise development with AI tools.
