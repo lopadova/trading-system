@@ -45,7 +45,7 @@
   "IBKR": {
     "Host": "127.0.0.1",
     "PaperPort": 4002,
-    "LivePort": 4001,
+    "LivePort": 7497,
     "ClientId": 1
   },
 
