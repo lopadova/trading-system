@@ -331,6 +331,10 @@ See [Configuration Checklist](docs/CONFIGURATION-CHECKLIST.md) to verify your se
    - `DISCORD_BOT_TOKEN` - Send messages to Discord (alerts)
    - `DISCORD_PUBLIC_KEY` - Verify webhook signatures (slash commands like `/status`)
    - `DISCORD_CHANNEL_ID` - Where to send alert messages
+   
+   **⚠️ Important distinction**:
+   - **Just sending alerts?** → Only `BOT_TOKEN` + `CHANNEL_ID` needed
+   - **Using slash commands?** → All 3 keys required (including `PUBLIC_KEY`)
 
 10. **Test Configuration**:
    ```powershell
