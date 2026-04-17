@@ -91,13 +91,52 @@ dotnet test  # Verify all tests pass
 
 ### 2. Configure Services
 
-Edit `src/TradingSupervisorService/appsettings.json`:
-- Set `TradingMode` to `"paper"` (default, safe)
-- Configure IBKR connection (host, port, client ID)
+**⚠️ IMPORTANT: Configuration File Locations**
 
-Edit `src/OptionsExecutionService/appsettings.json`:
-- Set `TradingMode` to `"paper"` (CRITICAL: never commit "live" to git)
-- Configure strategy file path
+**✅ ALWAYS edit files in project root** (these are copied to `bin/` during build):
+- `src/TradingSupervisorService/appsettings.json`
+- `src/OptionsExecutionService/appsettings.json`
+
+**❌ NEVER edit files in `bin/Debug/` or `bin/Release/`** (overwritten on every build)
+
+---
+
+**Edit `src/TradingSupervisorService/appsettings.json`:**
+```json
+{
+  "TradingMode": "paper",  // ✅ SAFE default (never use "live" during development)
+  "IBKR": {
+    "Host": "127.0.0.1",
+    "PaperPort": 4002,     // TWS Paper Trading (default)
+    "LivePort": 4001,      // ⚠️ PRODUCTION ONLY
+    "ClientId": 1
+  }
+}
+```
+
+**Edit `src/OptionsExecutionService/appsettings.json`:**
+```json
+{
+  "TradingMode": "paper",  // ✅ CRITICAL: never commit "live" to git
+  "Strategy": {
+    "FilePath": "strategies/private/current.json",  // Relative to working directory
+    "ReloadIntervalSeconds": 300
+  },
+  "IBKR": {
+    "Host": "127.0.0.1",
+    "PaperPort": 4002,
+    "ClientId": 2          // Different from TradingSupervisor (1)
+  }
+}
+```
+
+**📂 Strategy File Path Notes:**
+- Path is relative to the **working directory** (not `bin/`)
+- For Windows Services: use **absolute paths** in Production:
+  ```json
+  "FilePath": "C:\\trading-system\\strategies\\private\\current.json"
+  ```
+- `strategies/private/` is in `.gitignore` (safe for production strategies)
 
 See [Configuration Reference](docs/CONFIGURATION.md) for all options.
 See [Configuration Checklist](docs/CONFIGURATION-CHECKLIST.md) to verify your setup.
