@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json.schemastore.org/appsettings.json",
+  "_comment": "Copy this file to appsettings.Local.json and customize with your personal settings",
+  "_comment2": "appsettings.Local.json is in .gitignore - your secrets stay private",
+
+  "Strategy": {
+    "FilePath": "strategies/private/current.json",
+    "ReloadIntervalSeconds": 300
+  },
+  "IBKR": {
+    "Host": "127.0.0.1",
+    "PaperPort": 4002,
+    "LivePort": 4001,
+    "ClientId": 2
+  }
+}

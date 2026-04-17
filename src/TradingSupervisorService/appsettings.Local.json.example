@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json.schemastore.org/appsettings.json",
+  "_comment": "Copy this file to appsettings.Local.json and customize with your personal settings",
+  "_comment2": "appsettings.Local.json is in .gitignore - your secrets stay private",
+
+  "Cloudflare": {
+    "WorkerUrl": "https://trading-alerts.your-account.workers.dev",
+    "ApiKey": "YOUR_CLOUDFLARE_API_KEY_HERE"
+  },
+  "Telegram": {
+    "Enabled": false,
+    "BotToken": "YOUR_TELEGRAM_BOT_TOKEN_HERE",
+    "ChatId": 0,
+    "MaxRetryAttempts": 3,
+    "RetryDelaySeconds": 5,
+    "MaxMessagesPerMinute": 20,
+    "ProcessIntervalSeconds": 5
+  },
+  "Bots": {
+    "ActiveBot": "none",
+    "WebhookUrl": "https://trading-system.your-account.workers.dev/api/bot",
+    "TelegramBotToken": "YOUR_TELEGRAM_BOT_TOKEN_HERE",
+    "DiscordBotToken": "YOUR_DISCORD_BOT_TOKEN_HERE",
+    "DiscordPublicKey": "YOUR_DISCORD_PUBLIC_KEY_HERE",
+    "Whitelist": ""
+  }
+}

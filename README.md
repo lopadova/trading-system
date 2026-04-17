@@ -91,11 +91,34 @@ dotnet test  # Verify all tests pass
 
 ### 2. Configure Services
 
-**⚠️ IMPORTANT: Configuration File Locations**
+**⚠️ IMPORTANT: Configuration File Strategy (.NET equivalent of `.env` / `.env.local`)**
 
-**✅ ALWAYS edit files in project root** (these are copied to `bin/` during build):
-- `src/TradingSupervisorService/appsettings.json`
-- `src/OptionsExecutionService/appsettings.json`
+.NET uses a **layered configuration** approach. Files are merged in this order (later overrides earlier):
+
+| File | Git Status | Purpose | When to Edit |
+|------|-----------|---------|--------------|
+| `appsettings.json` | ✅ Committed | Default values (safe placeholders) | ❌ Never (shared by team) |
+| `appsettings.Development.json` | ✅ Committed | Development overrides | ❌ Rarely (shared dev config) |
+| `appsettings.Local.json` | ❌ **NOT committed** | **Your personal overrides** | ✅ **Always (your secrets)** |
+| `appsettings.Production.json` | ❌ NOT committed | Production secrets | ⚠️ Only on server |
+
+**✅ Correct workflow for developers:**
+
+1. **Copy template files** (first time only):
+   ```powershell
+   # TradingSupervisorService
+   cp src/TradingSupervisorService/appsettings.Local.json.example `
+      src/TradingSupervisorService/appsettings.Local.json
+
+   # OptionsExecutionService
+   cp src/OptionsExecutionService/appsettings.Local.json.example `
+      src/OptionsExecutionService/appsettings.Local.json
+   ```
+
+2. **Edit YOUR `appsettings.Local.json`** with your API keys, paths, etc.
+   - ✅ These files are in `.gitignore` (safe to put secrets)
+   - ✅ Loaded automatically by .NET (merged with other configs)
+   - ✅ Never committed to git
 
 **❌ NEVER edit files in `bin/Debug/` or `bin/Release/`** (overwritten on every build)
 

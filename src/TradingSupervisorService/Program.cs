@@ -28,6 +28,7 @@ try
         .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
         .AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") ?? "Production"}.json",
             optional: true, reloadOnChange: true)
+        .AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true)  // Developer overrides (not in git)
         .AddEnvironmentVariables()
         .AddCommandLine(args)
         .Build();
