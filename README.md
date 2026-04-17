@@ -273,7 +273,16 @@ See [Configuration Checklist](docs/CONFIGURATION-CHECKLIST.md) to verify your se
    - Click "Copy" (format: `YOUR_APP_ID_HERE.XXXXXX.YOUR_TOKEN_SECRET_HERE`)
    - **⚠️ Save immediately** (non potrai vederlo di nuovo senza reset)
 
-6. **Invite Bot to Server**:
+6. **Copy Public Key** (REQUIRED for webhook verification):
+   - Sidebar → "General Information"
+   - Scroll down → sotto "APPLICATION ID"
+   - Trova **"PUBLIC KEY"** (64-character hex string, e.g., `a1b2c3d4e5f6...`)
+   - Click "Copy"
+   - **⚠️ Purpose**: Discord signs all webhook requests (slash commands) with Ed25519 encryption.
+     The worker verifies these signatures to ensure requests actually come from Discord (not attackers).
+   - **⚠️ CRITICAL**: Without this key, slash commands `/status`, `/positions` will return error 500!
+
+7. **Invite Bot to Server**:
    - **Metodo A - OAuth2 URL Generator** (consigliato):
      - Sidebar → "OAuth2" → "URL Generator"
      - **Scopes**: Spunta SOLO ✅ **`bot`** (nient'altro!)
@@ -310,12 +319,18 @@ See [Configuration Checklist](docs/CONFIGURATION-CHECKLIST.md) to verify your se
    # Copy .dev.vars.example to .dev.vars
    cp infra/cloudflare/worker/.dev.vars.example infra/cloudflare/worker/.dev.vars
    
-   # Edit .dev.vars with your token
-   DISCORD_BOT_TOKEN=YOUR_DISCORD_BOT_TOKEN_HERE
-   DISCORD_CHANNEL_ID=YOUR_CHANNEL_ID_HERE
+   # Edit .dev.vars with your values
+   DISCORD_BOT_TOKEN=YOUR_APP_ID.XXXXXX.YOUR_SECRET_TOKEN
+   DISCORD_PUBLIC_KEY=a1b2c3d4e5f6789abcdef...  # ⭐ REQUIRED for slash commands!
+   DISCORD_CHANNEL_ID=987654321098765432
    ```
 
    **⚠️ Nota**: `.dev.vars` è in `.gitignore`, mai committare i token!
+   
+   **What each key does**:
+   - `DISCORD_BOT_TOKEN` - Send messages to Discord (alerts)
+   - `DISCORD_PUBLIC_KEY` - Verify webhook signatures (slash commands like `/status`)
+   - `DISCORD_CHANNEL_ID` - Where to send alert messages
 
 10. **Test Configuration**:
    ```powershell
