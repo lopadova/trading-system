@@ -1,16 +1,60 @@
 {
   "$schema": "https://json.schemastore.org/appsettings.json",
-  "_comment": "Copy this file to appsettings.Local.json and customize with your personal settings",
-  "_comment2": "appsettings.Local.json is in .gitignore - your secrets stay private",
+  "_comment": "========================================",
+  "_comment2": "Copy this file to appsettings.Local.json",
+  "_comment3": "appsettings.Local.json is in .gitignore - your secrets stay private",
+  "_comment4": "Only override values you need to change (all are optional)",
+  "_comment5": "========================================",
+
+  "Serilog": {
+    "MinimumLevel": {
+      "Default": "Information",
+      "Override": {
+        "Microsoft": "Warning",
+        "System": "Warning"
+      }
+    }
+  },
+
+  "TradingMode": "paper",
+
+  "Sqlite": {
+    "OptionsDbPath": "data/options-execution.db"
+  },
 
   "Strategy": {
     "FilePath": "strategies/private/current.json",
     "ReloadIntervalSeconds": 300
   },
+
+  "Execution": {
+    "MaxConcurrentOrders": 5,
+    "OrderTimeoutSeconds": 30
+  },
+
   "IBKR": {
     "Host": "127.0.0.1",
     "PaperPort": 4002,
     "LivePort": 4001,
-    "ClientId": 2
+    "ClientId": 2,
+    "ReconnectInitialDelaySeconds": 5,
+    "ReconnectMaxDelaySeconds": 300,
+    "MaxReconnectAttempts": 0,
+    "ConnectionTimeoutSeconds": 10,
+    "KeepaliveIntervalSeconds": 60
+  },
+
+  "Safety": {
+    "MaxPositionSize": 10,
+    "MaxPositionValueUsd": 50000,
+    "MinAccountBalanceUsd": 10000,
+    "MaxRiskPercentOfAccount": 5.0,
+    "CircuitBreakerFailureThreshold": 3,
+    "CircuitBreakerWindowMinutes": 60,
+    "CircuitBreakerResetMinutes": 120
+  },
+
+  "Campaign": {
+    "MonitorIntervalSeconds": 60
   }
 }
