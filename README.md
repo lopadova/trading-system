@@ -120,7 +120,32 @@ dotnet test  # Verify all tests pass
    - ✅ Loaded automatically by .NET (merged with other configs)
    - ✅ Never committed to git
 
+3. **How configuration merge works:**
+   ```
+   appsettings.json              (base - committed)
+   + appsettings.Development.json  (env override - committed)
+   + appsettings.Local.json        (YOUR overrides - NOT committed)
+   + Environment variables
+   + Command line args
+   = Final configuration at runtime
+   ```
+
+4. **Commit without fear:**
+   ```powershell
+   git status
+   # ✅ Modified: appsettings.json (OK - only defaults)
+   # ❌ NOT shown: appsettings.Local.json (already in .gitignore)
+   
+   git commit -m "Updated config"
+   # Your secrets stay local! 🎉
+   ```
+
 **❌ NEVER edit files in `bin/Debug/` or `bin/Release/`** (overwritten on every build)
+
+**✅ Why this pattern?**
+- **Problem**: Editing `appsettings.json` with personal API keys → accidentally commit secrets to git
+- **Solution**: Put personal overrides in `appsettings.Local.json` (gitignored, never committed)
+- **Equivalent**: Same concept as `.env` (committed) vs `.env.local` (gitignored) in Node.js
 
 ---
 
