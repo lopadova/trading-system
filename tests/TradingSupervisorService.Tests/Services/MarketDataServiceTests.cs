@@ -406,9 +406,11 @@ internal sealed class FakeIbkrClient : IIbkrClient
     public List<MarketDataRequest> MarketDataRequests { get; } = new();
     public List<int> CanceledRequests { get; } = new();
 
+#pragma warning disable CS0067 // Event never used (required by IIbkrClient interface but not needed in fake)
     public event EventHandler<ConnectionState>? ConnectionStateChanged;
     public event EventHandler<(int OrderId, string Status, int Filled, int Remaining, double AvgFillPrice)>? OrderStatusChanged;
     public event EventHandler<(int OrderId, int ErrorCode, string ErrorMessage)>? OrderError;
+#pragma warning restore CS0067
 
     public Task ConnectAsync(CancellationToken ct = default) => Task.CompletedTask;
     public Task DisconnectAsync() => Task.CompletedTask;

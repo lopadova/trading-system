@@ -1,8 +1,8 @@
 # Errors Registry — Trading System Build
 *Auto-aggiornato dagli agenti. Leggi questo file all'inizio di ogni task.*
 
-**Total Errors**: 17 (ERR-001 to ERR-017)  
-**Last Updated**: 2026-04-07
+**Total Errors**: 18 (ERR-001 to ERR-018)  
+**Last Updated**: 2026-04-17
 
 ---
 
@@ -665,5 +665,36 @@ while (fs.Position < limit) {
 **Reference**:
 - .NET docs: StreamReader buffering behavior
 - Related: tail -f implementation patterns (inotify on Linux, file size polling on Windows)
+
+---
+
+## ERR-018 — Compiler warnings left unresolved in codebase
+
+**Scoperto da**: Code Quality Review
+**Data**: 2026-04-17
+**Severity**: MEDIUM
+**Sintomo**: Build completes successfully but shows warnings like CS0067 (event never used), CS0649 (field never assigned), CS8618 (non-nullable field uninitialized), etc.
+**Root cause**: Warnings indicate potential issues (unused code, nullability risks, deprecated APIs) but are often ignored during development. Accumulated warnings create technical debt and mask new legitimate warnings.
+**Fix**: **ALWAYS resolve warnings before committing code**. Zero-warning policy:
+```bash
+# Build MUST show 0 warnings
+dotnet build --configuration Release
+# Output: "Avvisi: 0"
+
+# Common fixes:
+# CS0067 (unused events in test fakes): Add #pragma warning disable CS0067
+# CS0649 (unassigned fields): Initialize or mark nullable
+# CS8618 (nullable reference): Initialize in constructor or use nullable type
+# CS0612/CS0618 (obsolete API): Migrate to replacement API
+```
+
+**Policy**: 
+- **Build target**: 0 warnings, 0 errors
+- **CI/CD**: Treat warnings as errors in Release builds (`<TreatWarningsAsErrors>true</TreatWarningsAsErrors>`)
+- **Code review**: Block PRs with warnings
+- **Exception**: Use `#pragma warning disable` ONLY when required by interface implementation or external constraints, with clear comment explaining why
+
+**Skill aggiornato**: skill-dotnet.md (Build Standards)
+**Impatto sui task futuri**: All tasks MUST verify `dotnet build` shows 0 warnings before marking as DONE. Add warning check to completion checklist.
 
 ---

@@ -227,3 +227,36 @@
 **Related**: ERR-015, ERR-016, ERR-017, LL-177, LL-178, LL-179
 
 ---
+
+## 2026-04-17 — Code Quality Review
+
+**Skill**: skill-dotnet.md
+**Sezione**: Build Standards (NEW section)
+**Tipo**: aggiunta
+**Problema risolto**: 
+- ERR-018: Compiler warnings left unresolved in codebase (3 CS0067 warnings in test fakes)
+- Established zero-warning build policy to prevent warning accumulation
+- Documented when and how to use `#pragma warning disable` (sparingly, only for interface requirements)
+
+**New Section Added**: "Build Standards — Zero-Warning Policy"
+- ✅ Rule: Build MUST show "Avvisi: 0, Errori: 0" before marking task as DONE
+- ✅ Common warnings and fixes table (CS0067, CS0649, CS8618, CS0612/CS0618)
+- ✅ `#pragma warning disable` usage guidelines (when to use, when NOT to use)
+- ✅ CI/CD enforcement pattern (`<TreatWarningsAsErrors>true</TreatWarningsAsErrors>`)
+- ✅ Code review checkpoint: Block PRs with unresolved warnings
+
+**Knowledge Base Updates**:
+- Added ERR-018 to errors-registry.md (MEDIUM severity)
+- Added LL-180 to lessons-learned.md (quality | standards | tooling)
+
+**Skill Version**: 2.1 → 2.2
+
+**Impatto**: 
+- ALL tasks MUST verify `dotnet build` shows 0 warnings before marking as DONE
+- Add "0 warnings" check to task completion checklist
+- Code review: Block PRs with unresolved warnings
+- CI/CD: Treat warnings as errors in Release builds
+
+**Related**: ERR-018, LL-180
+
+---

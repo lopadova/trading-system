@@ -2662,3 +2662,38 @@ grep -rn "StreamReader" src/ | xargs grep -l "\.Position"
 
 ---
 
+
+## LL-180 — Zero-Warning Build Policy
+
+**Categoria**: quality | standards | tooling
+**Scoperta**: Build warnings accumulate as technical debt and mask new legitimate issues. A zero-warning policy enforces code quality and prevents warning fatigue. Warnings indicate potential bugs (nullable issues), dead code (unused events), or deprecated APIs that need migration.
+**Applicazione**: 
+1. **ALWAYS resolve warnings before commit**: `dotnet build` must show "Avvisi: 0"
+2. **Use `#pragma warning disable` sparingly**: Only when required by interface implementation or external constraints
+3. **Document pragma usage**: Add comment explaining WHY warning is disabled
+4. **CI/CD enforcement**: Add `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>` in Release configuration
+5. **Code review checkpoint**: Block PRs with unresolved warnings
+
+**Example** (test fake implementing interface with unused events):
+```csharp
+public List<int> CanceledRequests { get; } = new();
+
+#pragma warning disable CS0067 // Event never used (required by IIbkrClient interface but not needed in fake)
+public event EventHandler<ConnectionState>? ConnectionStateChanged;
+public event EventHandler<(int OrderId, string Status, int Filled, int Remaining, double AvgFillPrice)>? OrderStatusChanged;
+#pragma warning restore CS0067
+
+public Task ConnectAsync(CancellationToken ct = default) => Task.CompletedTask;
+```
+
+**Common warnings and fixes**:
+- CS0067 (unused event): Suppress with pragma if required by interface, or remove if dead code
+- CS0649 (field never assigned): Initialize in constructor or mark nullable
+- CS8618 (non-nullable field uninitialized): Initialize or use nullable reference type
+- CS0612/CS0618 (obsolete API): Migrate to replacement API
+
+**Rilevante per task**: All tasks. Add "0 warnings" check to task completion checklist.
+
+**Reference**: ERR-018, skill-dotnet.md (Build Standards)
+
+---

@@ -453,4 +453,58 @@ private async Task RunCycleAsync(CancellationToken stoppingToken)
 
 ---
 
-*Skill version: 2.1 — Ultima modifica: Test Coverage Sprint — Data: 2026-04-07*
+## Build Standards — Zero-Warning Policy
+
+**Rule**: Build MUST complete with **0 warnings, 0 errors** before marking task as DONE.
+
+**Why**: Warnings accumulate as technical debt and mask new legitimate issues. Warning fatigue leads to ignoring real problems (nullable issues, dead code, deprecated APIs).
+
+**Enforcement**:
+```bash
+# Build verification (required before commit)
+dotnet build --configuration Release
+# Expected output: "Avvisi: 0, Errori: 0"
+
+# CI/CD: Treat warnings as errors in Release builds
+# Add to .csproj:
+<PropertyGroup Condition="'$(Configuration)' == 'Release'">
+  <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+</PropertyGroup>
+```
+
+**Common warnings and fixes**:
+
+| Warning | Cause | Fix |
+|---------|-------|-----|
+| CS0067 | Event never used | Suppress with pragma if required by interface (see example below) |
+| CS0649 | Field never assigned | Initialize in constructor or mark nullable (`Type?`) |
+| CS8618 | Non-nullable field uninitialized | Initialize in constructor or use nullable reference type |
+| CS0612/CS0618 | Obsolete API | Migrate to replacement API documented in warning message |
+
+**Using `#pragma warning disable` (sparingly)**:
+```csharp
+// ✅ CORRECT: Suppress only when required by interface, with clear comment
+public List<int> CanceledRequests { get; } = new();
+
+#pragma warning disable CS0067 // Event never used (required by IIbkrClient interface but not needed in fake)
+public event EventHandler<ConnectionState>? ConnectionStateChanged;
+public event EventHandler<(int OrderId, string Status)>? OrderStatusChanged;
+#pragma warning restore CS0067
+
+public Task ConnectAsync(CancellationToken ct = default) => Task.CompletedTask;
+```
+
+**When to use pragma**:
+- ✅ Test fakes implementing interfaces with unused members
+- ✅ Auto-generated code (EF Core migrations, gRPC stubs)
+- ✅ External library constraints (third-party interface requirements)
+- ❌ Production code to bypass legitimate warnings
+- ❌ "Temporary" suppression (becomes permanent)
+
+**Code review checkpoint**: Block PRs with unresolved warnings.
+
+**Reference**: ERR-018, LL-180
+
+---
+
+*Skill version: 2.2 — Ultima modifica: Code Quality Review — Data: 2026-04-17*
