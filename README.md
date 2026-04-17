@@ -640,22 +640,30 @@ dotnet publish -c Release -r win-x64 --self-contained src/OptionsExecutionServic
 
 ### Cloudflare Worker
 
+**⚠️ IMPORTANT: Always use `npx wrangler` (not just `wrangler`) to use the local version**
+
 ```bash
 cd infra/cloudflare/worker
 
 # Create D1 database
-wrangler d1 create trading-db
+npx wrangler d1 create trading-db
 
-# Update wrangler.toml with database_id
+# Update wrangler.toml with database_id (copy from output above)
 
-# Deploy migrations
-wrangler d1 execute trading-db --file=migrations/001_initial.sql
+# Deploy migrations (run ALL in order)
+npx wrangler d1 execute trading-db --file=migrations/0001_initial_schema.sql
+npx wrangler d1 execute trading-db --file=migrations/0002_el_conversion_log.sql
+npx wrangler d1 execute trading-db --file=migrations/0003_bot_commands_log.sql
+npx wrangler d1 execute trading-db --file=migrations/0004_bot_whitelist.sql
 
 # Deploy Worker
-wrangler deploy
+npx wrangler deploy
 
-# Set secrets
-wrangler secret put API_KEY
+# Set secrets (one at a time, prompted for value)
+npx wrangler secret put API_KEY
+npx wrangler secret put DISCORD_BOT_TOKEN
+npx wrangler secret put DISCORD_PUBLIC_KEY
+npx wrangler secret put ANTHROPIC_API_KEY
 ```
 
 ### React Dashboard
