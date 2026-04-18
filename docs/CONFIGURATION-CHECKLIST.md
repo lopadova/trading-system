@@ -92,13 +92,13 @@ Testa che l'app parta senza API keys:
 cd infra/cloudflare/worker
 
 # Deploy secrets (NON usare .dev.vars in production!)
-npx wrangler secret put ANTHROPIC_API_KEY
+bunx wrangler secret put ANTHROPIC_API_KEY
 # Paste key when prompted
 
-npx wrangler secret put DISCORD_BOT_TOKEN
+bunx wrangler secret put DISCORD_BOT_TOKEN
 # Paste token when prompted
 
-npx wrangler secret put DISCORD_CHANNEL_ID
+bunx wrangler secret put DISCORD_CHANNEL_ID
 # Paste channel ID when prompted
 ```
 

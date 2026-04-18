@@ -519,7 +519,7 @@ See [Configuration Checklist](docs/CONFIGURATION-CHECKLIST.md) to verify your se
 5. **Deploy secret to Cloudflare** (when ready for production):
    ```bash
    cd infra/cloudflare/worker
-   npx wrangler secret put ANTHROPIC_API_KEY
+   bunx wrangler secret put ANTHROPIC_API_KEY
    # Paste your key when prompted
    ```
 
@@ -950,30 +950,30 @@ dotnet publish -c Release -r win-x64 --self-contained src/OptionsExecutionServic
 
 ### Cloudflare Worker
 
-**⚠️ IMPORTANT: Always use `npx wrangler` (not just `wrangler`) to use the local version**
+**⚠️ IMPORTANT: Always use `bunx wrangler` (not just `wrangler`) to use the local version**
 
 ```bash
 cd infra/cloudflare/worker
 
 # Create D1 database
-npx wrangler d1 create trading-db
+bunx wrangler d1 create trading-db
 
 # Update wrangler.toml with database_id (copy from output above)
 
 # Deploy migrations (run ALL in order)
-npx wrangler d1 execute trading-db --file=migrations/0001_initial_schema.sql
-npx wrangler d1 execute trading-db --file=migrations/0002_el_conversion_log.sql
-npx wrangler d1 execute trading-db --file=migrations/0003_bot_commands_log.sql
-npx wrangler d1 execute trading-db --file=migrations/0004_bot_whitelist.sql
+bunx wrangler d1 execute trading-db --file=migrations/0001_initial_schema.sql
+bunx wrangler d1 execute trading-db --file=migrations/0002_el_conversion_log.sql
+bunx wrangler d1 execute trading-db --file=migrations/0003_bot_commands_log.sql
+bunx wrangler d1 execute trading-db --file=migrations/0004_bot_whitelist.sql
 
 # Deploy Worker
-npx wrangler deploy
+bunx wrangler deploy
 
 # Set secrets (one at a time, prompted for value)
-npx wrangler secret put API_KEY
-npx wrangler secret put DISCORD_BOT_TOKEN
-npx wrangler secret put DISCORD_PUBLIC_KEY
-npx wrangler secret put ANTHROPIC_API_KEY
+bunx wrangler secret put API_KEY
+bunx wrangler secret put DISCORD_BOT_TOKEN
+bunx wrangler secret put DISCORD_PUBLIC_KEY
+bunx wrangler secret put ANTHROPIC_API_KEY
 ```
 
 **⭐ RECOMMENDED: Hide Production Dashboard URL**
@@ -982,7 +982,7 @@ The `DASHBOARD_ORIGIN` variable in `wrangler.toml` is committed to git. If your 
 
 ```bash
 # Option 1: Secret (RECOMMENDED for public repos)
-npx wrangler secret put DASHBOARD_ORIGIN
+bunx wrangler secret put DASHBOARD_ORIGIN
 # Paste: https://trading.padosoft.com
 
 # Option 2: Environment in wrangler.toml (if URL can be public)
@@ -1045,7 +1045,7 @@ cd dashboard
 npm run build
 
 # Deploy manually
-npx wrangler pages deploy dist --project-name trading-dashboard
+bunx wrangler pages deploy dist --project-name trading-dashboard
 ```
 
 **Option C: Deploy to Other Static Hosts**

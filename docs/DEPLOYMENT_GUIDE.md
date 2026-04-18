@@ -492,10 +492,10 @@ cd dashboard
 npm run build
 
 # Deploy manually
-npx wrangler pages deploy dist --project-name=trading-dashboard
+bunx wrangler pages deploy dist --project-name=trading-dashboard
 
 # Deploy with branch name (for preview environments)
-npx wrangler pages deploy dist --project-name=trading-dashboard --branch=develop
+bunx wrangler pages deploy dist --project-name=trading-dashboard --branch=develop
 ```
 
 #### Option C: Other Static Hosts
