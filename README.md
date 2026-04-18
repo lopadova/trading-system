@@ -976,6 +976,27 @@ npx wrangler secret put DISCORD_PUBLIC_KEY
 npx wrangler secret put ANTHROPIC_API_KEY
 ```
 
+**⭐ RECOMMENDED: Hide Production Dashboard URL**
+
+The `DASHBOARD_ORIGIN` variable in `wrangler.toml` is committed to git. If your repo is **public**, consider using secrets:
+
+```bash
+# Option 1: Secret (RECOMMENDED for public repos)
+npx wrangler secret put DASHBOARD_ORIGIN
+# Paste: https://trading.padosoft.com
+
+# Option 2: Environment in wrangler.toml (if URL can be public)
+# [env.production]
+# vars = { DASHBOARD_ORIGIN = "https://trading.padosoft.com" }
+```
+
+**Use secrets if**:
+- ✅ Repository is public on GitHub
+- ✅ You want to hide your production domain
+- ✅ URL contains sensitive information
+
+See [DEPLOYMENT_GUIDE.md § 4.3](docs/DEPLOYMENT_GUIDE.md#43-configure-production-url--recommended) for details.
+
 ### React Dashboard
 
 Dashboard is a **static React app** deployed to **Cloudflare Pages** (NOT Workers).

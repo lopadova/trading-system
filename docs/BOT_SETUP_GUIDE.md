@@ -985,7 +985,55 @@ bunx wrangler secret put TELEGRAM_BOT_TOKEN
 
 ---
 
-### 3. Rotate Token Periodicamente
+### 3. Hide Production URLs (⭐ RECOMMENDED)
+
+**Problem**: `wrangler.toml` contains `DASHBOARD_ORIGIN` and is committed to git.
+
+If your repository is **public**, your production dashboard URL is **visible to everyone**.
+
+**Solution**: Use Cloudflare Secrets for production URL.
+
+**Step 1: Remove from wrangler.toml**
+```toml
+# wrangler.toml (before)
+[vars]
+DASHBOARD_ORIGIN = "https://trading.padosoft.com"  # ❌ Public in git!
+
+# wrangler.toml (after)
+[vars]
+DASHBOARD_ORIGIN = "http://localhost:5173"  # ✅ Only dev default
+# Production URL moved to secrets
+```
+
+**Step 2: Set as secret**
+```bash
+cd infra/cloudflare/worker
+
+bunx wrangler secret put DASHBOARD_ORIGIN
+# When prompted, paste: https://trading.padosoft.com
+```
+
+**Why this matters**:
+- ❌ Public URL in git → Attackers know your production endpoint
+- ✅ Secret URL → Hidden from public view, encrypted by Cloudflare
+- ✅ Secrets override `vars` → No code changes needed
+
+**Alternative (if URL can be public)**:
+```toml
+[env.production]
+vars = { DASHBOARD_ORIGIN = "https://trading.padosoft.com" }
+```
+
+Use this if:
+- Dashboard is already public (custom domain like `trading.yourdomain.com`)
+- Repository is private
+- URL doesn't contain sensitive info
+
+See [DEPLOYMENT_GUIDE.md § 4.3](./DEPLOYMENT_GUIDE.md#43-configure-production-url--recommended) for details.
+
+---
+
+### 4. Rotate Token Periodicamente
 
 **Ogni 90 giorni**:
 

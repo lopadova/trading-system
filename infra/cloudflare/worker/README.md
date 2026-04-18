@@ -107,6 +107,32 @@ CLAUDE_API_KEY=sk-ant-api03-YOUR_KEY_HERE
 
 See [Main README](../../../README.md#api-keys-setup-optional---features-degrade-gracefully) for detailed instructions.
 
+### Production URL Configuration (⭐ RECOMMENDED)
+
+**⚠️ Privacy Consideration**: The `DASHBOARD_ORIGIN` variable in `wrangler.toml` is committed to git.
+
+**For Production**, choose one option:
+
+**Option A: Public URL in wrangler.toml**
+```toml
+[env.production]
+vars = { DASHBOARD_ORIGIN = "https://trading.padosoft.com" }
+```
+
+**Option B: Secret (RECOMMENDED for privacy)**
+```bash
+# Hide production URL from git
+bunx wrangler secret put DASHBOARD_ORIGIN
+# Paste: https://trading.padosoft.com
+```
+
+**✅ Use secrets if**:
+- Repository is public
+- You want to hide your production domain
+- URL contains sensitive info
+
+See [DEPLOYMENT_GUIDE.md](../../../docs/DEPLOYMENT_GUIDE.md#43-configure-production-url--recommended) for details.
+
 ## Development
 
 ```bash

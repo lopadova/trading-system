@@ -355,7 +355,82 @@ curl -H "X-Api-Key: YOUR_TOKEN" \
 # If 401 Unauthorized: Token not in whitelist or wrong format
 ```
 
-#### 4.3. Deploy Worker
+#### 4.3. Configure Production URL (⭐ RECOMMENDED)
+
+**⚠️ Security & Privacy Consideration**
+
+The Worker needs to know the Dashboard URL for CORS validation (`DASHBOARD_ORIGIN`). By default, `wrangler.toml` contains:
+
+```toml
+[vars]
+DASHBOARD_ORIGIN = "http://localhost:5173"  # Development default
+```
+
+**For Production**, you have 2 options:
+
+**Option A: Environment in wrangler.toml (Public URL OK)**
+
+If your dashboard URL can be **public** (e.g., `https://trading.padosoft.com`):
+
+```toml
+# wrangler.toml (committed to git)
+[vars]
+DASHBOARD_ORIGIN = "http://localhost:5173"  # Development
+
+[env.production]
+vars = { DASHBOARD_ORIGIN = "https://trading.padosoft.com" }  # Production
+```
+
+**Deploy with environment**:
+```bash
+bunx wrangler deploy --env production
+```
+
+**✅ Use this when**: Your dashboard domain is not sensitive (public site, custom domain).
+
+---
+
+**Option B: Secret (⭐ RECOMMENDED for Privacy)**
+
+If you **don't want to reveal** your production URL in git (repo is public, URL contains private info):
+
+```bash
+cd infra/cloudflare/worker
+
+# Set DASHBOARD_ORIGIN as a secret (encrypted, not in git)
+bunx wrangler secret put DASHBOARD_ORIGIN
+# When prompted, paste: https://trading.padosoft.com
+```
+
+**Verify**:
+```bash
+bunx wrangler secret list
+# Should show:
+# DASHBOARD_ORIGIN    2026-04-18T22:00:00Z
+```
+
+**✅ Use this when**:
+- Repository is public on GitHub
+- You want to hide production URL from public view
+- URL contains sensitive information (internal domains, IP addresses)
+
+**How it works**:
+- Secrets override `vars` in wrangler.toml
+- Encrypted at rest by Cloudflare
+- Not visible in Worker logs or dashboard
+- Cannot be read via API (write-only)
+
+**⚠️ IMPORTANT**: If you use secrets, remove `DASHBOARD_ORIGIN` from `[vars]` or it will be visible in git:
+
+```toml
+# wrangler.toml
+[vars]
+# DASHBOARD_ORIGIN moved to secrets for privacy
+```
+
+---
+
+#### 4.4. Deploy Worker
 
 ```bash
 cd infra/cloudflare/worker
