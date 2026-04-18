@@ -65,13 +65,47 @@ DASHBOARD_ORIGIN = "https://your-dashboard-domain.com"
 
 ### Secrets
 
-Set via Wrangler CLI:
+Worker secrets are **optional** - features degrade gracefully if missing.
+
+**Set via Wrangler CLI** (one-time setup):
 
 ```bash
-# API key for authentication
-wrangler secret put API_KEY
-# Enter your secret key when prompted
+cd infra/cloudflare/worker
+
+# Telegram Bot (optional)
+bunx wrangler secret put TELEGRAM_BOT_TOKEN
+# Paste: 123456789:ABCdefGHIjklMNOpqrsTUVwxyz
+
+# Discord Bot (optional)
+bunx wrangler secret put DISCORD_PUBLIC_KEY  
+# Paste: a1b2c3d4e5f6789abcdef0123456789...
+
+# Anthropic API (optional)
+bunx wrangler secret put CLAUDE_API_KEY
+# Paste: sk-ant-api03-YOUR_KEY_HERE
 ```
+
+**Local development** (`.dev.vars` file):
+
+```bash
+# Copy template
+cp .dev.vars.example .dev.vars
+
+# Edit with your values
+# infra/cloudflare/worker/.dev.vars (NOT committed to git)
+TELEGRAM_BOT_TOKEN=123456789:ABCdefGHIjklMNOpqrsTUVwxyz
+DISCORD_PUBLIC_KEY=a1b2c3d4e5f6789abcdef0123456789...
+CLAUDE_API_KEY=sk-ant-api03-YOUR_KEY_HERE
+```
+
+**⚠️ Security**: `.dev.vars` is in `.gitignore` - never commit secrets!
+
+**Detailed setup guides**:
+- **Telegram Bot**: Create via @BotFather → `/newbot`
+- **Discord Bot**: Discord Developer Portal → General Information → PUBLIC KEY
+- **Anthropic API**: https://console.anthropic.com/settings/keys
+
+See [Main README](../../../README.md#api-keys-setup-optional---features-degrade-gracefully) for detailed instructions.
 
 ## Development
 
@@ -123,12 +157,70 @@ The worker will be available at `http://localhost:8787`.
 
 ## Authentication
 
-All protected endpoints require `X-Api-Key` header:
+### API Key Authentication
 
+All protected endpoints require `X-Api-Key` header with a valid token from D1 whitelist.
+
+**How it works**:
+
+1. **Generate token** (256-bit random):
+   ```bash
+   openssl rand -hex 32
+   # Output: a3f5c8d9e2b1f4a6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0
+   ```
+
+2. **Add to D1 whitelist**:
+   ```bash
+   bunx wrangler d1 execute trading-db --remote --command="
+   INSERT INTO whitelist (api_key, description) 
+   VALUES ('YOUR_TOKEN', 'Production Dashboard');
+   "
+   ```
+
+3. **Use in requests**:
+   ```bash
+   curl -H "X-Api-Key: YOUR_TOKEN" \
+     https://trading-bot.padosoft.workers.dev/api/positions/active
+   ```
+
+**Clients configuration**:
+
+**Dashboard** (`.env.local`):
 ```bash
-curl -H "X-Api-Key: your-secret-key" \
-  https://your-worker.workers.dev/api/positions/active
+VITE_API_KEY=YOUR_TOKEN
+VITE_API_URL=https://trading-bot.padosoft.workers.dev
 ```
+
+**Windows Services** (`appsettings.Local.json`):
+```json
+{
+  "CloudflareWorker": {
+    "BaseUrl": "https://trading-bot.padosoft.workers.dev",
+    "ApiKey": "YOUR_TOKEN"
+  }
+}
+```
+
+**Verify authentication**:
+```bash
+# Valid token → 200 OK
+curl -H "X-Api-Key: YOUR_TOKEN" https://your-worker.workers.dev/api/health
+# {"status":"ok","timestamp":"..."}
+
+# Invalid token → 401 Unauthorized
+curl -H "X-Api-Key: wrong-token" https://your-worker.workers.dev/api/health
+# {"error":"Unauthorized"}
+
+# Missing header → 401 Unauthorized
+curl https://your-worker.workers.dev/api/health
+# {"error":"Unauthorized"}
+```
+
+**Security notes**:
+- ✅ Tokens stored in D1 (encrypted at rest)
+- ✅ Validated on every request
+- ✅ Separate tokens per client (revoke individually)
+- ❌ Never commit tokens to git (use `.env.local`, `appsettings.Local.json`)
 
 ## Rate Limiting
 

@@ -116,12 +116,89 @@ Follow CLAUDE.md coding standards:
 
 ## Environment Variables
 
-Create `.env.local` (gitignored):
+### Setup
+
+Create `.env.local` in the dashboard root (already in `.gitignore`):
 
 ```bash
-VITE_API_URL=http://localhost:8787
-# VITE_API_KEY=optional-for-local-dev
+# Required: Cloudflare Worker API URL
+VITE_API_URL=https://trading-bot.padosoft.workers.dev
+
+# Required: API authentication token
+VITE_API_KEY=a3f5c8d9e2b1f4a6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0
 ```
+
+**⚠️ Security**: `.env.local` is gitignored - never commit API keys!
+
+### API Key Authentication
+
+The dashboard authenticates requests to the Worker using `X-Api-Key` header.
+
+**How to get the token**:
+
+1. **Generate token** (256-bit random):
+   ```bash
+   openssl rand -hex 32
+   # Output: a3f5c8d9e2b1f4a6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0
+   ```
+
+2. **Add to Worker D1 whitelist**:
+   ```bash
+   cd infra/cloudflare/worker
+   bunx wrangler d1 execute trading-db --remote --command="
+   INSERT INTO whitelist (api_key, description) 
+   VALUES ('YOUR_TOKEN', 'Production Dashboard');
+   "
+   ```
+
+3. **Add to dashboard `.env.local`**:
+   ```bash
+   echo "VITE_API_KEY=YOUR_TOKEN" > .env.local
+   echo "VITE_API_URL=https://trading-bot.padosoft.workers.dev" >> .env.local
+   ```
+
+**How it works**:
+
+```typescript
+// utils/apiClient.ts
+const response = await fetch(`${import.meta.env.VITE_API_URL}/api/positions`, {
+  headers: { 
+    'X-Api-Key': import.meta.env.VITE_API_KEY 
+  }
+})
+```
+
+**Verify authentication**:
+
+```bash
+# Start dev server
+bun run dev
+
+# Open browser console (F12)
+# Check Network tab for API requests
+# Should see successful 200 responses, NOT 401 Unauthorized
+```
+
+**Troubleshooting**:
+
+| Error | Cause | Fix |
+|-------|-------|-----|
+| `401 Unauthorized` | Token not in whitelist | Add token to D1 with wrangler command |
+| `CORS error` | Wrong API URL | Check `VITE_API_URL` matches Worker URL |
+| `Network error` | Worker not deployed | Deploy Worker first: `cd infra/cloudflare/worker && bunx wrangler deploy` |
+| `undefined API key` | `.env.local` missing | Create `.env.local` with `VITE_API_KEY` |
+
+### Local Development
+
+For local development with Worker running on `localhost:8787`:
+
+```bash
+# .env.local (local development)
+VITE_API_URL=http://localhost:8787
+VITE_API_KEY=test-key-local-dev
+```
+
+**Note**: Local Worker doesn't enforce whitelist validation (dev mode).
 
 ## Next Steps
 

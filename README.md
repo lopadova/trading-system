@@ -496,6 +496,121 @@ See [Configuration Checklist](docs/CONFIGURATION-CHECKLIST.md) to verify your se
    # Paste your key when prompted
    ```
 
+#### Cloudflare Worker Secrets Summary
+
+The Worker requires these secrets (set via `wrangler secret put`):
+
+| Secret | Purpose | Required? | How to get |
+|--------|---------|-----------|------------|
+| `TELEGRAM_BOT_TOKEN` | Send Telegram alerts | Optional | @BotFather → `/newbot` |
+| `DISCORD_PUBLIC_KEY` | Verify Discord slash commands | Optional | Discord Developer Portal → General Info |
+| `CLAUDE_API_KEY` | Convert EasyLanguage → SDF | Optional | https://console.anthropic.com/settings/keys |
+
+**Local development** (`.dev.vars` file):
+```bash
+# infra/cloudflare/worker/.dev.vars (NOT committed to git)
+TELEGRAM_BOT_TOKEN=123456789:ABC...
+DISCORD_PUBLIC_KEY=a1b2c3d4e5f6...
+CLAUDE_API_KEY=sk-ant-api03-...
+```
+
+**Production deployment**:
+```bash
+cd infra/cloudflare/worker
+bunx wrangler secret put TELEGRAM_BOT_TOKEN   # Paste when prompted
+bunx wrangler secret put DISCORD_PUBLIC_KEY   # Paste when prompted
+bunx wrangler secret put CLAUDE_API_KEY       # Paste when prompted
+```
+
+**⚠️ Important**: `.dev.vars` is in `.gitignore` - never commit secrets to git!
+
+#### API Authentication Token (For Worker Access)
+
+The Worker requires **API key authentication** for all protected endpoints.
+
+**What is it?**
+- A secret token that authenticates:
+  - Dashboard → Worker API calls
+  - Windows Services → Worker API calls
+- Stored in D1 database `whitelist` table
+- Sent as `X-Api-Key` header on every request
+
+**How to create**:
+
+```bash
+# Method 1: OpenSSL (recommended)
+openssl rand -hex 32
+# Output: a3f5c8d9e2b1f4a6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0
+
+# Method 2: PowerShell
+[System.Convert]::ToBase64String((1..32 | ForEach-Object {Get-Random -Minimum 0 -Maximum 256}))
+# Output: Base64-encoded string (use as-is)
+```
+
+**Where to configure** (3 places):
+
+1. **Cloudflare Worker D1** (whitelist table):
+   ```bash
+   cd infra/cloudflare/worker
+   bunx wrangler d1 execute trading-db --remote --command="
+   INSERT INTO whitelist (api_key, description) 
+   VALUES ('YOUR_TOKEN_HERE', 'Production Dashboard');
+   "
+   ```
+
+2. **Dashboard** (environment variable):
+   ```bash
+   # dashboard/.env.local (NOT committed)
+   VITE_API_KEY=YOUR_TOKEN_HERE
+   ```
+
+3. **Windows Services** (appsettings.Local.json):
+   ```json
+   // src/TradingSupervisorService/appsettings.Local.json
+   {
+     "CloudflareWorker": {
+       "BaseUrl": "https://trading-bot.padosoft.workers.dev",
+       "ApiKey": "YOUR_TOKEN_HERE"
+     }
+   }
+   ```
+
+**How it works**:
+```typescript
+// Dashboard sends request with header
+const response = await fetch('/api/positions', {
+  headers: { 'X-Api-Key': import.meta.env.VITE_API_KEY }
+})
+
+// Worker validates against D1 whitelist
+const apiKey = c.req.header('X-Api-Key')
+const valid = await isApiKeyValid(env.DB, apiKey)
+if (!valid) return c.json({ error: 'Unauthorized' }, 401)
+```
+
+**Security notes**:
+- ✅ Token is 256-bit random (highly secure)
+- ✅ Stored in gitignored files (`.env.local`, `appsettings.Local.json`)
+- ✅ Validated on every request
+- ❌ **NEVER** commit tokens to git
+- ❌ **NEVER** share tokens in plain text (Slack, email, etc.)
+
+**Multiple tokens** (different clients):
+```bash
+# Generate separate tokens for dashboard, services, etc.
+openssl rand -hex 32  # Dashboard token
+openssl rand -hex 32  # Supervisor Service token
+openssl rand -hex 32  # Testing token
+
+# Add all to D1 whitelist
+bunx wrangler d1 execute trading-db --remote --command="
+INSERT INTO whitelist (api_key, description) VALUES 
+('dashboard-token-here', 'Production Dashboard'),
+('service-token-here', 'TradingSupervisorService'),
+('test-token-here', 'Development Testing');
+"
+```
+
 ### 3. Run Locally (Development)
 
 ```powershell

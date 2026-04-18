@@ -384,6 +384,230 @@ Should show campaign(s) in `Pending` or `Active` state.
 
 ---
 
+## Security & Secrets Configuration
+
+### Overview
+
+The trading system uses **3 layers** of authentication and secrets:
+
+1. **Cloudflare Worker Secrets** (optional) - For bot integration and AI features
+2. **API Authentication Token** (required for Worker access) - Protects Worker endpoints
+3. **IBKR Credentials** (required) - Already configured in appsettings.json
+
+### Step 10: Cloudflare Worker Secrets (Optional)
+
+These secrets enable optional features. **The Worker works without them** (features degrade gracefully).
+
+#### What You Need
+
+| Secret | Purpose | Required? | Get it from |
+|--------|---------|-----------|-------------|
+| `TELEGRAM_BOT_TOKEN` | Send Telegram alerts | No | @BotFather on Telegram |
+| `DISCORD_PUBLIC_KEY` | Verify Discord slash commands | No | Discord Developer Portal |
+| `CLAUDE_API_KEY` | Convert EasyLanguage → SDF | No | Anthropic Console |
+
+#### Setup Instructions
+
+**1. Create `.dev.vars` file** (local development):
+
+```bash
+cd infra/cloudflare/worker
+
+# Copy template
+cp .dev.vars.example .dev.vars
+
+# Edit with your values
+nano .dev.vars  # or your favorite editor
+```
+
+**`.dev.vars` content**:
+```bash
+# Telegram Bot (optional)
+TELEGRAM_BOT_TOKEN=123456789:ABCdefGHIjklMNOpqrsTUVwxyz
+
+# Discord Bot (optional)
+DISCORD_PUBLIC_KEY=a1b2c3d4e5f6789abcdef0123456789abcdef0123456789abcdef0123456789
+
+# Anthropic API (optional)
+CLAUDE_API_KEY=sk-ant-api03-YOUR_KEY_HERE
+```
+
+**⚠️ Security**: `.dev.vars` is in `.gitignore` - never commit it!
+
+**2. Deploy secrets to production** (when ready):
+
+```bash
+cd infra/cloudflare/worker
+
+# Set each secret (paste value when prompted)
+bunx wrangler secret put TELEGRAM_BOT_TOKEN
+bunx wrangler secret put DISCORD_PUBLIC_KEY
+bunx wrangler secret put CLAUDE_API_KEY
+```
+
+**3. Verify secrets** (production):
+
+```bash
+bunx wrangler secret list
+# Shows:
+# Name                   Created
+# TELEGRAM_BOT_TOKEN     2026-04-18
+# DISCORD_PUBLIC_KEY     2026-04-18
+# CLAUDE_API_KEY         2026-04-18
+```
+
+#### Detailed Setup Guides
+
+For detailed instructions on getting each secret, see:
+- **Telegram Bot**: [Main README § Telegram Bot Token](../README.md#telegram-bot-token-for-real-time-alerts)
+- **Discord Bot**: [Main README § Discord Bot Token](../README.md#discord-bot-token-for-cloudflare-worker-alerts---optional)
+- **Anthropic API**: [Main README § Anthropic Claude API Key](../README.md#anthropic-claude-api-key-for-easylanguage-converter---optional)
+
+### Step 11: API Authentication Token (Required for Worker Access)
+
+This token authenticates requests from Dashboard and Windows Services to the Cloudflare Worker.
+
+#### Generate Token
+
+```bash
+# Method 1: OpenSSL (Linux/Mac/WSL)
+openssl rand -hex 32
+
+# Method 2: PowerShell (Windows)
+[System.Convert]::ToBase64String((1..32 | ForEach-Object {Get-Random -Minimum 0 -Maximum 256}))
+```
+
+**Example output**:
+```
+a3f5c8d9e2b1f4a6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0
+```
+
+**💾 Save this token** - you'll need it for 3 configurations below.
+
+#### Configure Token (3 Places)
+
+**1. Cloudflare Worker D1 Database** (whitelist table):
+
+```bash
+cd infra/cloudflare/worker
+
+# Add token to whitelist (replace YOUR_TOKEN with generated token)
+bunx wrangler d1 execute trading-db --remote --command="
+INSERT INTO whitelist (api_key, description) 
+VALUES ('YOUR_TOKEN', 'Production Dashboard');
+"
+
+# Verify
+bunx wrangler d1 execute trading-db --remote --command="
+SELECT api_key, description, created_at FROM whitelist;
+"
+```
+
+**2. Dashboard Configuration**:
+
+```bash
+cd dashboard
+
+# Create .env.local (NOT committed to git)
+echo "VITE_API_KEY=YOUR_TOKEN" > .env.local
+```
+
+**`.env.local` should contain**:
+```bash
+# Dashboard → Worker authentication
+VITE_API_KEY=a3f5c8d9e2b1f4a6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0
+
+# Worker API URL (production)
+VITE_API_URL=https://trading-bot.padosoft.workers.dev
+```
+
+**3. Windows Services Configuration**:
+
+```bash
+cd src/TradingSupervisorService
+
+# Edit or create appsettings.Local.json
+```
+
+**`appsettings.Local.json` should contain**:
+```json
+{
+  "CloudflareWorker": {
+    "BaseUrl": "https://trading-bot.padosoft.workers.dev",
+    "ApiKey": "a3f5c8d9e2b1f4a6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0"
+  }
+}
+```
+
+**Same for OptionsExecutionService** (if it calls Worker):
+```bash
+cd src/OptionsExecutionService
+# Edit appsettings.Local.json with same CloudflareWorker section
+```
+
+#### Verify Authentication
+
+**Test with curl**:
+
+```bash
+# Replace with your token and Worker URL
+curl -H "X-Api-Key: YOUR_TOKEN" \
+  https://trading-bot.padosoft.workers.dev/api/health
+
+# Expected response:
+# {"status":"ok","timestamp":"2026-04-18T10:30:00Z"}
+```
+
+**Test with dashboard**:
+
+```bash
+cd dashboard
+npm run dev
+# Open http://localhost:5173
+# Check browser console for API requests
+# Should see successful requests, NOT 401 Unauthorized
+```
+
+#### Security Best Practices
+
+✅ **DO**:
+- Generate 256-bit random tokens (32 bytes hex)
+- Store in gitignored files (`.env.local`, `appsettings.Local.json`)
+- Use different tokens for different environments (dev, prod)
+- Rotate tokens periodically (e.g., every 90 days)
+
+❌ **DON'T**:
+- Commit tokens to git
+- Share tokens in plain text (Slack, email)
+- Reuse tokens across projects
+- Use predictable tokens (e.g., "12345", "password")
+
+#### Multiple Tokens (Advanced)
+
+For production, use **different tokens** for each client:
+
+```bash
+# Generate 3 tokens
+openssl rand -hex 32  # Dashboard
+openssl rand -hex 32  # TradingSupervisorService
+openssl rand -hex 32  # OptionsExecutionService
+
+# Add all to D1 whitelist
+bunx wrangler d1 execute trading-db --remote --command="
+INSERT INTO whitelist (api_key, description) VALUES 
+('dashboard-token-here', 'Production Dashboard'),
+('supervisor-token-here', 'TradingSupervisorService'),
+('execution-token-here', 'OptionsExecutionService');
+"
+```
+
+**Benefits**:
+- Revoke individual clients without affecting others
+- Track which client made which request
+- Better audit trail
+
+---
+
 ## Next Steps
 
 ### 1. Configure Telegram Alerts (Optional)

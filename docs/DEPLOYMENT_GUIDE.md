@@ -213,22 +213,147 @@ Services will be installed at:
 
 ### 4. Deploy Cloudflare Worker
 
+#### 4.1. Configure Secrets (First Time Only)
+
+The Worker requires **3 optional secrets** (features degrade gracefully if missing):
+
+| Secret | Purpose | Required? | Get it from |
+|--------|---------|-----------|-------------|
+| `TELEGRAM_BOT_TOKEN` | Send Telegram alerts | Optional | @BotFather → `/newbot` |
+| `DISCORD_PUBLIC_KEY` | Verify Discord slash commands | Optional | Discord Developer Portal → General Info |
+| `CLAUDE_API_KEY` | Convert EasyLanguage → SDF | Optional | https://console.anthropic.com/settings/keys |
+
+**Set secrets via Wrangler CLI**:
+
+```bash
+cd infra/cloudflare/worker
+
+# Telegram Bot (optional)
+bunx wrangler secret put TELEGRAM_BOT_TOKEN
+# Paste: 123456789:ABCdefGHIjklMNOpqrsTUVwxyz
+
+# Discord Bot (optional)
+bunx wrangler secret put DISCORD_PUBLIC_KEY
+# Paste: a1b2c3d4e5f6789abcdef0123456789...
+
+# Anthropic API (optional)
+bunx wrangler secret put CLAUDE_API_KEY
+# Paste: sk-ant-api03-YOUR_KEY_HERE
+```
+
+**Verify secrets**:
+
+```bash
+bunx wrangler secret list
+# Shows:
+# Name                   Created
+# TELEGRAM_BOT_TOKEN     2026-04-18T10:00:00Z
+# DISCORD_PUBLIC_KEY     2026-04-18T10:01:00Z
+# CLAUDE_API_KEY         2026-04-18T10:02:00Z
+```
+
+**⚠️ Security**:
+- Secrets are encrypted at rest in Cloudflare
+- Never accessible via API (can only add/delete)
+- Separate from environment variables (`vars` in wrangler.toml)
+
+**Detailed setup guides**:
+- **Telegram**: [README § Telegram Bot Token](../README.md#telegram-bot-token-for-real-time-alerts)
+- **Discord**: [README § Discord Bot Token](../README.md#discord-bot-token-for-cloudflare-worker-alerts---optional)
+- **Anthropic**: [README § Anthropic Claude API Key](../README.md#anthropic-claude-api-key-for-easylanguage-converter---optional)
+
+#### 4.2. Configure API Authentication
+
+The Worker requires **API key authentication** for protected endpoints.
+
+**Generate auth token**:
+
+```bash
+# Method 1: OpenSSL (recommended)
+openssl rand -hex 32
+# Output: a3f5c8d9e2b1f4a6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0
+
+# Method 2: PowerShell
+[System.Convert]::ToBase64String((1..32 | ForEach-Object {Get-Random -Minimum 0 -Maximum 256}))
+```
+
+**Add to D1 whitelist**:
+
+```bash
+cd infra/cloudflare/worker
+
+# Add token (replace YOUR_TOKEN)
+bunx wrangler d1 execute trading-db --remote --command="
+INSERT INTO whitelist (api_key, description) 
+VALUES ('YOUR_TOKEN', 'Production Dashboard');
+"
+
+# Verify
+bunx wrangler d1 execute trading-db --remote --command="
+SELECT api_key, description, created_at FROM whitelist;
+"
+```
+
+**Configure clients** (3 places):
+
+**1. Dashboard** (`dashboard/.env.local`):
+```bash
+cd dashboard
+echo "VITE_API_KEY=YOUR_TOKEN" > .env.local
+echo "VITE_API_URL=https://trading-bot.padosoft.workers.dev" >> .env.local
+```
+
+**2. TradingSupervisorService** (`src/TradingSupervisorService/appsettings.Local.json`):
+```json
+{
+  "CloudflareWorker": {
+    "BaseUrl": "https://trading-bot.padosoft.workers.dev",
+    "ApiKey": "YOUR_TOKEN"
+  }
+}
+```
+
+**3. OptionsExecutionService** (if needed):
+```json
+{
+  "CloudflareWorker": {
+    "BaseUrl": "https://trading-bot.padosoft.workers.dev",
+    "ApiKey": "YOUR_TOKEN"
+  }
+}
+```
+
+**Test authentication**:
+
+```bash
+# Replace with your token and Worker URL
+curl -H "X-Api-Key: YOUR_TOKEN" \
+  https://trading-bot.padosoft.workers.dev/api/health
+
+# Expected: {"status":"ok","timestamp":"..."}
+# If 401 Unauthorized: Token not in whitelist or wrong format
+```
+
+#### 4.3. Deploy Worker
+
 ```bash
 cd infra/cloudflare/worker
 
 # Deploy to production
 bunx wrangler deploy
 
-# Deploy to preview
+# Deploy to preview environment
 bunx wrangler deploy --env preview
 ```
 
-**Required secrets** (set once):
-
-```bash
-bunx wrangler secret put TELEGRAM_BOT_TOKEN
-bunx wrangler secret put DISCORD_PUBLIC_KEY
-bunx wrangler secret put CLAUDE_API_KEY
+**Output**:
+```
+Published trading-bot (1.23 sec)
+  https://trading-bot.padosoft.workers.dev
+  
+Worker Metrics
+  Requests last 24h: 1,234
+  Errors last 24h: 0
 ```
 
 ### 5. Deploy Dashboard
