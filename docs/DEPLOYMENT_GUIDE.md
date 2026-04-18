@@ -282,16 +282,37 @@ openssl rand -hex 32
 ```bash
 cd infra/cloudflare/worker
 
-# Add token (replace YOUR_TOKEN)
+# STEP 1: Apply migrations (creates whitelist table - run once)
+bunx wrangler d1 migrations apply trading-db --remote
+
+# STEP 2: Add token (replace YOUR_TOKEN)
 bunx wrangler d1 execute trading-db --remote --command="
 INSERT INTO whitelist (api_key, description) 
 VALUES ('YOUR_TOKEN', 'Production Dashboard');
 "
 
-# Verify
+# STEP 3: Verify token was added
 bunx wrangler d1 execute trading-db --remote --command="
 SELECT api_key, description, created_at FROM whitelist;
 "
+```
+
+**Migration output** (first time only):
+```
+Migrations to be applied:
+┌────────────────────────────┐
+│ name                       │
+├────────────────────────────┤
+│ 0001_initial_schema.sql    │
+├────────────────────────────┤
+│ 0002_el_conversion_log.sql │
+├────────────────────────────┤
+│ 0003_bot_commands_log.sql  │
+├────────────────────────────┤
+│ 0004_bot_whitelist.sql     │
+├────────────────────────────┤
+│ 0005_api_whitelist.sql     │ ← Creates whitelist table
+└────────────────────────────┘
 ```
 
 **Configure clients** (3 places):

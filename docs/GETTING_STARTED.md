@@ -491,16 +491,28 @@ a3f5c8d9e2b1f4a6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0
 ```bash
 cd infra/cloudflare/worker
 
-# Add token to whitelist (replace YOUR_TOKEN with generated token)
+# STEP 1: Apply migrations (creates whitelist table)
+bunx wrangler d1 migrations apply trading-db --remote
+
+# STEP 2: Add token to whitelist (replace YOUR_TOKEN with generated token)
 bunx wrangler d1 execute trading-db --remote --command="
 INSERT INTO whitelist (api_key, description) 
 VALUES ('YOUR_TOKEN', 'Production Dashboard');
 "
 
-# Verify
+# STEP 3: Verify token was added
 bunx wrangler d1 execute trading-db --remote --command="
 SELECT api_key, description, created_at FROM whitelist;
 "
+```
+
+**Expected output**:
+```
+┌────┬──────────────────────────────────────────────────────────────────┬──────────────────────┬─────────────────────┐
+│ id │ api_key                                                          │ description          │ created_at          │
+├────┼──────────────────────────────────────────────────────────────────┼──────────────────────┼─────────────────────┤
+│ 1  │ 20c98b3f05c7a06a2fcca3168aeeb7df5d8401cc70d007bde589cead6ea95792 │ Production Dashboard │ 2026-04-18 20:28:57 │
+└────┴──────────────────────────────────────────────────────────────────┴──────────────────────┴─────────────────────┘
 ```
 
 **2. Dashboard Configuration**:

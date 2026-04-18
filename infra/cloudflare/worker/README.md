@@ -169,11 +169,21 @@ All protected endpoints require `X-Api-Key` header with a valid token from D1 wh
    # Output: a3f5c8d9e2b1f4a6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0
    ```
 
-2. **Add to D1 whitelist**:
+2. **Apply migrations** (creates whitelist table):
+   ```bash
+   bunx wrangler d1 migrations apply trading-db --remote
+   ```
+
+3. **Add to D1 whitelist**:
    ```bash
    bunx wrangler d1 execute trading-db --remote --command="
    INSERT INTO whitelist (api_key, description) 
    VALUES ('YOUR_TOKEN', 'Production Dashboard');
+   "
+   
+   # Verify
+   bunx wrangler d1 execute trading-db --remote --command="
+   SELECT api_key, description FROM whitelist;
    "
    ```
 

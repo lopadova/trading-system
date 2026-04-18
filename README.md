@@ -550,11 +550,23 @@ openssl rand -hex 32
 **Where to configure** (3 places):
 
 1. **Cloudflare Worker D1** (whitelist table):
+   
+   **IMPORTANT**: First run migrations to create the whitelist table:
    ```bash
    cd infra/cloudflare/worker
+   
+   # Apply migrations (creates whitelist table)
+   bunx wrangler d1 migrations apply trading-db --remote
+   
+   # Then add your token
    bunx wrangler d1 execute trading-db --remote --command="
    INSERT INTO whitelist (api_key, description) 
    VALUES ('YOUR_TOKEN_HERE', 'Production Dashboard');
+   "
+   
+   # Verify token was added
+   bunx wrangler d1 execute trading-db --remote --command="
+   SELECT api_key, description, created_at FROM whitelist;
    "
    ```
 
