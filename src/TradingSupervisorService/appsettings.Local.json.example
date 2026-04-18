@@ -87,11 +87,67 @@
   },
 
   "Bots": {
+    // Active bot type: "telegram", "discord", or "none"
+    // - "telegram": Enable Telegram bot commands
+    // - "discord": Enable Discord bot commands
+    // - "none": Disable bot commands (alerts only)
     "ActiveBot": "none",
+
+    // Cloudflare Worker webhook URL
+    // Format: https://your-worker.workers.dev/api/bot
     "WebhookUrl": "https://trading-system.YOUR-ACCOUNT.workers.dev/api/bot",
+
+    // Telegram bot token (from @BotFather)
+    // Get it: Open Telegram → Search @BotFather → /newbot → Copy token
     "TelegramBotToken": "123456789:ABCdefGHIjklMNOpqrsTUVwxyz1234567890",
+
+    // Discord bot token (from Discord Developer Portal)
+    // Get it: https://discord.com/developers/applications → Your App → Bot → Reset Token
     "DiscordBotToken": "YOUR_DISCORD_BOT_TOKEN_HERE",
+
+    // Discord application public key (for webhook signature verification)
+    // Get it: https://discord.com/developers/applications → Your App → General Information → PUBLIC KEY
     "DiscordPublicKey": "YOUR_DISCORD_PUBLIC_KEY_HERE",
+
+    // ⭐ WHITELIST: Comma-separated list of authorized user IDs
+    //
+    // 🎯 WHAT IS THIS?
+    // Controls who can send commands to your bot (/status, /positions, /pnl, etc.)
+    //
+    // 🔒 SECURITY: If empty (""), NO ONE can use bot commands (maximum security)
+    //
+    // 📝 HOW TO GET YOUR USER ID:
+    //
+    // Telegram:
+    //   1. Open Telegram → Search @userinfobot
+    //   2. Send /start
+    //   3. Copy the number (e.g., "123456789")
+    //
+    // Discord:
+    //   1. Discord Settings → Advanced → Developer Mode ON
+    //   2. Right-click your username → Copy User ID
+    //   3. Copy the 18-digit number (e.g., "987654321098765432")
+    //
+    // 💡 EXAMPLES:
+    //   Single user:  "123456789"
+    //   Multi users:  "123456789,987654321,555666777"
+    //   No access:    ""  (empty = nobody can use commands)
+    //
+    // ⚙️ HOW IT WORKS:
+    //   1. You start the .NET service with Whitelist configured
+    //   2. Service syncs user IDs to Worker's bot_whitelist table (D1)
+    //   3. When a user sends /status, Worker checks if their ID is in bot_whitelist
+    //   4. If YES → Command executed, response sent
+    //   5. If NO → Command ignored (no response)
+    //
+    // 🔄 DYNAMIC MANAGEMENT:
+    // After initial setup, you can add/remove users via D1 (no service restart):
+    //   bunx wrangler d1 execute trading-db --remote --command="
+    //   INSERT INTO bot_whitelist (user_id, bot_type, notes)
+    //   VALUES ('123456789', 'telegram', 'Lorenzo - Owner');
+    //   "
+    //
+    // 📚 FULL GUIDE: See docs/BOT_SETUP_GUIDE.md for detailed explanation
     "Whitelist": ""
   }
 }

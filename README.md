@@ -489,7 +489,34 @@ See [Configuration Checklist](docs/CONFIGURATION-CHECKLIST.md) to verify your se
 
    **⚠️ Nota**: `.dev.vars` è in `.gitignore`, mai committare i token!
 
-4. **Deploy secret to Cloudflare** (when ready for production):
+4. **Bot Whitelist (Per comandi interattivi)**:
+   
+   Se vuoi abilitare **comandi bot** (`/status`, `/positions`, `/pnl`), devi configurare la **User Whitelist**.
+   
+   📚 **Guida completa**: Vedi [docs/BOT_SETUP_GUIDE.md](docs/BOT_SETUP_GUIDE.md) per:
+   - Cosa sono le 3 whitelist e differenze
+   - Come trovare il tuo User ID (Telegram/Discord)
+   - Come configurare la whitelist step-by-step
+   - Testing e troubleshooting
+   - Gestione multi-utente
+   
+   **Quick setup**:
+   ```bash
+   # 1. Get your Telegram user ID
+   # Open Telegram → Search @userinfobot → /start → Copy ID (e.g., "123456789")
+   
+   # 2. Add to appsettings.Local.json
+   {
+     "Bots": {
+       "Whitelist": "123456789"  // ← Your user ID here
+     }
+   }
+   
+   # 3. Start service (syncs whitelist to Worker)
+   dotnet run --project src/TradingSupervisorService
+   ```
+
+5. **Deploy secret to Cloudflare** (when ready for production):
    ```bash
    cd infra/cloudflare/worker
    npx wrangler secret put ANTHROPIC_API_KEY

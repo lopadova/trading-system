@@ -622,12 +622,37 @@ INSERT INTO whitelist (api_key, description) VALUES
 
 ## Next Steps
 
-### 1. Configure Telegram Alerts (Optional)
+### 1. Configure Bot Integration (Optional)
 
+**For Alerts (One-Way)**:
 See [Telegram Integration Guide](./telegram-integration.md) for:
 - Creating Telegram bot
 - Getting chat ID
-- Configuring bot token
+- Configuring bot token (alerts only, no commands)
+
+**For Interactive Commands** (`/status`, `/positions`, `/pnl`):
+📚 **Complete Guide**: [Bot Setup Guide](./BOT_SETUP_GUIDE.md)
+
+This guide explains:
+- ⭐ **Bot User Whitelist**: What it is, when to use it, how to configure
+- 🔐 **3 Whitelists Explained**: API keys vs User IDs vs Config (avoid confusion!)
+- 📱 **How to find your User ID**: Telegram (@userinfobot) and Discord (Developer Mode)
+- ⚙️ **Step-by-step setup**: Config files, D1 database, testing
+- 🧪 **Troubleshooting**: Common issues and fixes
+- 👥 **Multi-user management**: Add/remove users dynamically
+
+**Quick Reference**:
+```bash
+# Get your Telegram user ID
+# Telegram → Search @userinfobot → /start → Copy ID
+
+# Configure whitelist (appsettings.Local.json)
+{
+  "Bots": {
+    "Whitelist": "123456789"  // Your user ID
+  }
+}
+```
 
 ### 2. Create Your First Strategy
 
