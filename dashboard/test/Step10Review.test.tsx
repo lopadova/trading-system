@@ -20,11 +20,13 @@ import ConflictDialog from '../src/components/strategy-wizard/shared/ConflictDia
 import { createDefaultStrategy } from '../src/utils/sdf-defaults'
 import type { ValidationError } from '../src/utils/sdf-validator'
 
-// Mock navigator.clipboard
-Object.assign(navigator, {
-  clipboard: {
+// Mock navigator.clipboard (use defineProperty for happy-dom compatibility)
+Object.defineProperty(navigator, 'clipboard', {
+  value: {
     writeText: vi.fn().mockResolvedValue(undefined),
   },
+  writable: true,
+  configurable: true,
 })
 
 // Mock URL.createObjectURL

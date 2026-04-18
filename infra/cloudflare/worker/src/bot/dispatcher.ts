@@ -59,7 +59,7 @@ export function parseCommand(text: string): BotCommand {
 
   // Whitelist admin commands
   if (normalized.startsWith('/whitelist')) {
-    const parts = text.trim().split(/\s+/)
+    const parts = normalized.split(/\s+/)
 
     if (parts.length === 1 || parts[1] === 'list') {
       return { type: 'whitelist', action: 'list' }

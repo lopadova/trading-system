@@ -78,14 +78,15 @@ describe('Bot Semaphores', () => {
       expect(spxVsWingSignal(5234, 4900)).toBe('🟢')
     })
 
-    it('returns yellow for distance in 50-150 range', () => {
+    it('returns yellow for distance in 30-150 range', () => {
       expect(spxVsWingSignal(5234, 5100)).toBe('🟡') // 134pt
       expect(spxVsWingSignal(5234, 5084)).toBe('🟡') // 150pt
+      expect(spxVsWingSignal(5234, 5184)).toBe('🟡') // 50pt (yellow with new threshold)
     })
 
-    it('returns red for distance < 50pt', () => {
+    it('returns red for distance <= 30pt', () => {
       expect(spxVsWingSignal(5234, 5220)).toBe('🔴') // 14pt
-      expect(spxVsWingSignal(5234, 5184)).toBe('🔴') // 50pt boundary
+      expect(spxVsWingSignal(5234, 5204)).toBe('🔴') // 30pt boundary
     })
 
     it('returns white for null inputs', () => {

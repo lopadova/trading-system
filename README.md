@@ -721,6 +721,7 @@ dotnet test
 
 #### Running Tests
 
+**C# Services (.NET)**:
 ```powershell
 # Run all tests
 dotnet test
@@ -734,6 +735,43 @@ dotnet watch test --project tests/SharedKernel.Tests
 # Verbose output
 dotnet test --logger "console;verbosity=detailed"
 ```
+
+**Cloudflare Worker (TypeScript)**:
+```bash
+cd infra/cloudflare/worker
+
+# Run all tests (unit + integration)
+bun test
+
+# Run only unit tests
+bun run test:unit
+
+# Run only integration tests (requires cloudflare:test package)
+bun run test:integration
+```
+
+**Dashboard (React/TypeScript)**:
+```bash
+cd dashboard
+
+# Run all tests (REQUIRED: use npm, Bun doesn't support DOM)
+npm test
+
+# Watch mode
+npm run test:watch
+
+# UI mode
+npm run test:ui
+
+# Coverage
+npm run test:coverage
+```
+
+**⚠️ IMPORTANT**: Dashboard tests **MUST** use `npm test` (NOT `bun test`). 
+- ✅ **Correct**: `npm test` or `npm run test:watch`
+- ❌ **Wrong**: `bun test` (Bun's vitest doesn't support DOM environments needed for React tests)
+
+If you run `bun test` by mistake, you'll see 144 failures due to missing DOM. These are false negatives - use `npm test` instead.
 
 See [Contributing Guide](docs/CONTRIBUTING.md) for coding standards and PR process.
 
@@ -786,17 +824,64 @@ npx wrangler secret put ANTHROPIC_API_KEY
 
 ### React Dashboard
 
+Dashboard is a **static React app** deployed to **Cloudflare Pages** (NOT Workers).
+
+#### Build
+
 ```bash
 cd dashboard
 
-# Build for production
-bun run build
+# Install dependencies
+npm install
 
-# Deploy to Cloudflare Pages (or any static host)
-bun run deploy
+# Build for production
+npm run build
+# Output: dist/
 ```
 
-See [Deployment Guide](docs/DEPLOYMENT.md) for complete instructions.
+#### Deployment Options
+
+**Option A: Cloudflare Pages Auto-Deploy** (Recommended)
+
+1. **One-time setup**:
+   - Go to [Cloudflare Dashboard](https://dash.cloudflare.com/) → Pages
+   - Click "Create a project" → "Connect to Git"
+   - Select your repository
+   - Build settings:
+     - **Framework preset**: Vite
+     - **Build command**: `npm run build`
+     - **Build output directory**: `dist`
+     - **Root directory**: `dashboard`
+
+2. **Deploy**:
+   ```bash
+   git add .
+   git commit -m "Update dashboard"
+   git push
+   ```
+   Cloudflare Pages auto-deploys on push! 🎉
+
+**Option B: Manual Deploy via Wrangler**
+
+```bash
+cd dashboard
+
+# Build
+npm run build
+
+# Deploy manually
+npx wrangler pages deploy dist --project-name trading-dashboard
+```
+
+**Option C: Deploy to Other Static Hosts**
+
+Dashboard is a standard Vite React app - deploy the `dist/` folder to:
+- Vercel: `vercel --prod`
+- Netlify: `netlify deploy --prod`
+- AWS S3 + CloudFront
+- Any static file hosting
+
+See [Deployment Guide](docs/DEPLOYMENT_GUIDE.md) for complete instructions including CI/CD.
 
 ---
 

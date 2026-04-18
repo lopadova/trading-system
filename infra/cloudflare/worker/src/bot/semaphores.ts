@@ -135,7 +135,7 @@ export function thetaSignal(theta: number | null, limit: number | null): Signal 
 
 /**
  * SPX vs Wing distance signal (points)
- * Green: > 150pt, Yellow: 50-150pt, Red: < 50pt, White: null
+ * Green: > 150pt, Yellow: 30-150pt, Red: <= 30pt, White: null
  */
 export function spxVsWingSignal(spx: number | null, wing: number | null): Signal {
   if (spx === null || spx === undefined || wing === null || wing === undefined) {
@@ -147,7 +147,7 @@ export function spxVsWingSignal(spx: number | null, wing: number | null): Signal
   if (distance > 150) {
     return '🟢'
   }
-  if (distance > 50) {
+  if (distance > 30) {
     return '🟡'
   }
   return '🔴'

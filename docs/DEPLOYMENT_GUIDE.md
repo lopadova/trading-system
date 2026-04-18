@@ -159,10 +159,23 @@ bun test        # Run tests
 
 ```bash
 cd dashboard
-bun install
-bun run build   # Vite build
+
+# Install dependencies
+npm install  # REQUIRED: Use npm (Bun doesn't support DOM testing)
+
+# Run tests (REQUIRED: use npm, NOT bun)
+npm test
+
+# Build for production
+npm run build   # Vite build
 # Output: dashboard/dist/
 ```
+
+**⚠️ IMPORTANT - Testing**:
+- ✅ **Correct**: `npm test` or `npm run test:watch`
+- ❌ **Wrong**: `bun test` (will show 144 false failures due to missing DOM)
+
+Dashboard tests **MUST** use npm because Bun's vitest doesn't support DOM environments (jsdom/happy-dom) needed for React component testing.
 
 ### 3. Deploy Windows Services
 
@@ -220,14 +233,67 @@ bunx wrangler secret put CLAUDE_API_KEY
 
 ### 5. Deploy Dashboard
 
+Dashboard is a **static React app** deployed to **Cloudflare Pages** (NOT Workers).
+
+#### Option A: Cloudflare Pages Auto-Deploy (Recommended)
+
+**One-time setup**:
+1. Go to [Cloudflare Dashboard](https://dash.cloudflare.com/) → Pages
+2. Click "Create a project" → "Connect to Git"
+3. Select your repository
+4. Configure build settings:
+   - **Framework preset**: Vite
+   - **Build command**: `npm run build`
+   - **Build output directory**: `dist`
+   - **Root directory**: `dashboard`
+   - **Environment variables**: Add if needed (VITE_API_URL, etc.)
+
+**Deploy**:
+```bash
+# Just push to main branch
+git add .
+git commit -m "Update dashboard"
+git push origin main
+```
+
+Cloudflare Pages will automatically:
+- Pull latest code
+- Run `npm run build`
+- Deploy `dist/` folder
+- Provide preview URLs for PRs
+
+#### Option B: Manual Deploy via Wrangler
+
 ```bash
 cd dashboard
 
-# Deploy to Cloudflare Pages
-bunx wrangler pages deploy dist --project-name=trading-dashboard
+# Build first
+npm run build
 
-# Or use Cloudflare Pages GitHub integration (automatic on push)
+# Deploy manually
+npx wrangler pages deploy dist --project-name=trading-dashboard
+
+# Deploy with branch name (for preview environments)
+npx wrangler pages deploy dist --project-name=trading-dashboard --branch=develop
 ```
+
+#### Option C: Other Static Hosts
+
+Since dashboard is a standard Vite React app, you can deploy to:
+
+**Vercel**:
+```bash
+npm install -g vercel
+vercel --prod
+```
+
+**Netlify**:
+```bash
+npm install -g netlify-cli
+netlify deploy --prod --dir=dist
+```
+
+**AWS S3 + CloudFront**: Upload `dist/` to S3 bucket configured for static website hosting.
 
 ---
 

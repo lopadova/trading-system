@@ -7,7 +7,7 @@ compatibility_flags = ["nodejs_compat"]
 [[d1_databases]]
 binding = "DB"
 database_name = "trading-db"
-database_id = "REPLACE_WITH_YOUR_D1_ID"
+database_id = "6d7a686a-000d-495d-bea2-e71dfe1e63c8"
 # To create: wrangler d1 create trading-db
 # Then replace the database_id above with the output
 
