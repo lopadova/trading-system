@@ -14,6 +14,7 @@ Production-ready automated trading system for options strategies via Interactive
   - [Development](#development)
   - [Knowledge Base](#knowledge-base)
   - [CI/CD](#cicd)
+- [System Components](#system-components)
 - [Quick Start](#quick-start)
 - [Architecture](#architecture)
 - [Key Features](#key-features)
@@ -69,6 +70,123 @@ Production-ready automated trading system for options strategies via Interactive
 - **[GitHub Actions](.github/workflows/)** - Automated build, test, and deployment
   - `dotnet-build-test.yml` - .NET services build and test
   - `cloudflare-deploy.yml` - Worker and Dashboard deployment
+
+---
+
+## System Components
+
+The trading system is composed of **4 main components** that work together:
+
+### 1️⃣ TradingSupervisorService (C# Windows Service)
+
+**What it is**: Background service that monitors the trading system health and sends alerts.
+
+**What it does**:
+- 📊 **Monitors system health**: CPU, RAM, disk usage
+- 📈 **Monitors positions**: Greeks (Delta, Gamma, Theta, Vega), P&L, risk metrics
+- 🔔 **Sends alerts**: Telegram, Discord, Cloudflare Worker
+- 💓 **Heartbeat**: Keeps track of system uptime
+- 📝 **Reads logs**: Parses OptionsExecutionService logs for errors
+- 🔄 **Syncs to cloud**: Pushes events to Cloudflare Worker via outbox pattern
+
+**Runs on**: Windows Server (as Windows Service) or local machine (dotnet run)
+
+**Database**: SQLite (`data/supervisor.db`)
+
+**Configuration**: `src/TradingSupervisorService/appsettings.json` + `appsettings.Local.json`
+
+---
+
+### 2️⃣ OptionsExecutionService (C# Windows Service)
+
+**What it is**: Core trading engine that executes options strategies via IBKR.
+
+**What it does**:
+- 🎯 **Executes strategies**: Reads JSON strategy files, sends orders to IBKR
+- 📋 **Manages campaigns**: Multi-leg option positions (spreads, straddles, etc.)
+- 🛡️ **Safety checks**: Max position size, max risk, circuit breaker
+- 🔌 **IBKR integration**: Connects to TWS/Gateway (paper or live)
+- 💾 **Persists state**: Positions, orders, P&L in SQLite
+
+**Runs on**: Windows Server (as Windows Service) or local machine (dotnet run)
+
+**Database**: SQLite (`data/options-execution.db`)
+
+**Configuration**: `src/OptionsExecutionService/appsettings.json` + `appsettings.Local.json`
+
+---
+
+### 3️⃣ Cloudflare Worker (TypeScript/Hono)
+
+**What it is**: Serverless API running on Cloudflare Edge for alerts and bot commands.
+
+**What it does**:
+- 🤖 **Receives bot commands**: Slash commands from Discord (`/status`, `/positions`)
+- 📨 **Sends alerts**: Pushes notifications to Discord/Telegram channels
+- 🔄 **EasyLanguage converter**: Converts TradeStation EasyLanguage to SDF format (via Claude API)
+- 💾 **Stores events**: D1 database for bot command logs, whitelist
+- 🌍 **Global edge network**: Low latency worldwide
+
+**Runs on**: Cloudflare Workers (serverless, auto-scaling)
+
+**Database**: Cloudflare D1 (`trading-db`)
+
+**Configuration**: `infra/cloudflare/worker/.dev.vars` (local) + wrangler secrets (production)
+
+---
+
+### 4️⃣ React Dashboard (TypeScript/React/Vite)
+
+**What it is**: Web UI for monitoring positions, campaigns, and system status.
+
+**What it does**:
+- 📊 **Visualizes positions**: Real-time P&L, Greeks, risk metrics
+- 🎯 **Manages campaigns**: View/edit multi-leg strategies
+- 🔍 **Monitors system**: Health checks, logs, alerts
+- 🛠️ **EasyLanguage tools**: Convert TradeStation code to SDF format
+
+**Runs on**: Cloudflare Pages (static hosting) or any CDN
+
+**Database**: Reads from Cloudflare Worker API
+
+**Configuration**: `dashboard/.env.local` (API endpoints)
+
+---
+
+## 🔗 How They Communicate
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  IBKR TWS/Gateway (Paper Trading)                       │
+│  Port 4002 (paper) / 4001 (live)                        │
+└─────────────────────────────────────────────────────────┘
+                    ↕ TCP connection
+┌─────────────────────────────────────────────────────────┐
+│  OptionsExecutionService (C# Windows Service)           │
+│  - Sends orders to IBKR                                 │
+│  - Stores positions in SQLite                           │
+└─────────────────────────────────────────────────────────┘
+                    ↓ Writes logs to disk
+┌─────────────────────────────────────────────────────────┐
+│  TradingSupervisorService (C# Windows Service)          │
+│  - Reads OptionsExecutionService logs                   │
+│  - Monitors positions in SQLite                         │
+│  - Sends alerts to Cloudflare Worker                    │
+└─────────────────────────────────────────────────────────┘
+                    ↓ HTTP POST (outbox sync)
+┌─────────────────────────────────────────────────────────┐
+│  Cloudflare Worker (TypeScript/Hono)                    │
+│  - Receives alerts from TradingSupervisorService        │
+│  - Sends to Discord/Telegram channels                   │
+│  - Handles slash commands (/status, /positions)         │
+└─────────────────────────────────────────────────────────┘
+                    ↕ REST API
+┌─────────────────────────────────────────────────────────┐
+│  React Dashboard (Browser)                              │
+│  - Queries Cloudflare Worker API                        │
+│  - Displays positions, campaigns, system status         │
+└─────────────────────────────────────────────────────────┘
+```
 
 ---
 
