@@ -10,18 +10,20 @@
     "deploy": "wrangler deploy",
     "migrate:local": "wrangler d1 migrations apply trading-db --local",
     "migrate:prod": "wrangler d1 migrations apply trading-db",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "test": "vitest run && vitest run -c vitest.integration.config.ts",
+    "test:watch": "vitest",
+    "test:unit": "vitest run",
+    "test:integration": "vitest run -c vitest.integration.config.ts"
   },
   "dependencies": {
-    "hono": "^4.7.9",
-    "@anthropic-ai/sdk": "^0.82.0"
+    "@anthropic-ai/sdk": "^0.82.0",
+    "hono": "^4.12.14"
   },
   "devDependencies": {
-    "@cloudflare/vitest-pool-workers": "^0.6.4",
-    "@cloudflare/workers-types": "^4.20250115.0",
-    "typescript": "^5.7.3",
+    "@cloudflare/vitest-pool-workers": "^0.6.16",
+    "@cloudflare/workers-types": "^4.20260418.1",
+    "typescript": "^5.9.3",
     "vitest": "2.1.8",
-    "wrangler": "^3.101.0"
+    "wrangler": "^4.83.0"
   }
 }

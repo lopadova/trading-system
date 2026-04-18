@@ -217,4 +217,4 @@ Update `DASHBOARD_ORIGIN` in `wrangler.toml` to match your dashboard URL.
 
 ## License
 
-Proprietary - Padosoft Trading System
+Proprietary - Lorenzo Padovani Trading System

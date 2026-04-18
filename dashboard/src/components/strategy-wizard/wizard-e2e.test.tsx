@@ -139,7 +139,8 @@ const PARTIAL_EL_CONVERSION_RESULT = {
 // ============================================================================
 
 // Mock fetch for publish and convert endpoints
-global.fetch = vi.fn()
+const mockFetch = vi.fn()
+global.fetch = mockFetch as any
 
 // Mock console methods to suppress validation warnings during tests
 const originalConsoleWarn = console.warn
@@ -170,7 +171,7 @@ beforeEach(() => {
   })
 
   // Reset fetch mock
-  vi.mocked(fetch).mockReset()
+  mockFetch.mockReset()
 })
 
 afterEach(() => {
@@ -344,7 +345,7 @@ describe('E2E-W-02: JSON import flow', () => {
 describe('E2E-W-03: EL conversion flow', () => {
   it('should convert EL code and apply to wizard', async () => {
     // Mock successful conversion API response
-    vi.mocked(fetch).mockResolvedValueOnce({
+    mockFetch.mockResolvedValueOnce({
       ok: true,
       status: 200,
       json: async () => PARTIAL_EL_CONVERSION_RESULT,
@@ -396,7 +397,7 @@ describe('E2E-W-03: EL conversion flow', () => {
 
   it('should handle conversion API error gracefully', async () => {
     // Mock API error
-    vi.mocked(fetch).mockResolvedValueOnce({
+    mockFetch.mockResolvedValueOnce({
       ok: false,
       status: 500,
       json: async () => ({ error: 'Claude API timeout' }),
@@ -570,7 +571,7 @@ describe('E2E-W-05: Publish flow with validation', () => {
     useWizardStore.getState().initFromJson(VALID_STRATEGY_JSON)
 
     // Mock successful publish API
-    vi.mocked(fetch).mockResolvedValueOnce({
+    mockFetch.mockResolvedValueOnce({
       ok: true,
       status: 200,
       json: async () => ({ strategy_id: 'iron-condor-spx-weekly' }),
@@ -617,7 +618,7 @@ describe('E2E-W-05: Publish flow with validation', () => {
     useWizardStore.getState().initFromJson(VALID_STRATEGY_JSON)
 
     // Mock 409 conflict
-    vi.mocked(fetch).mockResolvedValueOnce({
+    mockFetch.mockResolvedValueOnce({
       ok: false,
       status: 409,
       json: async () => ({ error: 'conflict', strategy_id: 'iron-condor-spx-weekly' }),
@@ -646,7 +647,7 @@ describe('E2E-W-05: Publish flow with validation', () => {
     useWizardStore.getState().initFromJson(VALID_STRATEGY_JSON)
 
     // Mock network error
-    vi.mocked(fetch).mockRejectedValueOnce(new Error('Network timeout'))
+    mockFetch.mockRejectedValueOnce(new Error('Network timeout'))
 
     await useWizardStore.getState().publish()
 

@@ -134,6 +134,7 @@ Prima di implementare un componente, LEGGI il file skill pertinente:
 | React, componenti, query, tema | `skill-react-dashboard.md` |
 | Test xUnit, Playwright, bash | `skill-testing.md` |
 | Windows Service, installer, lifecycle | `skill-windows-service.md` |
+| **Modifica README o .md files** | `skill-documentation-sync.md` |
 
 ---
 

@@ -6,9 +6,14 @@ export default defineConfig({
   plugins: [react()],
   test: {
     globals: true,
-    environment: 'jsdom',
+    environment: 'happy-dom',
     setupFiles: ['./test/setup.ts'],
     include: ['test/**/*.test.ts', 'test/**/*.test.tsx', 'src/**/*.test.ts', 'src/**/*.test.tsx'],
+    exclude: [
+      '**/node_modules/**',
+      '**/dist/**',
+      'test/integration-*.test.*', // Integration tests require worker running
+    ],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
