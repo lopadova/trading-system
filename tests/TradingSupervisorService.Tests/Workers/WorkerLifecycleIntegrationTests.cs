@@ -82,6 +82,7 @@ public sealed class WorkerLifecycleIntegrationTests : IAsyncLifetime
             NullLogger<HeartbeatWorker>.Instance,
             _mockCollector.Object,
             _heartbeatRepo,
+            _outboxRepo,
             config);
 
         using CancellationTokenSource cts = new();
@@ -262,6 +263,7 @@ public sealed class WorkerLifecycleIntegrationTests : IAsyncLifetime
             NullLogger<HeartbeatWorker>.Instance,
             _mockCollector.Object,
             _heartbeatRepo,
+            _outboxRepo,
             config);
 
         OutboxSyncWorker outboxWorker = new(

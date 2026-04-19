@@ -17,6 +17,7 @@ public sealed class HeartbeatWorkerTests
     private readonly Mock<ILogger<HeartbeatWorker>> _mockLogger;
     private readonly Mock<IMachineMetricsCollector> _mockMetricsCollector;
     private readonly Mock<IHeartbeatRepository> _mockHeartbeatRepo;
+    private readonly Mock<IOutboxRepository> _mockOutboxRepo;
     private readonly IConfiguration _testConfig;
 
     public HeartbeatWorkerTests()
@@ -24,6 +25,7 @@ public sealed class HeartbeatWorkerTests
         _mockLogger = new Mock<ILogger<HeartbeatWorker>>();
         _mockMetricsCollector = new Mock<IMachineMetricsCollector>();
         _mockHeartbeatRepo = new Mock<IHeartbeatRepository>();
+        _mockOutboxRepo = new Mock<IOutboxRepository>();
 
         // Build test configuration
         Dictionary<string, string?> configValues = new()
@@ -64,6 +66,7 @@ public sealed class HeartbeatWorkerTests
             _mockLogger.Object,
             _mockMetricsCollector.Object,
             _mockHeartbeatRepo.Object,
+            _mockOutboxRepo.Object,
             _testConfig);
 
         using CancellationTokenSource cts = new();
@@ -124,6 +127,7 @@ public sealed class HeartbeatWorkerTests
             _mockLogger.Object,
             _mockMetricsCollector.Object,
             _mockHeartbeatRepo.Object,
+            _mockOutboxRepo.Object,
             _testConfig);
 
         using CancellationTokenSource cts = new();
@@ -165,6 +169,7 @@ public sealed class HeartbeatWorkerTests
                 _mockLogger.Object,
                 _mockMetricsCollector.Object,
                 _mockHeartbeatRepo.Object,
+                _mockOutboxRepo.Object,
                 config));
 
         Assert.Contains("IntervalSeconds", ex.Message);
@@ -203,6 +208,7 @@ public sealed class HeartbeatWorkerTests
             _mockLogger.Object,
             _mockMetricsCollector.Object,
             _mockHeartbeatRepo.Object,
+            _mockOutboxRepo.Object,
             testConfig);
 
         using CancellationTokenSource cts = new();
