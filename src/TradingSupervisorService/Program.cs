@@ -63,6 +63,12 @@ try
     Log.Information("Configuration validation passed");
 
     IHost host = Host.CreateDefaultBuilder(args)
+        .ConfigureAppConfiguration((context, config) =>
+        {
+            // CRITICAL: Explicitly add appsettings.Local.json to override base settings
+            // CreateDefaultBuilder doesn't include .Local.json by default
+            config.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
+        })
         .UseWindowsService(options =>
         {
             options.ServiceName = "TradingSupervisorService";

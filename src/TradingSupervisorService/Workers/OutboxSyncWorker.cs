@@ -64,6 +64,11 @@ public sealed class OutboxSyncWorker : BackgroundService
         if (!string.IsNullOrWhiteSpace(_apiKey))
         {
             _httpClient.DefaultRequestHeaders.Add("X-Api-Key", _apiKey);
+            _logger.LogInformation("OutboxSyncWorker: API key configured (length={Length})", _apiKey.Length);
+        }
+        else
+        {
+            _logger.LogWarning("OutboxSyncWorker: NO API key configured! Requests will fail authentication.");
         }
         _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
     }

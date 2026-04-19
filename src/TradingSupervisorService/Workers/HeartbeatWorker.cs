@@ -2,6 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using SharedKernel.Domain;
+using System.Text.Json;
 using TradingSupervisorService.Collectors;
 using TradingSupervisorService.Repositories;
 
@@ -17,6 +18,7 @@ public sealed class HeartbeatWorker : BackgroundService
     private readonly ILogger<HeartbeatWorker> _logger;
     private readonly IMachineMetricsCollector _metricsCollector;
     private readonly IHeartbeatRepository _heartbeatRepo;
+    private readonly IOutboxRepository _outboxRepo;
     private readonly int _intervalSeconds;
     private readonly TradingMode _tradingMode;
     private readonly string _serviceVersion;
@@ -26,11 +28,13 @@ public sealed class HeartbeatWorker : BackgroundService
         ILogger<HeartbeatWorker> logger,
         IMachineMetricsCollector metricsCollector,
         IHeartbeatRepository heartbeatRepo,
+        IOutboxRepository outboxRepo,
         IConfiguration config)
     {
         _logger = logger;
         _metricsCollector = metricsCollector;
         _heartbeatRepo = heartbeatRepo;
+        _outboxRepo = outboxRepo;
 
         // Read configuration with safe defaults
         _intervalSeconds = config.GetValue<int>("Monitoring:IntervalSeconds", 60);
@@ -90,6 +94,8 @@ public sealed class HeartbeatWorker : BackgroundService
     {
         try
         {
+            _logger.LogInformation("HeartbeatWorker: Starting heartbeat cycle");
+
             // Collect machine metrics (CPU, RAM, disk, uptime)
             MachineMetrics metrics = await _metricsCollector.CollectAsync(ct);
 
@@ -113,9 +119,29 @@ public sealed class HeartbeatWorker : BackgroundService
             // Write to database (upsert - creates or updates existing record)
             await _heartbeatRepo.UpsertAsync(heartbeat, ct);
 
-            _logger.LogDebug(
-                "Heartbeat written: CPU={Cpu}%, RAM={Ram}%, Disk={Disk}GB, Uptime={Uptime}s",
-                heartbeat.CpuPercent, heartbeat.RamPercent, heartbeat.DiskFreeGb, heartbeat.UptimeSeconds);
+            // Create outbox entry for remote sync to Cloudflare Worker
+            string eventId = Guid.NewGuid().ToString();
+            string payloadJson = JsonSerializer.Serialize(heartbeat, new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            });
+
+            OutboxEntry outboxEntry = new()
+            {
+                EventId = eventId,
+                EventType = "heartbeat",
+                PayloadJson = payloadJson,
+                DedupeKey = $"heartbeat:{heartbeat.ServiceName}:{now:yyyy-MM-dd-HH-mm}",  // Dedupe by service + minute
+                Status = "pending",
+                RetryCount = 0,
+                CreatedAt = now.ToString("O")
+            };
+
+            await _outboxRepo.InsertAsync(outboxEntry, ct);
+
+            _logger.LogInformation(
+                "✓ Heartbeat saved: CPU={Cpu}%, RAM={Ram}%, Disk={Disk}GB → Queued for sync (EventId={EventId})",
+                heartbeat.CpuPercent.ToString("F1"), heartbeat.RamPercent.ToString("F1"), heartbeat.DiskFreeGb.ToString("F1"), eventId);
         }
         catch (OperationCanceledException)
         {

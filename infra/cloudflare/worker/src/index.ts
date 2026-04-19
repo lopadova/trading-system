@@ -9,6 +9,7 @@ import type { Env } from './types/env'
 import { positions } from './routes/positions'
 import { alerts } from './routes/alerts'
 import { heartbeats } from './routes/heartbeats'
+import { ingest } from './routes/ingest'
 import { strategiesConvert } from './routes/strategies-convert'
 import { botTelegram } from './routes/bot-telegram'
 import { botDiscord } from './routes/bot-discord'
@@ -47,6 +48,7 @@ app.use('*', rateLimitMiddleware({ maxRequests: 100, windowMs: 60000 }))
 app.route('/api/positions', positions)
 app.route('/api/alerts', alerts)
 app.route('/api/heartbeats', heartbeats)
+app.route('/api/v1/ingest', ingest)
 app.route('/api/v1/strategies', strategiesConvert)
 
 // Mount bot routes (no rate limiting on webhooks)
@@ -85,6 +87,7 @@ app.get('/', (c) => {
       'GET /api/heartbeats',
       'GET /api/heartbeats/:service_name',
       'GET /api/heartbeats/stale/:threshold_seconds',
+      'POST /api/v1/ingest',
       'POST /api/v1/strategies/convert-el',
       'POST /api/bot/webhook/telegram',
       'POST /api/bot/webhook/discord'

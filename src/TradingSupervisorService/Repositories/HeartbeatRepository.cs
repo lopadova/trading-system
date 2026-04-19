@@ -107,6 +107,10 @@ public sealed class HeartbeatRepository : IHeartbeatRepository
         {
             await using SqliteConnection conn = await _db.OpenAsync(ct);
 
+            // DEBUG: Log connection details
+            _logger.LogInformation("HeartbeatRepo: Opening connection to {DbPath}", conn.DataSource);
+            _logger.LogInformation("HeartbeatRepo: Connection state = {State}", conn.State);
+
             // Use CommandDefinition for CancellationToken support (Dapper 2.1.x pattern)
             CommandDefinition cmd = new(sql, new
             {
@@ -122,9 +126,13 @@ public sealed class HeartbeatRepository : IHeartbeatRepository
                 CreatedAt = heartbeat.CreatedAt
             }, cancellationToken: ct);
 
-            await conn.ExecuteAsync(cmd);
+            _logger.LogInformation("HeartbeatRepo: Executing upsert for {ServiceName}", heartbeat.ServiceName);
+            int affectedRows = await conn.ExecuteAsync(cmd);
+            _logger.LogInformation("HeartbeatRepo: Upsert completed - {AffectedRows} rows affected", affectedRows);
 
-            _logger.LogDebug("Upserted heartbeat for service {ServiceName}", heartbeat.ServiceName);
+            // Verify the write
+            int count = await conn.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM service_heartbeats WHERE service_name = @ServiceName", new { heartbeat.ServiceName });
+            _logger.LogInformation("HeartbeatRepo: Verification - {Count} records exist for {ServiceName}", count, heartbeat.ServiceName);
         }
         catch (Exception ex)
         {
