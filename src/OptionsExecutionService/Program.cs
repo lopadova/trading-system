@@ -132,6 +132,7 @@ try
 
     builder.Services.AddSingleton(ibkrConfig);
     builder.Services.AddSingleton<TwsCallbackHandler>();
+    builder.Services.AddSingleton<IbkrPortScanner>();
     builder.Services.AddSingleton<IIbkrClient, IbkrClient>();
 
     // Register order safety configuration

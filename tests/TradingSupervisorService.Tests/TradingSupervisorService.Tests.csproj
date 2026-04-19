@@ -25,6 +25,15 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- CRITICAL: Official IBKR TWS API library (CSharpAPI.dll) -->
+    <!-- MUST install TWS API from: https://www.interactivebrokers.com/en/trading/tws-api-install.php -->
+    <Reference Include="IBApi">
+      <HintPath>C:\TWS API\source\CSharpClient\client\bin\Release\net8.0\CSharpAPI.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\TradingSupervisorService\TradingSupervisorService.csproj" />
     <ProjectReference Include="..\..\src\SharedKernel\SharedKernel.csproj" />
     <ProjectReference Include="..\SharedKernel.Tests\SharedKernel.Tests.csproj" />

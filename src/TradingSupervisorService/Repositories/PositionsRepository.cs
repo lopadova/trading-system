@@ -7,7 +7,7 @@ namespace TradingSupervisorService.Repositories;
 
 /// <summary>
 /// SQLite implementation of IPositionsRepository using Dapper.
-/// Reads from options.db active_positions table (read-only).
+/// Reads from options.db positions table (read-only).
 /// All queries use explicit SQL (no ORM).
 /// All IO operations have try/catch with logging.
 /// </summary>
@@ -49,7 +49,7 @@ public sealed class PositionsRepository : IPositionsRepository
                 underlying_price AS UnderlyingPrice,
                 opened_at AS OpenedAt,
                 updated_at AS UpdatedAt
-            FROM active_positions
+            FROM positions
             WHERE delta IS NOT NULL
             ORDER BY symbol ASC
             """;
@@ -106,7 +106,7 @@ public sealed class PositionsRepository : IPositionsRepository
                 underlying_price AS UnderlyingPrice,
                 opened_at AS OpenedAt,
                 updated_at AS UpdatedAt
-            FROM active_positions
+            FROM positions
             WHERE campaign_id = @CampaignId
             ORDER BY opened_at DESC
             """;
@@ -159,7 +159,7 @@ public sealed class PositionsRepository : IPositionsRepository
                 underlying_price AS UnderlyingPrice,
                 opened_at AS OpenedAt,
                 updated_at AS UpdatedAt
-            FROM active_positions
+            FROM positions
             WHERE position_id = @PositionId
             """;
 
@@ -190,7 +190,7 @@ public sealed class PositionsRepository : IPositionsRepository
             SELECT
                 symbol AS Symbol,
                 COUNT(*) AS Count
-            FROM active_positions
+            FROM positions
             GROUP BY symbol
             ORDER BY Count DESC
             """;

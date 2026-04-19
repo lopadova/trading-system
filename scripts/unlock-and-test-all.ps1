@@ -145,6 +145,34 @@ try {
     }
     Write-Success "Exclusions updated"
 
+    # Step 4.5: Check for AVIRA Security
+    Write-Step "Checking for AVIRA Security..."
+    $aviraProcesses = Get-Process | Where-Object { $_.ProcessName -like "Avira*" }
+    if ($aviraProcesses) {
+        Write-Warning-Custom "AVIRA Security detected on this system"
+        Write-Host ""
+        Write-Host "⚠️  AVIRA cannot be programmatically disabled. You must add exclusions manually:" -ForegroundColor Yellow
+        Write-Host ""
+        Write-Host "1. Open AVIRA antivirus application" -ForegroundColor White
+        Write-Host "2. Go to Settings → Real-Time Protection → Exceptions" -ForegroundColor White
+        Write-Host "3. Add these paths to exclusions:" -ForegroundColor White
+        Write-Host ""
+        foreach ($dir in $dirsToExclude) {
+            if (Test-Path $dir) {
+                Write-Host "   $dir" -ForegroundColor Cyan
+            }
+        }
+        Write-Host ""
+        Write-Host "4. Click 'Save' or 'Apply' to confirm exceptions" -ForegroundColor White
+        Write-Host ""
+        Write-Host "Press ENTER when you have added the exceptions..." -ForegroundColor Yellow
+        $null = Read-Host
+        Write-Success "Continuing with exceptions applied"
+    }
+    else {
+        Write-Host "  ✓ AVIRA not detected" -ForegroundColor DarkGray
+    }
+
     # Step 5: Clean solution
     Write-Step "Cleaning solution..."
     Push-Location $projectRoot
@@ -171,8 +199,9 @@ try {
         if ($LASTEXITCODE -eq 0) {
             Write-Success "Build completed successfully"
 
-            # Count warnings
-            $warnings = ($buildOutput | Select-String "warning CS").Count
+            # Count warnings (handle null/empty output)
+            $warningMatches = $buildOutput | Select-String "warning CS"
+            $warnings = if ($warningMatches) { $warningMatches.Count } else { 0 }
             if ($warnings -gt 0) {
                 Write-Host "  ⚠️  $warnings warning(s)" -ForegroundColor Yellow
             }
@@ -229,15 +258,18 @@ try {
         Write-Host ""
 
         # Parse test results (multiple test projects - sum them all)
+        # Note: Italian output has "Totale test:" not "Totale:"
         $allPassed = $testOutput | Select-String "Superati:\s+(\d+)" -AllMatches
         $allFailed = $testOutput | Select-String "Non superati:\s+(\d+)" -AllMatches
-        $allTotal = $testOutput | Select-String "Totale:\s+(\d+)" -AllMatches
+        $allTotal = $testOutput | Select-String "Totale test:\s+(\d+)" -AllMatches
 
         if ($allPassed -and $allTotal) {
-            # Sum all test results across all projects
-            $passed = ($allPassed.Matches | ForEach-Object { [int]$_.Groups[1].Value } | Measure-Object -Sum).Sum
-            $failed = ($allFailed.Matches | ForEach-Object { [int]$_.Groups[1].Value } | Measure-Object -Sum).Sum
-            $total = ($allTotal.Matches | ForEach-Object { [int]$_.Groups[1].Value } | Measure-Object -Sum).Sum
+            # Sum all test results across all projects (iterate MatchInfo objects, not their Matches property)
+            $passed = ($allPassed | ForEach-Object { [int]$_.Matches[0].Groups[1].Value } | Measure-Object -Sum).Sum
+            $failed = if ($allFailed) {
+                ($allFailed | ForEach-Object { [int]$_.Matches[0].Groups[1].Value } | Measure-Object -Sum).Sum
+            } else { 0 }
+            $total = ($allTotal | ForEach-Object { [int]$_.Matches[0].Groups[1].Value } | Measure-Object -Sum).Sum
 
             $passRate = if ($total -gt 0) { [math]::Round(($passed / $total) * 100, 1) } else { 0 }
 

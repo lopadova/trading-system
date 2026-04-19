@@ -98,7 +98,7 @@ public sealed class TwsCallbackHandlerTests
         TwsCallbackHandler handler = new(_logger, callback);
 
         // Act - error code 1100 = connection lost
-        handler.error(0, 1100, "Connection lost", "");
+        handler.error(0, 0L, 1100, "Connection lost", "");
 
         // Assert
         Assert.NotNull(capturedState);
@@ -114,7 +114,7 @@ public sealed class TwsCallbackHandlerTests
         TwsCallbackHandler handler = new(_logger, callback);
 
         // Act - error code 1101 = connection restored
-        handler.error(0, 1101, "Connection restored", "");
+        handler.error(0, 0L, 1101, "Connection restored", "");
 
         // Assert
         Assert.NotNull(capturedState);
@@ -129,7 +129,7 @@ public sealed class TwsCallbackHandlerTests
         TwsCallbackHandler handler = new(_logger, callback);
 
         // Act & Assert - informational codes should not throw
-        Exception? ex = Record.Exception(() => handler.error(0, 2104, "Market data farm OK", ""));
+        Exception? ex = Record.Exception(() => handler.error(0, 0L, 2104, "Market data farm OK", ""));
         Assert.Null(ex);
     }
 

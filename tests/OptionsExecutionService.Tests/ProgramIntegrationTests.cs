@@ -237,6 +237,7 @@ public sealed class ProgramIntegrationTests
 
                 services.AddSingleton(ibkrConfig);
                 services.AddSingleton<Ibkr.TwsCallbackHandler>();
+                services.AddSingleton<IbkrPortScanner>();
                 services.AddSingleton<IIbkrClient, Ibkr.IbkrClient>();
 
                 // Register order safety configuration

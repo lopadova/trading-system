@@ -30,21 +30,30 @@
    - Download: https://dotnet.microsoft.com/download/dotnet/10.0
    - Verify installation: `dotnet --version` (should output 10.0.x)
 
-3. **Interactive Brokers TWS or IB Gateway**
+3. **🔴 CRITICAL: Interactive Brokers TWS API SDK**
+   - **⚠️ MUST be installed BEFORE building the solution**
+   - Download: https://www.interactivebrokers.com/en/trading/tws-api-install.php
+   - Click "TWS API Installer for Windows" (MSI installer)
+   - Install to **default path**: `C:\TWS API\`
+   - The C# library will be at: `C:\TWS API\source\CSharpClient\client\bin\Release\net8.0\CSharpAPI.dll`
+   - **Without this library, the solution will NOT compile**
+   - Required by both OptionsExecutionService and TradingSupervisorService
+
+4. **Interactive Brokers TWS or IB Gateway**
    - Download TWS: https://www.interactivebrokers.com/en/trading/tws.php
    - Or IB Gateway: https://www.interactivebrokers.com/en/trading/ibgateway-stable.php
    - **IMPORTANT**: Start with paper trading account
 
-4. **Git** (for cloning repository)
+5. **Git** (for cloning repository)
    - Download: https://git-scm.com/downloads
 
 ### Optional Software
 
-5. **Bun 1.x** (for dashboard development)
+6. **Bun 1.x** (for dashboard development)
    - Download: https://bun.sh/
    - Only needed if building/modifying dashboard
 
-6. **Visual Studio 2022** or **VS Code**
+7. **Visual Studio 2022** or **VS Code**
    - VS 2022: Full IDE with debugger
    - VS Code: Lightweight with C# extension
 
@@ -137,11 +146,16 @@ If tests fail, check:
 1. **Start IBKR Gateway/TWS** in paper trading mode
    - Login with paper trading credentials
    - Enable API connections:
-     - TWS: Configure → API → Settings → Enable ActiveX and Socket Clients
-     - Gateway: Configure → Settings → API → Enable ActiveX and Socket Clients
+     - **Path**: File → Global Configuration → API → Settings
+     - ✅ **Enable ActiveX and Socket Clients** (MUST be checked)
+     - ✅ Add `127.0.0.1` to **Trusted IP Addresses**
+     - ❌ **Uncheck "Read-Only API"** (prevents order placement)
+     - ✅ **Enable "Create API message log file"** (for troubleshooting)
    - Set Socket Port:
      - Paper Trading: **7497** (TWS) or **4002** (Gateway)
-     - NEVER use 7496 or 4001 (live trading ports)
+     - ⚠️ **NEVER use 7496 or 4001** (live trading ports - REAL MONEY!)
+   
+   **Troubleshooting**: If connection fails, see [IBKR Connection Issues](TROUBLESHOOTING.md#ibkr-connection-issues)
 
 2. **Configure Supervisor Service**
 

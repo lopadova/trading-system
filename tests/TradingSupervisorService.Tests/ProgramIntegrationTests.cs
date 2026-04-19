@@ -351,8 +351,12 @@ public sealed class ProgramIntegrationTests
                         MaxReconnectAttempts = 10
                     };
 
-                    return new IbkrClient(logger, ibkrConfig, wrapper);
+                    IbkrPortScanner portScanner = sp.GetRequiredService<IbkrPortScanner>();
+                    return new IbkrClient(logger, ibkrConfig, wrapper, portScanner);
                 });
+
+                // Register port scanner
+                services.AddSingleton<IbkrPortScanner>();
 
                 // Telegram alerting service
                 services.AddSingleton<ITelegramAlerter, TelegramAlerter>();

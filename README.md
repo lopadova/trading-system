@@ -46,11 +46,12 @@ Production-ready automated trading system for options strategies via Interactive
 - **[Database Schema](docs/database-schema.md)** - Legacy schema reference (see ARCHITECTURE_OVERVIEW.md for latest)
 - **[Telegram Integration](docs/telegram-integration.md)** - Alert configuration
 
-### Operations
+### Operations & Deployment
 - **[Deployment Guide (NEW)](docs/DEPLOYMENT_GUIDE.md)** - Complete deployment instructions (manual + CI/CD)
-- **[Deployment Guide (Legacy)](docs/DEPLOYMENT.md)** - Original deployment guide (T-24)
+- **[Deployment Guide (Legacy)](DEPLOYMENT.md)** - Original deployment guide (T-24)
 - **[Monitoring Guide](docs/MONITORING.md)** - Observability and alerting
 - **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Common issues and solutions
+  - **IBKR Connection Issues** - API setup, port configuration, firewall, log export
 
 ### Development
 - **[Development Setup](DEVELOPMENT_SETUP.md)** - Complete environment setup (IDE, build, AVIRA/antivirus, strong-name signing)
@@ -196,6 +197,11 @@ The trading system is composed of **4 main components** that work together:
 
 - **Windows Server 2019+** or Windows 10/11 Pro
 - **.NET 10 SDK** ([download](https://dotnet.microsoft.com/download/dotnet/10.0))
+- **🔴 CRITICAL: Interactive Brokers TWS API SDK** ([download](https://www.interactivebrokers.com/en/trading/tws-api-install.php))
+  - ⚠️ **MUST be installed BEFORE building the solution**
+  - Install to default path: `C:\TWS API\`
+  - Required by both OptionsExecutionService and TradingSupervisorService
+  - **Without this, the solution will NOT compile**
 - **Interactive Brokers TWS** or **IB Gateway** (paper trading account)
 - **Bun 1.x** (optional, for dashboard development)
 

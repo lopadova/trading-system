@@ -10,7 +10,7 @@ namespace TradingSupervisorService.Tests.Repositories;
 
 /// <summary>
 /// Unit tests for PositionsRepository.
-/// Tests reading active_positions data from options.db with Greeks filtering.
+/// Tests reading positions data from options.db with Greeks filtering.
 /// </summary>
 public sealed class PositionsRepositoryTests : IAsyncLifetime
 {
@@ -19,13 +19,13 @@ public sealed class PositionsRepositoryTests : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
-        // Create in-memory database with active_positions schema
+        // Create in-memory database with positions schema
         _dbFactory = new InMemoryConnectionFactory();
 
-        // Create active_positions table with Greeks columns
+        // Create positions table with Greeks columns
         await using var conn = await _dbFactory.OpenAsync(CancellationToken.None);
         await conn.ExecuteAsync("""
-            CREATE TABLE active_positions (
+            CREATE TABLE positions (
                 position_id       TEXT PRIMARY KEY,
                 campaign_id       TEXT NOT NULL,
                 symbol            TEXT NOT NULL,
@@ -49,10 +49,10 @@ public sealed class PositionsRepositoryTests : IAsyncLifetime
                 metadata_json     TEXT
             );
 
-            CREATE INDEX idx_positions_campaign ON active_positions(campaign_id);
-            CREATE INDEX idx_positions_symbol ON active_positions(symbol);
-            CREATE INDEX idx_positions_delta ON active_positions(delta) WHERE delta IS NOT NULL;
-            CREATE INDEX idx_positions_gamma ON active_positions(gamma) WHERE gamma IS NOT NULL;
+            CREATE INDEX idx_positions_campaign ON positions(campaign_id);
+            CREATE INDEX idx_positions_symbol ON positions(symbol);
+            CREATE INDEX idx_positions_delta ON positions(delta) WHERE delta IS NOT NULL;
+            CREATE INDEX idx_positions_gamma ON positions(gamma) WHERE gamma IS NOT NULL;
             """);
 
         Mock<ILogger<PositionsRepository>> loggerMock = new();
@@ -86,7 +86,7 @@ public sealed class PositionsRepositoryTests : IAsyncLifetime
         // Insert position WITHOUT Greeks data (delta = NULL)
         await using var conn = await _dbFactory!.OpenAsync(CancellationToken.None);
         await conn.ExecuteAsync("""
-            INSERT INTO active_positions
+            INSERT INTO positions
                 (position_id, campaign_id, symbol, contract_symbol, strategy_name,
                  quantity, entry_price, opened_at, updated_at)
             VALUES
@@ -110,7 +110,7 @@ public sealed class PositionsRepositoryTests : IAsyncLifetime
         // Insert position WITH Greeks data
         await using var conn = await _dbFactory!.OpenAsync(CancellationToken.None);
         await conn.ExecuteAsync("""
-            INSERT INTO active_positions
+            INSERT INTO positions
                 (position_id, campaign_id, symbol, contract_symbol, strategy_name,
                  quantity, entry_price, delta, gamma, theta, vega, implied_volatility,
                  greeks_updated_at, underlying_price, opened_at, updated_at)
@@ -143,7 +143,7 @@ public sealed class PositionsRepositoryTests : IAsyncLifetime
         // Insert multiple positions with Greeks (different symbols)
         await using var conn = await _dbFactory!.OpenAsync(CancellationToken.None);
         await conn.ExecuteAsync("""
-            INSERT INTO active_positions
+            INSERT INTO positions
                 (position_id, campaign_id, symbol, contract_symbol, strategy_name,
                  quantity, entry_price, delta, gamma, theta, vega,
                  opened_at, updated_at)
@@ -171,7 +171,7 @@ public sealed class PositionsRepositoryTests : IAsyncLifetime
         // Arrange
         await using var conn = await _dbFactory!.OpenAsync(CancellationToken.None);
         await conn.ExecuteAsync("""
-            INSERT INTO active_positions
+            INSERT INTO positions
                 (position_id, campaign_id, symbol, contract_symbol, strategy_name,
                  quantity, entry_price, delta, gamma, theta, vega,
                  opened_at, updated_at)
@@ -208,7 +208,7 @@ public sealed class PositionsRepositoryTests : IAsyncLifetime
         // Arrange
         await using var conn = await _dbFactory!.OpenAsync(CancellationToken.None);
         await conn.ExecuteAsync("""
-            INSERT INTO active_positions
+            INSERT INTO positions
                 (position_id, campaign_id, symbol, contract_symbol, strategy_name,
                  quantity, entry_price, delta, gamma, theta, vega,
                  opened_at, updated_at)
@@ -243,7 +243,7 @@ public sealed class PositionsRepositoryTests : IAsyncLifetime
         // Arrange
         await using var conn = await _dbFactory!.OpenAsync(CancellationToken.None);
         await conn.ExecuteAsync("""
-            INSERT INTO active_positions
+            INSERT INTO positions
                 (position_id, campaign_id, symbol, contract_symbol, strategy_name,
                  quantity, entry_price, opened_at, updated_at)
             VALUES

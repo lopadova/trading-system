@@ -17,11 +17,14 @@ public sealed class IbkrClient : IIbkrClient
     private readonly TwsCallbackHandler _wrapper;
     private readonly EClientSocket _client;
     private readonly EReaderSignal _signal;
+    private readonly IbkrPortScanner _portScanner;
 
     private ConnectionState _state = ConnectionState.Disconnected;
     private Thread? _messageProcessorThread;
     private int _reconnectAttempts = 0;
     private bool _disposed = false;
+    private bool _initialDiagnosticsRun = false;
+    private volatile bool _shouldProcessMessages = false; // Control flag for message processor thread
 
     private readonly object _stateLock = new();
 
@@ -29,11 +32,12 @@ public sealed class IbkrClient : IIbkrClient
     public event EventHandler<(int OrderId, string Status, int Filled, int Remaining, double AvgFillPrice)>? OrderStatusChanged;
     public event EventHandler<(int OrderId, int ErrorCode, string ErrorMessage)>? OrderError;
 
-    public IbkrClient(ILogger<IbkrClient> logger, IbkrConfig config, TwsCallbackHandler wrapper)
+    public IbkrClient(ILogger<IbkrClient> logger, IbkrConfig config, TwsCallbackHandler wrapper, IbkrPortScanner portScanner)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _config = config ?? throw new ArgumentNullException(nameof(config));
         _wrapper = wrapper ?? throw new ArgumentNullException(nameof(wrapper));
+        _portScanner = portScanner ?? throw new ArgumentNullException(nameof(portScanner));
 
         // Validate configuration (throws if invalid)
         _config.Validate();
@@ -85,6 +89,13 @@ public sealed class IbkrClient : IIbkrClient
 
         State = ConnectionState.Connecting;
 
+        // Run initial diagnostics on first connection attempt
+        if (!_initialDiagnosticsRun)
+        {
+            await RunConnectionDiagnosticsAsync(ct);
+            _initialDiagnosticsRun = true;
+        }
+
         int attempt = 0;
         int delaySeconds = _config.ReconnectInitialDelaySeconds;
 
@@ -99,10 +110,20 @@ public sealed class IbkrClient : IIbkrClient
 
             try
             {
-                // eConnect is synchronous in IBApi
+                // eConnect is synchronous - opens socket and performs version handshake
                 _client.eConnect(_config.Host, _config.Port, _config.ClientId, false);
+                _logger.LogInformation("eConnect() returned, socket opened");
 
-                // Wait for connection confirmation with timeout
+                // Give socket a moment to fully establish before creating EReader
+                // Some implementations show this is necessary for proper initialization
+                await Task.Delay(500, ct);
+
+                // Per official docs: "EReader object is not created until AFTER a connection has been established"
+                // Create EReader and start message processor thread
+                StartMessageProcessorThread();
+
+                // NOW wait for TWS to send confirmation messages
+                // The message processor must be running to receive these
                 bool connected = await WaitForConnectionAsync(ct);
                 if (!connected)
                 {
@@ -111,14 +132,11 @@ public sealed class IbkrClient : IIbkrClient
                     throw new TimeoutException($"Connection timeout after {_config.ConnectionTimeoutSeconds}s");
                 }
 
-                // Start message processing thread
-                StartMessageProcessorThread();
-
                 State = ConnectionState.Connected;
                 _reconnectAttempts = 0; // Reset on successful connection
                 _logger.LogInformation("IBKR connected successfully");
 
-                // Request next valid order ID
+                // Request next valid order ID - confirms ready for orders
                 _client.reqIds(-1);
 
                 return;
@@ -128,10 +146,25 @@ public sealed class IbkrClient : IIbkrClient
                 _logger.LogError(ex, "IBKR connection attempt {Attempt} failed", attempt);
                 State = ConnectionState.Error;
 
+                // Cleanup: Stop message processor thread and disconnect socket before retry
+                StopMessageProcessorThread();
+                if (_client.IsConnected())
+                {
+                    _client.eDisconnect();
+                }
+
+                // Run diagnostics on first failure to help troubleshoot
+                if (attempt == 1)
+                {
+                    _logger.LogWarning("First connection attempt failed. Running diagnostics...");
+                    await RunConnectionDiagnosticsAsync(ct);
+                }
+
                 // Check max attempts
                 if (_config.MaxReconnectAttempts > 0 && attempt >= _config.MaxReconnectAttempts)
                 {
                     _logger.LogError("Max reconnect attempts ({Max}) reached. Giving up.", _config.MaxReconnectAttempts);
+                    _logger.LogError("IBKR connection failed permanently. Check TWS/IB Gateway is running.");
                     throw;
                 }
 
@@ -249,7 +282,7 @@ public sealed class IbkrClient : IIbkrClient
         }
 
         _logger.LogInformation("Canceling order: orderId={OrderId}", orderId);
-        _client.cancelOrder(orderId, string.Empty);
+        _client.cancelOrder(orderId, new OrderCancel());
     }
 
     public void RequestOpenOrders()
@@ -392,27 +425,65 @@ public sealed class IbkrClient : IIbkrClient
 
         _logger.LogDebug("Starting message processor thread");
 
+        // CRITICAL: EReader must be created AFTER eConnect() returns (connection established)
+        // Per official TWS API docs: "EReader object is not created until AFTER a connection has been established"
+        // "established" = eConnect() completed socket open and version handshake
         EReader reader = new(_client, _signal);
+
+        _logger.LogInformation("EReader created, about to call Start()...");
+        _logger.LogInformation("Socket IsConnected before Start: {IsConnected}", _client.IsConnected());
+
         reader.Start();
+
+        _logger.LogInformation("EReader.Start() returned");
+        _logger.LogInformation("Socket IsConnected after Start: {IsConnected}", _client.IsConnected());
+
+        // Give EReader thread a moment to actually start
+        Thread.Sleep(100);
+
+        // Signal thread to start processing
+        _shouldProcessMessages = true;
 
         _messageProcessorThread = new Thread(() =>
         {
-            _logger.LogDebug("Message processor thread started");
+            _logger.LogInformation("▶ Message processor thread STARTED");
+            _logger.LogInformation("Thread will process messages while _shouldProcessMessages={Flag}", _shouldProcessMessages);
 
+            int iterations = 0;
             try
             {
-                while (_client.IsConnected())
+                // Use dedicated flag instead of IsConnected() to avoid chicken-egg problem:
+                // IsConnected() becomes true only AFTER messages are processed,
+                // but we need to process messages to make IsConnected() true!
+                while (_shouldProcessMessages)
                 {
+                    iterations++;
+                    _logger.LogDebug("Loop iteration #{Iteration}, waiting for signal...", iterations);
+
                     _signal.waitForSignal();
+
+                    _logger.LogDebug("Signal received on iteration #{Iteration}, calling processMsgs()...", iterations);
                     reader.processMsgs();
+
+                    _logger.LogDebug("processMsgs() returned on iteration #{Iteration}", iterations);
                 }
+
+                _logger.LogInformation("Loop exited naturally after {Iterations} iterations", iterations);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Message processor thread error");
+                // This is expected when disconnecting (socket closed)
+                if (_client.IsConnected())
+                {
+                    _logger.LogError(ex, "Message processor thread error while connected (after {Iterations} iterations)", iterations);
+                }
+                else
+                {
+                    _logger.LogDebug(ex, "Message processor thread stopped (disconnected) after {Iterations} iterations", iterations);
+                }
             }
 
-            _logger.LogDebug("Message processor thread exiting");
+            _logger.LogInformation("■ Message processor thread EXITING after {Iterations} total iterations", iterations);
         })
         {
             IsBackground = true,
@@ -433,7 +504,10 @@ public sealed class IbkrClient : IIbkrClient
 
         try
         {
-            // Signal the thread to wake up and exit
+            // Signal thread to stop processing
+            _shouldProcessMessages = false;
+
+            // Wake up thread if waiting
             _signal.issueSignal();
 
             // Wait for thread to finish (max 5 seconds)
@@ -448,6 +522,72 @@ public sealed class IbkrClient : IIbkrClient
         }
 
         _messageProcessorThread = null;
+    }
+
+    /// <summary>
+    /// Runs IBKR port diagnostics to check if configured port is available
+    /// and suggests alternatives if not found.
+    /// </summary>
+    private async Task RunConnectionDiagnosticsAsync(CancellationToken ct)
+    {
+        try
+        {
+            _logger.LogInformation("═══ IBKR Connection Diagnostics ═══");
+
+            IbkrPortDiagnostics diagnostics = await _portScanner.DiagnoseConnectionAsync(
+                _config.Host,
+                _config.Port,
+                _config.TradingMode.ToString());
+
+            // Log summary
+            _logger.LogInformation(diagnostics.GetSummary());
+
+            // Log detailed findings based on status
+            switch (diagnostics.Status)
+            {
+                case DiagnosticStatus.ConfiguredPortAvailable:
+                    _logger.LogInformation("✓ Port check passed. Ready to connect.");
+                    break;
+
+                case DiagnosticStatus.ConfiguredPortClosed:
+                    _logger.LogWarning("✗ Configured port {Port} is not responding", _config.Port);
+                    if (diagnostics.AlternativePorts.Count > 0)
+                    {
+                        _logger.LogWarning("Alternative IBKR ports detected:");
+                        foreach ((int port, string description) in diagnostics.AlternativePorts)
+                        {
+                            _logger.LogWarning("  • Port {Port}: {Description}", port, description);
+                        }
+                    }
+                    if (!string.IsNullOrEmpty(diagnostics.Suggestion))
+                    {
+                        _logger.LogWarning("Suggestion: {Suggestion}", diagnostics.Suggestion);
+                    }
+                    break;
+
+                case DiagnosticStatus.NoIbkrServicesFound:
+                    _logger.LogError("✗ No IBKR services found on any standard port");
+                    _logger.LogError("TWS or IB Gateway may not be running");
+                    if (!string.IsNullOrEmpty(diagnostics.Suggestion))
+                    {
+                        _logger.LogError("Troubleshooting steps:");
+                        foreach (string line in diagnostics.Suggestion.Split('\n'))
+                        {
+                            if (!string.IsNullOrWhiteSpace(line))
+                            {
+                                _logger.LogError("  {Line}", line.Trim());
+                            }
+                        }
+                    }
+                    break;
+            }
+
+            _logger.LogInformation("═══════════════════════════════════");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Port diagnostics failed (non-critical)");
+        }
     }
 
     #endregion

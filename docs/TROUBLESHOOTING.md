@@ -131,38 +131,269 @@
 
 ## IBKR Connection Issues
 
+### Quick Diagnostic Checklist
+
+Before diving into specific issues, verify these **critical settings** in TWS/IB Gateway:
+
+1. ✅ **API enabled**: File → Global Configuration → API → Settings → "Enable ActiveX and Socket Clients" **MUST be checked**
+2. ✅ **Correct port**: Note the "Socket port" value (7497 paper TWS, 7496 live TWS, 4002 paper Gateway, 4001 live Gateway)
+3. ✅ **IP whitelisted**: "127.0.0.1" must be in "Trusted IP Addresses"
+4. ✅ **API logs enabled**: Check "Create API message log file" to diagnose connection attempts
+5. ✅ **Read-only disabled**: Uncheck "Read-Only API" (prevents order placement)
+
+---
+
+### 🔴 CRITICAL: TWS API SDK Must Be Installed
+
+**Symptom**: Build errors like "Could not find IBApi.dll" or connection immediately fails with no TWS response
+
+**Root Cause**: The TWS API SDK C# library is NOT installed on your machine.
+
+**Solution**:
+
+1. **Download TWS API SDK** (NOT the same as TWS application)
+   - URL: https://www.interactivebrokers.com/en/trading/tws-api-install.php
+   - Click "TWS API Installer for Windows" (MSI installer)
+
+2. **Install to default path**
+   - Install to: `C:\TWS API\` (default recommended)
+   - The C# library will be at: `C:\TWS API\source\CSharpClient\client\bin\Release\net8.0\CSharpAPI.dll`
+
+3. **Verify installation**
+   ```powershell
+   # Check if CSharpAPI.dll exists
+   Test-Path "C:\TWS API\source\CSharpClient\client\bin\Release\net8.0\CSharpAPI.dll"
+   # Should output: True
+   ```
+
+4. **Rebuild the solution**
+   ```powershell
+   dotnet clean
+   dotnet build -c Release
+   ```
+
+**⚠️ IMPORTANT**: 
+- This is a **ONE-TIME** setup per development machine
+- **MUST be installed BEFORE building** the solution
+- Both OptionsExecutionService and TradingSupervisorService require this library
+- Without this library, you will get compilation errors or runtime failures
+
+---
+
+### How to Access TWS API Settings
+
+**Path**: File → Global Configuration → API → Settings
+
+**Step-by-step**:
+1. Open TWS or IB Gateway
+2. Click **File** in the menu bar (top-left)
+3. Click **Global Configuration**
+4. In the left sidebar, expand **API**
+5. Click **Settings**
+
+**Critical Settings to Verify**:
+
+| Setting | Required Value | Notes |
+|---------|----------------|-------|
+| Enable ActiveX and Socket Clients | ✅ **CHECKED** | If unchecked, NO external apps can connect |
+| Socket port | 7497 (paper TWS)<br>7496 (live TWS)<br>4002 (paper Gateway)<br>4001 (live Gateway) | **MUST match** `appsettings.json` IBKR.Port |
+| Master API client ID | 0 (default) | Keep at 0 unless using multiple API apps |
+| Read-Only API | ❌ **UNCHECKED** | If checked, orders will fail |
+| Download open orders on connection | ✅ **CHECKED** | Recommended for syncing state |
+| Create API message log file | ✅ **CHECKED** | **CRITICAL** for troubleshooting |
+| Include market data in API log | ⚪ Optional | Enable if debugging market data |
+| Logging Level | Detail or Error | "Detail" for troubleshooting, "Error" for production |
+| Trusted IP Addresses | Must include:<br>`127.0.0.1` | Click "+" to add if missing |
+
+**After changing settings**: Click **Apply** → **OK** → Restart TWS/Gateway
+
+---
+
+### How to Export TWS Logs (Proprietary Format)
+
+TWS workstation logs are in a **proprietary binary format** (`.ibgzenc`). You must export them to read.
+
+**Path to Export Logs**: Help → Log Viewer
+
+**Step-by-step**:
+1. In TWS, click **Help** menu (top bar)
+2. Click **Log Viewer**
+3. Select the date you need (logs are daily)
+4. Right-click on the log file → **"Export to Text"** or **"Save As..."**
+5. Choose destination (e.g., `C:\Users\YourName\Downloads\tws-exported-logs.txt`)
+6. Now you can open the `.txt` file in any text editor
+
+**Log File Locations**:
+- Windows: `C:\Jts\<obfuscated-username>\tws.YYYYMMDD.HHMMSS.ibgzenc`
+- macOS: `~/Jts/<obfuscated-username>/tws.YYYYMMDD.HHMMSS.ibgzenc`
+- Linux: `~/Jts/<obfuscated-username>/tws.YYYYMMDD.HHMMSS.ibgzenc`
+
+**What to Look For in Exported Logs**:
+- `Socket connection from 127.0.0.1` → API client connected
+- `Client connected` → Successful connection
+- `Client disconnected` → Normal disconnect
+- `API error` → Connection/authentication errors
+- **NO mentions of "Socket" or "Client"** → API not receiving connection attempts (check port/firewall)
+
+---
+
 ### Connection Refused
 
 **Symptom**: Logs show "Connection refused" or "No connection could be made"
+
+**Root Cause**: Either TWS/Gateway is not running, API is disabled, or wrong port configured.
 
 **Solutions**:
 
 1. **Verify TWS/Gateway is running**
    - Open TWS or IB Gateway
    - Ensure logged in to paper trading account
-   - Check status bar shows "Connected"
+   - Check status bar shows "Connected" (green indicator)
 
-2. **Check API settings**
-   - TWS: Configure → API → Settings
-   - Enable "ActiveX and Socket Clients"
-   - Verify "Socket port" matches config (7497 for paper TWS, 4002 for paper Gateway)
-   - Disable "Read-Only API" if enabled
+2. **Verify API is enabled** (see "How to Access TWS API Settings" above)
+   - File → Global Configuration → API → Settings
+   - ✅ **"Enable ActiveX and Socket Clients" MUST be checked**
+   - If unchecked, enable it, click Apply, restart TWS
 
-3. **Verify port number**
+3. **Verify port matches configuration**
+   
+   **In TWS**: File → Global Configuration → API → Settings → "Socket port" (e.g., 7497)
+   
+   **In appsettings.json**:
    ```json
-   // In appsettings.json
    "IBKR": {
-     "PaperPort": 7497,  // TWS paper
-     // OR
-     "PaperPort": 4002   // Gateway paper
+     "Port": 7497  // MUST match TWS "Socket port"
+   }
+   ```
+   
+   **Standard Ports**:
+   - TWS Paper: 7497
+   - TWS Live: 7496
+   - IB Gateway Paper: 4002
+   - IB Gateway Live: 4001
+
+4. **Check IP is whitelisted**
+   - File → Global Configuration → API → Settings → "Trusted IP Addresses"
+   - **MUST include** `127.0.0.1`
+   - Click **"+"** to add if missing
+   - Click **Apply** → **OK** → Restart TWS
+
+5. **Check Windows Firewall**
+   
+   **Test port connectivity**:
+   ```powershell
+   # Test if port is reachable
+   Test-NetConnection -ComputerName 127.0.0.1 -Port 7496
+   
+   # Should show: TcpTestSucceeded : True
+   # If False, firewall or antivirus is blocking
+   ```
+   
+   **Check firewall rules**:
+   ```powershell
+   # Check if TWS has inbound rule
+   Get-NetFirewallRule -DisplayName "*TWS*" | Select-Object DisplayName, Enabled, Direction, Action
+   
+   # Check if port is allowed
+   Get-NetFirewallPortFilter | Where-Object LocalPort -eq 7496
+   ```
+   
+   **Create firewall rule if needed** (run as Administrator):
+   ```powershell
+   # Allow inbound connections to TWS port
+   New-NetFirewallRule -DisplayName "IBKR TWS API" `
+     -Direction Inbound `
+     -LocalPort 7496 `
+     -Protocol TCP `
+     -Action Allow
+   
+   # Verify rule was created
+   Get-NetFirewallRule -DisplayName "IBKR TWS API"
+   ```
+   
+   **⚠️ IMPORTANT**: Localhost (127.0.0.1) connections are **usually NOT blocked** by Windows Firewall. If `Test-NetConnection` fails, the issue is more likely:
+   - TWS not running
+   - Wrong port configured
+   - API not enabled in TWS
+   - Third-party antivirus (AVIRA, Norton, etc.) blocking
+
+6. **Check third-party antivirus/security software**
+   
+   Some antivirus software blocks socket connections even on localhost:
+   
+   ```powershell
+   # Check if AVIRA is running
+   Get-Process | Where-Object { $_.ProcessName -like "Avira*" }
+   
+   # Check if other security software is running
+   Get-Process | Where-Object { $_.ProcessName -like "*Security*" -or $_.ProcessName -like "*Antivirus*" }
+   ```
+   
+   **Solutions**:
+   - Add TWS executable to antivirus exclusions:
+     - `C:\Jts\tws.exe` (TWS)
+     - `C:\ibgateway\ibgateway.exe` (IB Gateway)
+   - Add localhost port to exclusions (check antivirus documentation)
+   - Temporarily disable antivirus to test (re-enable after test)
+   
+   **Note**: See `WINDOWS_DEFENDER_UNLOCK.md` for detailed antivirus troubleshooting
+
+---
+
+### No Connection Attempts in TWS Logs
+
+**Symptom**: Exported TWS logs show NO mentions of "Socket connection", "Client connected", or API activity.
+
+**Root Cause**: Service is either not running, not attempting connection, or connecting to wrong port.
+
+**Diagnostics**:
+
+1. **Verify service is running**
+   ```powershell
+   # Check if service is active
+   Get-Service OptionsExecutionService | Select-Object Status, StartType
+   
+   # Should show: Status=Running, StartType=Automatic
+   ```
+
+2. **Check service logs for connection attempts**
+   ```powershell
+   # Look for IBKR connection logs
+   Get-Content logs/options-execution-*.log | Select-String "IBKR|Connect|Port"
+   
+   # Should see lines like:
+   # [INFO] Attempting IBKR connection to 127.0.0.1:7497
+   # [INFO] IBKR connection established (clientId=2)
+   ```
+
+3. **Verify port scanner detected TWS**
+   ```powershell
+   # Look for port scan results
+   Get-Content logs/options-execution-*.log | Select-String "Port.*open|Found.*port"
+   
+   # Should see:
+   # [INFO] Found open port: 7497 (TWS Paper)
+   ```
+
+4. **Check appsettings.json configuration**
+   ```json
+   "IBKR": {
+     "Host": "127.0.0.1",      // Must be localhost
+     "Port": 7497,              // Must match TWS
+     "ClientId": 2,             // Unique per service
+     "TradingMode": "paper"     // "paper" or "live"
    }
    ```
 
-4. **Check firewall**
+5. **Manual port test**
    ```powershell
-   # Allow localhost connections
-   # Usually not blocked, but verify:
-   Test-NetConnection -ComputerName 127.0.0.1 -Port 7497
+   # If service says port is open but TWS shows no connections:
+   # Try manual connection with telnet
+   telnet 127.0.0.1 7497
+   
+   # If connects, you should see cursor blink → port is open
+   # Ctrl+] then "quit" to exit
+   # If "Could not open connection", TWS port is wrong or API disabled
    ```
 
 ---

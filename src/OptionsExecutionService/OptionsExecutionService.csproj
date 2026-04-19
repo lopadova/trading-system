@@ -11,6 +11,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Google.Protobuf" Version="3.29.5" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.0" />
     <PackageReference Include="Serilog" Version="4.3.0" />
@@ -19,12 +20,18 @@
     <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.0" />
     <PackageReference Include="Dapper" Version="2.1.28" />
-    <!-- IBApi placeholder - will be replaced with actual IBKR TWS API DLL reference -->
-    <!-- <PackageReference Include="IBApi" Version="10.19.2" /> -->
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- CRITICAL: Official IBKR TWS API library (CSharpAPI.dll) -->
+    <!-- MUST install TWS API from: https://www.interactivebrokers.com/en/trading/tws-api-install.php -->
+    <Reference Include="IBApi">
+      <HintPath>C:\TWS API\source\CSharpClient\client\bin\Release\net8.0\CSharpAPI.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\SharedKernel\SharedKernel.csproj" />
-    <ProjectReference Include="..\IBApi.Stub\IBApi.Stub.csproj" />
   </ItemGroup>
 </Project>
