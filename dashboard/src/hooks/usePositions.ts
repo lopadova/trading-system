@@ -33,6 +33,8 @@ function generateMockPositions(): PositionsResponse {
         iv: 0.18,
       },
       lastUpdate: new Date().toISOString(),
+      campaign: 'Theta Harvest',
+      campaignId: 'CAMP-001',
     },
     {
       id: 'POS-002',
@@ -62,6 +64,8 @@ function generateMockPositions(): PositionsResponse {
         iv: 0.22,
       },
       lastUpdate: new Date().toISOString(),
+      campaign: 'Weekly Premium',
+      campaignId: 'CAMP-002',
     },
     {
       id: 'POS-003',
@@ -79,6 +83,8 @@ function generateMockPositions(): PositionsResponse {
       avgCost: 175.25,
       openDate: '2026-03-28T09:30:00Z',
       lastUpdate: new Date().toISOString(),
+      campaign: null,
+      campaignId: null,
     },
     {
       id: 'POS-004',
@@ -103,6 +109,8 @@ function generateMockPositions(): PositionsResponse {
       expiration: '2026-04-18',
       right: 'call' as const,
       lastUpdate: new Date().toISOString(),
+      campaign: null,
+      campaignId: null,
     },
   ]
 
