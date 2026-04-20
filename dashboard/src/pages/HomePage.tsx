@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { useSystemMetrics } from '../hooks/useSystemStatus'
+import { Badge } from '../components/ui/Badge'
 
 // Generate performance data
 const generatePerformanceData = () => {
@@ -79,7 +80,7 @@ export function HomePage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
           whileHover={{ scale: 1.02, transition: { duration: 0.2 } }}
-          className="card-clean p-6 group"
+          className="bg-surface border border-border rounded-card p-6 group"
         >
           <div className="flex items-center justify-between mb-4">
             <span className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Account Value</span>
@@ -87,10 +88,10 @@ export function HomePage() {
               <DollarSign className="w-4 h-4 text-blue-400" />
             </div>
           </div>
-          <div className="text-3xl font-mono font-bold text-white mb-3 metric-value">
+          <div className="text-3xl font-mono font-bold tabular-nums text-fg mb-3">
             ${stats?.accountValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
-          <div className={`flex items-center gap-1.5 text-sm font-mono font-semibold ${isPnlPositive ? 'text-green-400 positive-glow' : 'text-red-400 negative-glow'}`}>
+          <div className={`flex items-center gap-1.5 text-sm font-mono font-semibold ${isPnlPositive ? 'text-up' : 'text-down'}`}>
             {isPnlPositive ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
             <span>{isPnlPositive ? '+' : ''}${Math.abs(stats?.dailyPnL ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} ({isPnlPositive ? '+' : ''}{stats?.pnlPercent}%)</span>
           </div>
@@ -102,7 +103,7 @@ export function HomePage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
           whileHover={{ scale: 1.02, transition: { duration: 0.2 } }}
-          className="card-clean p-6 group"
+          className="bg-surface border border-border rounded-card p-6 group"
         >
           <div className="flex items-center justify-between mb-4">
             <span className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Active Positions</span>
@@ -110,7 +111,7 @@ export function HomePage() {
               <Activity className="w-4 h-4 text-cyan-400" />
             </div>
           </div>
-          <div className="text-3xl font-mono font-bold text-white mb-3 metric-value">
+          <div className="text-3xl font-mono font-bold tabular-nums text-fg mb-3">
             {stats?.activePositions ?? 0}
           </div>
           <div className="text-sm text-gray-400 font-medium">
@@ -124,7 +125,7 @@ export function HomePage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
           whileHover={{ scale: 1.02, transition: { duration: 0.2 } }}
-          className="card-clean p-6 group"
+          className="bg-surface border border-border rounded-card p-6 group"
         >
           <div className="flex items-center justify-between mb-4">
             <span className="text-xs text-gray-400 font-semibold uppercase tracking-wider">System Status</span>
@@ -133,7 +134,7 @@ export function HomePage() {
             </div>
           </div>
           <div className="mb-3">
-            <span className="badge badge-green">OPERATIONAL</span>
+            <Badge tone="green" pulse>OPERATIONAL</Badge>
           </div>
           <div className="text-sm text-gray-400 font-medium">
             All systems online
@@ -146,7 +147,7 @@ export function HomePage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
           whileHover={{ scale: 1.02, transition: { duration: 0.2 } }}
-          className="card-clean p-6 group"
+          className="bg-surface border border-border rounded-card p-6 group"
         >
           <div className="flex items-center justify-between mb-4">
             <span className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Alerts</span>
@@ -154,11 +155,11 @@ export function HomePage() {
               <AlertCircle className="w-4 h-4 text-red-400" />
             </div>
           </div>
-          <div className="text-3xl font-mono font-bold text-white mb-3 metric-value">
+          <div className="text-3xl font-mono font-bold tabular-nums text-fg mb-3">
             {stats?.totalAlerts ?? 0}
           </div>
           <div className="flex items-center gap-2">
-            <span className="badge badge-red">{stats?.criticalAlerts ?? 0} Critical</span>
+            <Badge tone="red">{stats?.criticalAlerts ?? 0} Critical</Badge>
           </div>
         </motion.div>
       </div>
@@ -171,7 +172,7 @@ export function HomePage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
           whileHover={{ scale: 1.005, transition: { duration: 0.2 } }}
-          className="lg:col-span-2 card-clean p-6 group"
+          className="lg:col-span-2 bg-surface border border-border rounded-card p-6 group"
         >
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -182,7 +183,7 @@ export function HomePage() {
               animate={{ opacity: [1, 0.5, 1] }}
               transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
             >
-              <span className="badge badge-blue">Live</span>
+              <Badge tone="blue" pulse>Live</Badge>
             </motion.div>
           </div>
           <div className="h-64">
@@ -241,7 +242,7 @@ export function HomePage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
           whileHover={{ scale: 1.02, transition: { duration: 0.2 } }}
-          className="card-clean p-6 group"
+          className="bg-surface border border-border rounded-card p-6 group"
         >
           <h3 className="text-base font-bold text-white mb-6 tracking-tight">System Metrics</h3>
           <div className="space-y-6">
@@ -306,7 +307,7 @@ export function HomePage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.7, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
         whileHover={{ scale: 1.005, transition: { duration: 0.2 } }}
-        className="card-clean p-6 group"
+        className="bg-surface border border-border rounded-card p-6 group"
       >
         <h3 className="text-base font-bold text-white mb-6 tracking-tight">Recent Activity</h3>
         <div className="space-y-4">
@@ -331,13 +332,15 @@ export function HomePage() {
                 <p className="text-sm text-white font-medium mb-1 group-hover/item:text-blue-400 transition-colors">{activity.event}</p>
                 <p className="text-xs text-gray-500 font-mono">{activity.time}</p>
               </div>
-              <span className={`badge ${
-                activity.status === 'success' ? 'badge-green' :
-                activity.status === 'warning' ? 'badge-yellow' :
-                activity.status === 'info' ? 'badge-blue' : 'badge-red'
-              }`}>
+              <Badge
+                tone={
+                  activity.status === 'success' ? 'green' :
+                  activity.status === 'warning' ? 'yellow' :
+                  activity.status === 'info' ? 'blue' : 'red'
+                }
+              >
                 {activity.type}
-              </span>
+              </Badge>
             </motion.div>
           ))}
         </div>

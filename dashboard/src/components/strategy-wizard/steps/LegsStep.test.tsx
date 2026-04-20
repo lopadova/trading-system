@@ -230,11 +230,11 @@ describe('LegsStep', () => {
 
     render(<LegsStep />)
 
-    // Find BUY badge - it should use success variant (green)
+    // Find BUY badge - it should use success variant (green) → maps to green tone
     const buyBadge = screen.getByText('BUY')
     expect(buyBadge).toBeInTheDocument()
-    // The Badge component applies variant via className, check it exists
-    expect(buyBadge.className).toContain('success')
+    // New Badge uses kit tokens; success variant → green tint/text colors
+    expect(buyBadge.className).toMatch(/tint-green|text-\[var\(--green\)\]/)
   })
 
   it('TEST-03-09: should show orange/warning badge for put right in LegCard', () => {
@@ -255,10 +255,11 @@ describe('LegsStep', () => {
 
     render(<LegsStep />)
 
-    // Find PUT badge - it should use warning variant (orange)
+    // Find PUT badge - it should use warning variant (orange) → maps to yellow tone
     const putBadge = screen.getByText('PUT')
     expect(putBadge).toBeInTheDocument()
-    expect(putBadge.className).toContain('warning')
+    // New Badge uses kit tokens; warning variant → yellow tint/text colors
+    expect(putBadge.className).toMatch(/tint-yellow|text-\[var\(--yellow\)\]/)
   })
 
   it('TEST-03-10: should show correct summary count for legs', () => {
