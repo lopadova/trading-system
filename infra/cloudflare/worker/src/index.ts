@@ -66,7 +66,11 @@ app.route('/api/drawdowns', drawdowns)
 app.route('/api/monthly-returns', monthlyReturns)
 app.route('/api/risk', risk)
 app.route('/api/system', systemMetrics)
-app.route('/api/positions/breakdown', breakdown)
+// NOTE: mounted at /api/breakdown (NOT /api/positions/breakdown) to avoid the
+// /api/positions prefix match which triggers positions.ts's authMiddleware
+// before this router is reached. See fix(worker): move breakdown out of
+// /api/positions namespace.
+app.route('/api/breakdown', breakdown)
 app.route('/api/activity', activity)
 app.route('/api/campaigns', campaignsSummary)
 
@@ -100,7 +104,7 @@ app.get('/', (c) => {
       'GET /api/positions/active',
       'GET /api/positions/history',
       'GET /api/positions/:position_id',
-      'GET /api/positions/breakdown',
+      'GET /api/breakdown',
       'GET /api/alerts',
       'GET /api/alerts/unresolved',
       'GET /api/alerts/:alert_id',
