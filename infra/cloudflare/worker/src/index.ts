@@ -13,6 +13,15 @@ import { ingest } from './routes/ingest'
 import { strategiesConvert } from './routes/strategies-convert'
 import { botTelegram } from './routes/bot-telegram'
 import { botDiscord } from './routes/bot-discord'
+// Dashboard-facing aggregate endpoints (Phase 3)
+import { performance } from './routes/performance'
+import { drawdowns } from './routes/drawdowns'
+import { monthlyReturns } from './routes/monthly-returns'
+import { risk } from './routes/risk'
+import { systemMetrics } from './routes/system-metrics'
+import { breakdown } from './routes/breakdown'
+import { activity } from './routes/activity'
+import { campaignsSummary } from './routes/campaigns-summary'
 import { rateLimitMiddleware } from './middleware/rate-limit'
 
 const app = new Hono<{ Bindings: Env }>()
@@ -51,6 +60,16 @@ app.route('/api/heartbeats', heartbeats)
 app.route('/api/v1/ingest', ingest)
 app.route('/api/v1/strategies', strategiesConvert)
 
+// Dashboard-facing aggregate routes (Phase 3 — deterministic mocks, D1 wiring later)
+app.route('/api/performance', performance)
+app.route('/api/drawdowns', drawdowns)
+app.route('/api/monthly-returns', monthlyReturns)
+app.route('/api/risk', risk)
+app.route('/api/system', systemMetrics)
+app.route('/api/positions/breakdown', breakdown)
+app.route('/api/activity', activity)
+app.route('/api/campaigns', campaignsSummary)
+
 // Mount bot routes (no rate limiting on webhooks)
 app.route('/api/bot', botTelegram)
 app.route('/api/bot', botDiscord)
@@ -81,12 +100,22 @@ app.get('/', (c) => {
       'GET /api/positions/active',
       'GET /api/positions/history',
       'GET /api/positions/:position_id',
+      'GET /api/positions/breakdown',
       'GET /api/alerts',
       'GET /api/alerts/unresolved',
       'GET /api/alerts/:alert_id',
+      'GET /api/alerts/summary-24h',
       'GET /api/heartbeats',
       'GET /api/heartbeats/:service_name',
       'GET /api/heartbeats/stale/:threshold_seconds',
+      'GET /api/performance/summary',
+      'GET /api/performance/series',
+      'GET /api/drawdowns',
+      'GET /api/monthly-returns',
+      'GET /api/risk/metrics',
+      'GET /api/system/metrics',
+      'GET /api/activity/recent',
+      'GET /api/campaigns/summary',
       'POST /api/v1/ingest',
       'POST /api/v1/strategies/convert-el',
       'POST /api/bot/webhook/telegram',
