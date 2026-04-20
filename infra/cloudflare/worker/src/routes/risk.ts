@@ -27,6 +27,9 @@ risk.get('/metrics', (c) => {
   const payload: RiskMetrics = {
     vix: 15.84,
     vix1d: 11.20,
+    // VIX3M (3-month VIX constant maturity). Used by the dashboard to render
+    // the IVTS ratio and the Semaphore card.
+    vix3m: 17.20,
     delta: 42.3,
     theta: -58.20,
     vega: 124.5,

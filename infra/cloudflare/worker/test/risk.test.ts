@@ -16,6 +16,7 @@ describe('risk metrics', () => {
     const body = (await res.json()) as Record<string, unknown>
     expect(body).toHaveProperty('vix')
     expect(body).toHaveProperty('vix1d')
+    expect(body).toHaveProperty('vix3m')
     expect(typeof body.delta).toBe('number')
     expect(typeof body.theta).toBe('number')
     expect(typeof body.vega).toBe('number')

@@ -52,6 +52,9 @@ export interface MonthlyReturnsResponse {
 export interface RiskMetrics {
   vix: number | null
   vix1d: number | null
+  // VIX3M — 3-month VIX constant maturity. Used together with VIX to compute
+  // the IVTS ratio shown in the Options Trading Semaphore.
+  vix3m: number | null
   delta: number
   theta: number
   vega: number
