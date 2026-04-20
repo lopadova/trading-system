@@ -1,153 +1,95 @@
+// PositionCard — compact card variant for the Positions grid view. Renders
+// the symbol + strategy/status chips on the left and a large P&L block on
+// the right, with a 2x2 metrics grid (Qty/DTE/Δ/Θ) in the footer.
+import { Card } from '../ui/Card'
+import { Badge, type BadgeTone } from '../ui/Badge'
 import type { Position } from '../../types/position'
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card'
-import { Badge } from '../ui/Badge'
-import { formatDistance } from 'date-fns'
-import { cn } from '../../utils/cn'
-import { TrendingUp, TrendingDown } from 'lucide-react'
+import { formatCurrency } from '../../utils/format'
 
-interface PositionCardProps {
-  position: Position
+const statusToneMap: Record<Position['status'], BadgeTone> = {
+  open: 'green',
+  closed: 'muted',
+  pending: 'yellow',
 }
 
-export function PositionCard({ position }: PositionCardProps) {
-  const isProfitable = position.unrealizedPnl >= 0
-  const pnlColor = isProfitable ? 'text-success' : 'text-danger'
+function daysToExpiration(position: Position): number {
+  if (!position.expiration) return 0
+  const exp = new Date(position.expiration).getTime()
+  const now = Date.now()
+  const diff = Math.round((exp - now) / (1000 * 60 * 60 * 24))
+  return Math.max(0, diff)
+}
 
-  const statusVariant =
-    position.status === 'open' ? 'success' : position.status === 'closed' ? 'default' : 'warning'
+export function PositionCard({ position }: { position: Position }) {
+  const up = (position.unrealizedPnl ?? 0) >= 0
+  const statusTone = statusToneMap[position.status]
+  const pnlMagnitude = formatCurrency(
+    Math.abs(position.unrealizedPnl ?? 0),
+    'USD',
+    0
+  )
+  // Re-prefix sign so "+" aligns visually with the up-arrow and avoids the
+  // default "-" from formatCurrency for negative amounts
+  const pnlDisplay = up ? `+${pnlMagnitude}` : `-${pnlMagnitude}`
 
-  const typeLabel = position.type === 'option' ? 'OPT' : position.type === 'stock' ? 'STK' : 'FUT'
+  const dte = daysToExpiration(position)
+  const delta = position.greeks?.delta
+  const theta = position.greeks?.theta
 
   return (
-    <Card className="hover:shadow-lg transition-shadow">
-      <CardHeader>
-        <div className="flex items-start justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              {position.symbol}
-              <Badge variant={statusVariant}>{position.status.toUpperCase()}</Badge>
-            </CardTitle>
-            {position.strategy && (
-              <p className="text-sm text-muted mt-1">{position.strategy}</p>
-            )}
+    <Card padding={16}>
+      <div className="flex justify-between items-start mb-2.5">
+        <div>
+          <div className="font-mono font-semibold text-[13px]">
+            {position.symbol}
           </div>
-          <div className="flex gap-2">
-            <Badge>{typeLabel}</Badge>
-            <Badge variant={position.side === 'long' ? 'success' : 'danger'}>
-              {position.side.toUpperCase()}
+          <div className="flex gap-1 mt-1.5">
+            {position.strategy && (
+              <Badge tone="purple" size="sm">
+                {position.strategy}
+              </Badge>
+            )}
+            <Badge tone={statusTone} size="sm">
+              {position.status.toUpperCase()}
             </Badge>
           </div>
         </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* P&L Section */}
-        <div className="flex items-center justify-between p-3 bg-muted/5 rounded-lg">
-          <div>
-            <p className="text-xs text-muted mb-1">Unrealized P&L</p>
-            <div className="flex items-center gap-2">
-              {isProfitable ? (
-                <TrendingUp className="h-4 w-4 text-success" />
-              ) : (
-                <TrendingDown className="h-4 w-4 text-danger" />
-              )}
-              <span className={cn('text-2xl font-bold', pnlColor)}>
-                ${Math.abs(position.unrealizedPnl).toFixed(2)}
-              </span>
-            </div>
+        <div className="text-right">
+          <div
+            className={`font-mono text-[16px] font-semibold tabular-nums ${
+              up ? 'text-up' : 'text-down'
+            }`}
+          >
+            {pnlDisplay}
           </div>
-          <div className="text-right">
-            <p className="text-xs text-muted mb-1">Percentage</p>
-            <span className={cn('text-xl font-semibold', pnlColor)}>
-              {isProfitable ? '+' : ''}
-              {position.unrealizedPnlPct.toFixed(2)}%
-            </span>
+          <div className={`text-[11px] ${up ? 'text-up' : 'text-down'}`}>
+            {up ? '▲' : '▼'}{' '}
+            {Math.abs(position.unrealizedPnlPct ?? 0).toFixed(2)}%
           </div>
         </div>
-
-        {/* Position Details */}
-        <div className="grid grid-cols-2 gap-3 text-sm">
-          <div>
-            <p className="text-muted">Quantity</p>
-            <p className="font-semibold">{position.quantity}</p>
-          </div>
-          <div>
-            <p className="text-muted">Market Value</p>
-            <p className="font-semibold">${position.marketValue.toFixed(2)}</p>
-          </div>
-          <div>
-            <p className="text-muted">Avg Cost</p>
-            <p className="font-semibold">${position.avgCost.toFixed(2)}</p>
-          </div>
-          <div>
-            <p className="text-muted">Current Price</p>
-            <p className="font-semibold">${position.currentPrice.toFixed(2)}</p>
-          </div>
+      </div>
+      <div className="grid grid-cols-2 gap-2 text-[11.5px] pt-2.5 border-t border-border">
+        <div>
+          <span className="text-muted">Qty</span>{' '}
+          <span className="font-mono">{position.quantity}</span>
         </div>
-
-        {/* Option Details */}
-        {position.type === 'option' && position.strike && position.expiration && position.right && (
-          <div className="pt-3 border-t border-border">
-            <p className="text-xs text-muted mb-2">Option Details</p>
-            <div className="grid grid-cols-3 gap-2 text-sm">
-              <div>
-                <p className="text-muted text-xs">Strike</p>
-                <p className="font-semibold">${position.strike}</p>
-              </div>
-              <div>
-                <p className="text-muted text-xs">Type</p>
-                <p className="font-semibold uppercase">{position.right}</p>
-              </div>
-              <div>
-                <p className="text-muted text-xs">Expiry</p>
-                <p className="font-semibold">{new Date(position.expiration).toLocaleDateString()}</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Greeks */}
-        {position.greeks && (
-          <div className="pt-3 border-t border-border">
-            <p className="text-xs text-muted mb-2">Greeks</p>
-            <div className="grid grid-cols-4 gap-2 text-sm">
-              <div>
-                <p className="text-muted text-xs">Delta</p>
-                <p className="font-semibold">{position.greeks.delta.toFixed(3)}</p>
-              </div>
-              <div>
-                <p className="text-muted text-xs">Gamma</p>
-                <p className="font-semibold">{position.greeks.gamma.toFixed(3)}</p>
-              </div>
-              <div>
-                <p className="text-muted text-xs">Theta</p>
-                <p className="font-semibold">{position.greeks.theta.toFixed(3)}</p>
-              </div>
-              <div>
-                <p className="text-muted text-xs">Vega</p>
-                <p className="font-semibold">{position.greeks.vega.toFixed(3)}</p>
-              </div>
-            </div>
-            {position.greeks.iv !== undefined && (
-              <div className="mt-2">
-                <p className="text-muted text-xs">Implied Volatility</p>
-                <p className="font-semibold">{(position.greeks.iv * 100).toFixed(1)}%</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Footer */}
-        <div className="pt-3 border-t border-border text-xs text-muted">
-          <p>
-            Opened {formatDistance(new Date(position.openDate), new Date(), { addSuffix: true })}
-          </p>
-          {position.closeDate && (
-            <p className="mt-1">
-              Closed {formatDistance(new Date(position.closeDate), new Date(), { addSuffix: true })}
-            </p>
-          )}
+        <div>
+          <span className="text-muted">DTE</span>{' '}
+          <span className="font-mono">{dte}d</span>
         </div>
-      </CardContent>
+        <div>
+          <span className="text-muted">Δ</span>{' '}
+          <span className="font-mono">
+            {delta !== undefined ? delta.toFixed(2) : '—'}
+          </span>
+        </div>
+        <div>
+          <span className="text-muted">Θ</span>{' '}
+          <span className="font-mono">
+            {theta !== undefined ? theta.toFixed(2) : '—'}
+          </span>
+        </div>
+      </div>
     </Card>
   )
 }
