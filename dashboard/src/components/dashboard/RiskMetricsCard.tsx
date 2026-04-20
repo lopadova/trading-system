@@ -25,6 +25,14 @@ export function RiskMetricsCard() {
     )
   }
 
+  // Margin tiers:
+  //   > 75%  → RED    (IBKR may auto-close positions — see warning below)
+  //   > 60%  → YELLOW (caution)
+  //   ≤ 60%  → GREEN  (positive signal: ample headroom)
+  const marginTone: RowTone =
+    data.marginUsedPct > 75 ? 'red' : data.marginUsedPct > 60 ? 'yellow' : 'green'
+  const marginWarning = data.marginUsedPct > 75
+
   // Map raw metrics to display rows with tone resolution
   const rows: Row[] = [
     { k: 'Portfolio Delta', v: formatPercent(data.delta), tone: data.delta >= 0 ? 'green' : 'red' },
@@ -32,6 +40,7 @@ export function RiskMetricsCard() {
     { k: 'Portfolio Vega', v: formatPercent(data.vega), tone: 'green' },
     { k: 'VIX Index', v: data.vix !== null ? data.vix.toFixed(2) : '—', tone: 'muted' },
     { k: 'VIX1D', v: data.vix1d !== null ? data.vix1d.toFixed(2) : '—', tone: 'muted' },
+    { k: 'VIX3M', v: data.vix3m !== null ? data.vix3m.toFixed(2) : '—', tone: 'muted' },
     {
       k: 'IV Rank (SPY)',
       v: data.ivRankSpy !== null ? `${(data.ivRankSpy * 100).toFixed(0)}%` : '—',
@@ -41,7 +50,7 @@ export function RiskMetricsCard() {
     {
       k: 'Margin Used',
       v: `${data.marginUsedPct}%`,
-      tone: data.marginUsedPct > 70 ? 'red' : data.marginUsedPct > 55 ? 'yellow' : 'muted',
+      tone: marginTone,
     },
   ]
 
@@ -69,6 +78,11 @@ export function RiskMetricsCard() {
           </span>
         </div>
       ))}
+      {marginWarning && (
+        <div className="mt-2 text-[11px] text-down font-medium">
+          ⚠ IBKR may auto-close positions
+        </div>
+      )}
     </Card>
   )
 }
