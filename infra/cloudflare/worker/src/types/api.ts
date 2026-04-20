@@ -60,6 +60,64 @@ export interface RiskMetrics {
   marginUsedPct: number
 }
 
+/**
+ * Options Trading Semaphore — composite indicator for SPX options operator.
+ * Theory (from Lorenzo):
+ *   - regime:            SPX vs 200-day MA
+ *   - vix_level:         VIX percentile over last 252 trading days
+ *   - vix_rolling_yield: 30d rolling yield of VIX curve (VIX vs VIX3M)
+ *   - ivts:              VIX / VIX3M ratio (backwardation signal)
+ *   - overall:           aggregate status derived from the 4 indicators
+ */
+export type SemaphoreStatus = 'green' | 'orange' | 'red'
+
+export type SemaphoreIndicatorId =
+  | 'regime'
+  | 'vix_level'
+  | 'vix_rolling_yield'
+  | 'ivts'
+  | 'overall'
+
+export interface SemaphoreIndicator {
+  id: SemaphoreIndicatorId
+  label: string
+  status: SemaphoreStatus
+  // The current reading. Number when purely numeric, string when categorical
+  // (e.g. "SPX > MA200").
+  value: number | string
+  // Human-readable explanation (e.g. "0.92 (contango)")
+  detail: string
+}
+
+/**
+ * Live quote row — mirrors the per-symbol display in the reference image:
+ * price + absolute change + percent change (e.g. SPX 6767.54 +62.42 +0.93%).
+ */
+export interface SemaphoreQuote {
+  price: number
+  change: number
+  changePct: number
+}
+
+export type SemaphoreRegime = 'BULLISH' | 'BEARISH'
+
+export interface SemaphoreData {
+  // 0 = safe/green, 100 = dangerous/red. Computed as a weighted sum of risk
+  // contributions from the four sub-indicators.
+  score: number
+  status: SemaphoreStatus
+  // Always 5 items in the order [regime, vix_level, vix_rolling_yield, ivts, overall]
+  indicators: SemaphoreIndicator[]
+  asOf: string
+  // Extra display fields used by the dashboard gauge card (reference layout):
+  // SPX / VIX quotes, long-term regime label, and a pre-formatted Exchange Time
+  // (America/New_York) string.
+  spx: SemaphoreQuote
+  vix: SemaphoreQuote
+  regime: SemaphoreRegime
+  exchangeTime: string
+}
+
 export interface SystemMetricsSample {
   cpu: number[]
   ram: number[]

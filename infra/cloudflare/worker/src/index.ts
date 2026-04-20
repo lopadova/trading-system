@@ -117,6 +117,7 @@ app.get('/', (c) => {
       'GET /api/drawdowns',
       'GET /api/monthly-returns',
       'GET /api/risk/metrics',
+      'GET /api/risk/semaphore',
       'GET /api/system/metrics',
       'GET /api/activity/recent',
       'GET /api/campaigns/summary',
