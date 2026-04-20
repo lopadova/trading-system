@@ -41,6 +41,14 @@ describe('Trading System Worker', () => {
         metadata_json TEXT
       );
 
+      CREATE TABLE IF NOT EXISTS campaigns (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        state TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+
       CREATE TABLE IF NOT EXISTS alert_history (
         alert_id TEXT PRIMARY KEY,
         alert_type TEXT NOT NULL,
@@ -62,6 +70,14 @@ describe('Trading System Worker', () => {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
       .bind('test-service', 'localhost', now, 3600, 25.5, 45.2, 100.5, 'paper', '1.0.0', now, now)
+      .run()
+
+    // Seed a campaign so the LEFT JOIN on active_positions produces a labelled row
+    await env.DB.prepare(
+      `INSERT INTO campaigns (id, name, state, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?)`
+    )
+      .bind('campaign-001', 'Test Iron Condor Campaign', 'active', now, now)
       .run()
 
     await env.DB.prepare(
@@ -120,25 +136,38 @@ describe('Trading System Worker', () => {
   })
 
   describe('Positions API', () => {
-    it('should return active positions', async () => {
+    it('should return active positions with campaign join', async () => {
       const response = await SELF.fetch('https://example.com/api/positions/active', {
         headers: { 'X-Api-Key': env.API_KEY }
       })
       expect(response.status).toBe(200)
 
-      const data = await response.json()
+      const data = (await response.json()) as {
+        positions: { campaign: string | null }[]
+        count: number
+      }
       expect(data).toHaveProperty('positions')
       expect(data).toHaveProperty('count')
+      // Campaign column must be present on every row (joined from campaigns table)
+      for (const pos of data.positions) {
+        expect(pos).toHaveProperty('campaign')
+        // Seeded fixture has a matching campaign — verify the label came through
+        if ((pos as unknown as { position_id: string }).position_id === 'pos-001') {
+          expect(pos.campaign).toBe('Test Iron Condor Campaign')
+        }
+      }
     })
 
-    it('should get single position by ID', async () => {
+    it('should get single position by ID with campaign field', async () => {
       const response = await SELF.fetch('https://example.com/api/positions/pos-001', {
         headers: { 'X-Api-Key': env.API_KEY }
       })
       expect(response.status).toBe(200)
 
-      const data = await response.json()
+      const data = (await response.json()) as { position: { position_id: string; campaign: string | null } }
       expect(data.position).toHaveProperty('position_id', 'pos-001')
+      expect(data.position).toHaveProperty('campaign')
+      expect(typeof data.position.campaign === 'string' || data.position.campaign === null).toBe(true)
     })
   })
 

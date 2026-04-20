@@ -61,7 +61,10 @@ monthlyReturns.get('/', (c) => {
 
   for (const [year, arr] of Object.entries(MATRIX)) {
     years[year] = arr.map((v) => (v === null ? null : +(v * s).toFixed(2)))
-    totals[year] = +(TOTALS[year] * s).toFixed(2)
+    // TOTALS is keyed by the same years as MATRIX — default to 0 if a future
+    // year slipped into MATRIX without a TOTALS entry (belt-and-braces).
+    const raw = TOTALS[year] ?? 0
+    totals[year] = +(raw * s).toFixed(2)
   }
 
   const payload: MonthlyReturnsResponse = { asset, years, totals }
