@@ -73,7 +73,7 @@ export function ConversionResultPanel({
             <>
               <div className="text-3xl">✅</div>
               <div>
-                <Badge variant="success">Convertibile</Badge>
+                <Badge tone="green">Convertibile</Badge>
                 <p className="text-xs text-gray-400 mt-1">
                   Confidence: {(result.confidence * 100).toFixed(0)}%
                 </p>
@@ -85,7 +85,7 @@ export function ConversionResultPanel({
             <>
               <div className="text-3xl">⚠️</div>
               <div>
-                <Badge variant="warning">Parzialmente Convertibile</Badge>
+                <Badge tone="yellow">Parzialmente Convertibile</Badge>
                 <p className="text-xs text-gray-400 mt-1">
                   Confidence: {(result.confidence * 100).toFixed(0)}%
                 </p>
@@ -97,7 +97,7 @@ export function ConversionResultPanel({
             <>
               <div className="text-3xl">❌</div>
               <div>
-                <Badge variant="danger">Non Convertibile</Badge>
+                <Badge tone="red">Non Convertibile</Badge>
                 <p className="text-xs text-gray-400 mt-1">
                   {result.issues.length} issues trovati
                 </p>

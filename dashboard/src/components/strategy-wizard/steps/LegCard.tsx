@@ -8,7 +8,7 @@
 import type { StrategyLeg } from '../../../types/sdf-v1'
 import { Card } from '../../ui/Card'
 import { Button } from '../../ui/Button'
-import { Badge } from '../../ui/Badge'
+import { Badge, type BadgeTone } from '../../ui/Badge'
 
 interface LegCardProps {
   leg: StrategyLeg
@@ -17,9 +17,8 @@ interface LegCardProps {
 }
 
 export function LegCard({ leg, onEdit, onRemove }: LegCardProps) {
-  // Determine badge variants based on leg properties
-  const actionVariant = leg.action === 'buy' ? 'success' : 'danger'
-  const rightVariant = leg.right === 'put' ? 'warning' : 'default'
+  const actionTone: BadgeTone = leg.action === 'buy' ? 'green' : 'red'
+  const rightTone: BadgeTone = leg.right === 'put' ? 'yellow' : 'muted'
 
   return (
     <Card className="p-4">
@@ -27,8 +26,8 @@ export function LegCard({ leg, onEdit, onRemove }: LegCardProps) {
         <div className="flex-1">
           {/* Header with badges and leg ID */}
           <div className="flex items-center gap-2 mb-3">
-            <Badge variant={actionVariant}>{leg.action.toUpperCase()}</Badge>
-            <Badge variant={rightVariant}>{leg.right.toUpperCase()}</Badge>
+            <Badge tone={actionTone}>{leg.action.toUpperCase()}</Badge>
+            <Badge tone={rightTone}>{leg.right.toUpperCase()}</Badge>
             <span className="font-mono text-sm text-muted">{leg.leg_id}</span>
           </div>
 

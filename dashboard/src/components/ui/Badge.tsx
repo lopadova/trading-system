@@ -4,15 +4,10 @@ import { cn } from '../../utils/cn'
 export type BadgeTone = 'green' | 'red' | 'yellow' | 'blue' | 'purple' | 'muted'
 export type BadgeSize = 'sm' | 'md'
 
-// Legacy variant names (back-compat; Phase 2 will migrate call sites to tone)
-export type BadgeVariant = 'default' | 'success' | 'warning' | 'danger'
-
 export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
   tone?: BadgeTone
   size?: BadgeSize
   pulse?: boolean
-  /** @deprecated use `tone` */
-  variant?: BadgeVariant
 }
 
 const toneStyles: Record<BadgeTone, string> = {
@@ -33,28 +28,19 @@ const dotColor: Record<BadgeTone, string> = {
   muted: 'bg-[var(--fg-2)]',
 }
 
-const variantToTone: Record<BadgeVariant, BadgeTone> = {
-  default: 'muted',
-  success: 'green',
-  warning: 'yellow',
-  danger: 'red',
-}
-
-export function Badge({ tone, variant, size = 'md', pulse, className, children, ...rest }: BadgeProps) {
-  // Resolve effective tone — explicit tone wins, legacy variant falls back to map, otherwise muted
-  const effectiveTone: BadgeTone = tone ?? (variant ? variantToTone[variant] : 'muted')
+export function Badge({ tone = 'muted', size = 'md', pulse, className, children, ...rest }: BadgeProps) {
   const padding = size === 'sm' ? 'px-[7px] py-[1px] text-[10.5px]' : 'px-2.5 py-0.5 text-[11px]'
   return (
     <span
       className={cn(
         'inline-flex items-center gap-1.5 rounded-pill font-semibold tracking-wide whitespace-nowrap border',
-        toneStyles[effectiveTone],
+        toneStyles[tone],
         padding,
         className
       )}
       {...rest}
     >
-      {pulse && <span className={cn('w-1.5 h-1.5 rounded-full pulse-dot', dotColor[effectiveTone])} />}
+      {pulse && <span className={cn('w-1.5 h-1.5 rounded-full pulse-dot', dotColor[tone])} />}
       {children}
     </span>
   )
