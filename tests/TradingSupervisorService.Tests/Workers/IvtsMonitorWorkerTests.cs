@@ -23,6 +23,7 @@ public sealed class IvtsMonitorWorkerTests
         Mock<IIbkrClient> mockIbkrClient = new();
         Mock<IIvtsRepository> mockIvtsRepo = new();
         Mock<IAlertRepository> mockAlertRepo = new();
+        Mock<IOutboxRepository> mockOutboxRepo = new();
 
         Dictionary<string, string?> configDict = new()
         {
@@ -44,6 +45,7 @@ public sealed class IvtsMonitorWorkerTests
             mockIbkrClient.Object,
             mockIvtsRepo.Object,
             mockAlertRepo.Object,
+            mockOutboxRepo.Object,
             config);
 
         // Assert - constructor should not throw
@@ -58,6 +60,7 @@ public sealed class IvtsMonitorWorkerTests
         Mock<IIbkrClient> mockIbkrClient = new();
         Mock<IIvtsRepository> mockIvtsRepo = new();
         Mock<IAlertRepository> mockAlertRepo = new();
+        Mock<IOutboxRepository> mockOutboxRepo = new();
 
         Dictionary<string, string?> configDict = new()
         {
@@ -76,6 +79,7 @@ public sealed class IvtsMonitorWorkerTests
             mockIbkrClient.Object,
             mockIvtsRepo.Object,
             mockAlertRepo.Object,
+            mockOutboxRepo.Object,
             config));
     }
 
@@ -87,6 +91,7 @@ public sealed class IvtsMonitorWorkerTests
         Mock<IIbkrClient> mockIbkrClient = new();
         Mock<IIvtsRepository> mockIvtsRepo = new();
         Mock<IAlertRepository> mockAlertRepo = new();
+        Mock<IOutboxRepository> mockOutboxRepo = new();
 
         Dictionary<string, string?> configDict = new()
         {
@@ -106,6 +111,7 @@ public sealed class IvtsMonitorWorkerTests
             mockIbkrClient.Object,
             mockIvtsRepo.Object,
             mockAlertRepo.Object,
+            mockOutboxRepo.Object,
             config));
     }
 
@@ -117,6 +123,7 @@ public sealed class IvtsMonitorWorkerTests
         Mock<IIbkrClient> mockIbkrClient = new();
         Mock<IIvtsRepository> mockIvtsRepo = new();
         Mock<IAlertRepository> mockAlertRepo = new();
+        Mock<IOutboxRepository> mockOutboxRepo = new();
 
         Dictionary<string, string?> configDict = new()
         {
@@ -135,6 +142,7 @@ public sealed class IvtsMonitorWorkerTests
             mockIbkrClient.Object,
             mockIvtsRepo.Object,
             mockAlertRepo.Object,
+            mockOutboxRepo.Object,
             config);
 
         // Assert - worker should be created but won't start monitoring
@@ -152,6 +160,7 @@ public sealed class IvtsMonitorWorkerTests
         Mock<IIbkrClient> mockIbkrClient = new();
         Mock<IIvtsRepository> mockIvtsRepo = new();
         Mock<IAlertRepository> mockAlertRepo = new();
+        Mock<IOutboxRepository> mockOutboxRepo = new();
 
         // Empty configuration - should use defaults
         IConfiguration config = new ConfigurationBuilder()
@@ -164,6 +173,7 @@ public sealed class IvtsMonitorWorkerTests
             mockIbkrClient.Object,
             mockIvtsRepo.Object,
             mockAlertRepo.Object,
+            mockOutboxRepo.Object,
             config);
 
         // Assert - worker should be created with defaults

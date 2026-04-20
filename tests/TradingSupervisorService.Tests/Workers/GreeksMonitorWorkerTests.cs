@@ -22,6 +22,7 @@ public sealed class GreeksMonitorWorkerTests
         IConfiguration config = BuildConfiguration(enabled: true);
         Mock<IPositionsRepository> positionsRepoMock = new();
         Mock<IAlertRepository> alertRepoMock = new();
+        Mock<IOutboxRepository> outboxRepoMock = new();
         Mock<ILogger<GreeksMonitorWorker>> loggerMock = new();
 
         // Act
@@ -29,6 +30,7 @@ public sealed class GreeksMonitorWorkerTests
             loggerMock.Object,
             positionsRepoMock.Object,
             alertRepoMock.Object,
+            outboxRepoMock.Object,
             config);
 
         // Assert
@@ -45,6 +47,7 @@ public sealed class GreeksMonitorWorkerTests
         IConfiguration config = BuildConfiguration(enabled: true, intervalSeconds: intervalSeconds);
         Mock<IPositionsRepository> positionsRepoMock = new();
         Mock<IAlertRepository> alertRepoMock = new();
+        Mock<IOutboxRepository> outboxRepoMock = new();
         Mock<ILogger<GreeksMonitorWorker>> loggerMock = new();
 
         // Act & Assert
@@ -52,6 +55,7 @@ public sealed class GreeksMonitorWorkerTests
             loggerMock.Object,
             positionsRepoMock.Object,
             alertRepoMock.Object,
+            outboxRepoMock.Object,
             config));
 
         Assert.Contains("IntervalSeconds", ex.Message);
@@ -67,6 +71,7 @@ public sealed class GreeksMonitorWorkerTests
         IConfiguration config = BuildConfiguration(enabled: true, deltaThreshold: deltaThreshold);
         Mock<IPositionsRepository> positionsRepoMock = new();
         Mock<IAlertRepository> alertRepoMock = new();
+        Mock<IOutboxRepository> outboxRepoMock = new();
         Mock<ILogger<GreeksMonitorWorker>> loggerMock = new();
 
         // Act & Assert
@@ -74,6 +79,7 @@ public sealed class GreeksMonitorWorkerTests
             loggerMock.Object,
             positionsRepoMock.Object,
             alertRepoMock.Object,
+            outboxRepoMock.Object,
             config));
 
         Assert.Contains("DeltaThreshold", ex.Message);
@@ -87,12 +93,14 @@ public sealed class GreeksMonitorWorkerTests
         IConfiguration config = BuildConfiguration(enabled: false);
         Mock<IPositionsRepository> positionsRepoMock = new();
         Mock<IAlertRepository> alertRepoMock = new();
+        Mock<IOutboxRepository> outboxRepoMock = new();
         Mock<ILogger<GreeksMonitorWorker>> loggerMock = new();
 
         GreeksMonitorWorker worker = new(
             loggerMock.Object,
             positionsRepoMock.Object,
             alertRepoMock.Object,
+            outboxRepoMock.Object,
             config);
 
         CancellationTokenSource cts = new();
@@ -118,6 +126,7 @@ public sealed class GreeksMonitorWorkerTests
         IConfiguration config = BuildConfiguration(enabled: true, intervalSeconds: 1);
         Mock<IPositionsRepository> positionsRepoMock = new();
         Mock<IAlertRepository> alertRepoMock = new();
+        Mock<IOutboxRepository> outboxRepoMock = new();
         Mock<ILogger<GreeksMonitorWorker>> loggerMock = new();
 
         // Repository returns empty list (no positions)
@@ -129,6 +138,7 @@ public sealed class GreeksMonitorWorkerTests
             loggerMock.Object,
             positionsRepoMock.Object,
             alertRepoMock.Object,
+            outboxRepoMock.Object,
             config);
 
         CancellationTokenSource cts = new();
@@ -153,6 +163,7 @@ public sealed class GreeksMonitorWorkerTests
         IConfiguration config = BuildConfiguration(enabled: true, intervalSeconds: 1, deltaThreshold: 0.70);
         Mock<IPositionsRepository> positionsRepoMock = new();
         Mock<IAlertRepository> alertRepoMock = new();
+        Mock<IOutboxRepository> outboxRepoMock = new();
         Mock<ILogger<GreeksMonitorWorker>> loggerMock = new();
 
         // Position with delta = 0.85 (exceeds threshold of 0.70)
@@ -180,6 +191,7 @@ public sealed class GreeksMonitorWorkerTests
             loggerMock.Object,
             positionsRepoMock.Object,
             alertRepoMock.Object,
+            outboxRepoMock.Object,
             config);
 
         CancellationTokenSource cts = new();
@@ -207,6 +219,7 @@ public sealed class GreeksMonitorWorkerTests
         IConfiguration config = BuildConfiguration(enabled: true, intervalSeconds: 1, gammaThreshold: 0.05);
         Mock<IPositionsRepository> positionsRepoMock = new();
         Mock<IAlertRepository> alertRepoMock = new();
+        Mock<IOutboxRepository> outboxRepoMock = new();
         Mock<ILogger<GreeksMonitorWorker>> loggerMock = new();
 
         // Position with gamma = 0.08 (exceeds threshold of 0.05)
@@ -234,6 +247,7 @@ public sealed class GreeksMonitorWorkerTests
             loggerMock.Object,
             positionsRepoMock.Object,
             alertRepoMock.Object,
+            outboxRepoMock.Object,
             config);
 
         CancellationTokenSource cts = new();
@@ -260,6 +274,7 @@ public sealed class GreeksMonitorWorkerTests
         IConfiguration config = BuildConfiguration(enabled: true, intervalSeconds: 1, thetaThreshold: 50.0);
         Mock<IPositionsRepository> positionsRepoMock = new();
         Mock<IAlertRepository> alertRepoMock = new();
+        Mock<IOutboxRepository> outboxRepoMock = new();
         Mock<ILogger<GreeksMonitorWorker>> loggerMock = new();
 
         // Position with theta = -75.0 (absolute value exceeds threshold of 50.0)
@@ -287,6 +302,7 @@ public sealed class GreeksMonitorWorkerTests
             loggerMock.Object,
             positionsRepoMock.Object,
             alertRepoMock.Object,
+            outboxRepoMock.Object,
             config);
 
         CancellationTokenSource cts = new();
@@ -313,6 +329,7 @@ public sealed class GreeksMonitorWorkerTests
         IConfiguration config = BuildConfiguration(enabled: true, intervalSeconds: 1, vegaThreshold: 100.0);
         Mock<IPositionsRepository> positionsRepoMock = new();
         Mock<IAlertRepository> alertRepoMock = new();
+        Mock<IOutboxRepository> outboxRepoMock = new();
         Mock<ILogger<GreeksMonitorWorker>> loggerMock = new();
 
         // Position with vega = 150.0 (exceeds threshold of 100.0)
@@ -341,6 +358,7 @@ public sealed class GreeksMonitorWorkerTests
             loggerMock.Object,
             positionsRepoMock.Object,
             alertRepoMock.Object,
+            outboxRepoMock.Object,
             config);
 
         CancellationTokenSource cts = new();
@@ -367,6 +385,7 @@ public sealed class GreeksMonitorWorkerTests
         IConfiguration config = BuildConfiguration(enabled: true, intervalSeconds: 1);
         Mock<IPositionsRepository> positionsRepoMock = new();
         Mock<IAlertRepository> alertRepoMock = new();
+        Mock<IOutboxRepository> outboxRepoMock = new();
         Mock<ILogger<GreeksMonitorWorker>> loggerMock = new();
 
         // Position with ALL Greeks exceeding thresholds
@@ -395,6 +414,7 @@ public sealed class GreeksMonitorWorkerTests
             loggerMock.Object,
             positionsRepoMock.Object,
             alertRepoMock.Object,
+            outboxRepoMock.Object,
             config);
 
         CancellationTokenSource cts = new();

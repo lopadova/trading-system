@@ -213,10 +213,12 @@ public sealed class WorkerLifecycleIntegrationTests : IAsyncLifetime
             })
             .Build();
 
+        Mock<IOutboxRepository> outboxRepoMock = new();
         LogReaderWorker worker = new(
             NullLogger<LogReaderWorker>.Instance,
             _logReaderRepo,
             _alertRepo,
+            outboxRepoMock.Object,
             config);
 
         using CancellationTokenSource cts = new();

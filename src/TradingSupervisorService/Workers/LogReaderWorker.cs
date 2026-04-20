@@ -17,6 +17,7 @@ public sealed class LogReaderWorker : BackgroundService
     private readonly ILogger<LogReaderWorker> _logger;
     private readonly ILogReaderStateRepository _stateRepo;
     private readonly IAlertRepository _alertRepo;
+    private readonly IOutboxRepository _outboxRepo;
     private readonly string _logFilePath;
     private readonly int _intervalSeconds;
 
@@ -30,11 +31,13 @@ public sealed class LogReaderWorker : BackgroundService
         ILogger<LogReaderWorker> logger,
         ILogReaderStateRepository stateRepo,
         IAlertRepository alertRepo,
+        IOutboxRepository outboxRepo,
         IConfiguration config)
     {
         _logger = logger;
         _stateRepo = stateRepo;
         _alertRepo = alertRepo;
+        _outboxRepo = outboxRepo ?? throw new ArgumentNullException(nameof(outboxRepo));
 
         // Read configuration
         _logFilePath = config.GetValue<string>("LogReader:OptionsServiceLogPath")
@@ -263,6 +266,26 @@ public sealed class LogReaderWorker : BackgroundService
             // Use CancellationToken.None to ensure alert is persisted even during shutdown
             // Critical: alerts must not be lost when service stops
             await _alertRepo.InsertAsync(alert, CancellationToken.None);
+
+            // Create outbox entry for remote sync (also using CancellationToken.None for consistency)
+            string eventId = Guid.NewGuid().ToString();
+            string payloadJson = JsonSerializer.Serialize(alert, new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            });
+
+            OutboxEntry outboxEntry = new()
+            {
+                EventId = eventId,
+                EventType = "alert",
+                PayloadJson = payloadJson,
+                DedupeKey = $"alert:{alert.AlertType}:{alert.AlertId}",
+                Status = "pending",
+                RetryCount = 0,
+                CreatedAt = DateTime.UtcNow.ToString("O")
+            };
+
+            await _outboxRepo.InsertAsync(outboxEntry, CancellationToken.None);
 
             _logger.LogInformation("Created alert {AlertId} from log entry: severity={Severity} message={Message}",
                 alert.AlertId, severity, message);

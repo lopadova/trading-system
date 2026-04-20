@@ -19,6 +19,7 @@ public sealed class GreeksMonitorWorker : BackgroundService
     private readonly ILogger<GreeksMonitorWorker> _logger;
     private readonly IPositionsRepository _positionsRepo;
     private readonly IAlertRepository _alertRepo;
+    private readonly IOutboxRepository _outboxRepo;
     private readonly int _intervalSeconds;
     private readonly bool _enabled;
 
@@ -32,11 +33,13 @@ public sealed class GreeksMonitorWorker : BackgroundService
         ILogger<GreeksMonitorWorker> logger,
         IPositionsRepository positionsRepo,
         IAlertRepository alertRepo,
+        IOutboxRepository outboxRepo,
         IConfiguration config)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _positionsRepo = positionsRepo ?? throw new ArgumentNullException(nameof(positionsRepo));
         _alertRepo = alertRepo ?? throw new ArgumentNullException(nameof(alertRepo));
+        _outboxRepo = outboxRepo ?? throw new ArgumentNullException(nameof(outboxRepo));
 
         // Read configuration with safe defaults
         _enabled = config.GetValue<bool>("GreeksMonitor:Enabled", true);
@@ -218,6 +221,26 @@ public sealed class GreeksMonitorWorker : BackgroundService
 
         await _alertRepo.InsertAsync(alert, ct);
 
+        // Create outbox entry for remote sync
+        string eventId = Guid.NewGuid().ToString();
+        string payloadJson = JsonSerializer.Serialize(alert, new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        });
+
+        OutboxEntry outboxEntry = new()
+        {
+            EventId = eventId,
+            EventType = "alert",
+            PayloadJson = payloadJson,
+            DedupeKey = $"alert:{alert.AlertType}:{alert.AlertId}",
+            Status = "pending",
+            RetryCount = 0,
+            CreatedAt = DateTime.UtcNow.ToString("O")
+        };
+
+        await _outboxRepo.InsertAsync(outboxEntry, ct);
+
         _logger.LogWarning(
             "Delta threshold breach: position {PositionId} ({Symbol}) delta={Delta:F2} > threshold={Threshold:F2}",
             position.PositionId, position.Symbol, position.Delta, _deltaThreshold);
@@ -258,6 +281,26 @@ public sealed class GreeksMonitorWorker : BackgroundService
         };
 
         await _alertRepo.InsertAsync(alert, ct);
+
+        // Create outbox entry for remote sync
+        string eventId = Guid.NewGuid().ToString();
+        string payloadJson = JsonSerializer.Serialize(alert, new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        });
+
+        OutboxEntry outboxEntry = new()
+        {
+            EventId = eventId,
+            EventType = "alert",
+            PayloadJson = payloadJson,
+            DedupeKey = $"alert:{alert.AlertType}:{alert.AlertId}",
+            Status = "pending",
+            RetryCount = 0,
+            CreatedAt = DateTime.UtcNow.ToString("O")
+        };
+
+        await _outboxRepo.InsertAsync(outboxEntry, ct);
 
         _logger.LogWarning(
             "Gamma threshold breach: position {PositionId} ({Symbol}) gamma={Gamma:F3} > threshold={Threshold:F3}",
@@ -300,6 +343,26 @@ public sealed class GreeksMonitorWorker : BackgroundService
 
         await _alertRepo.InsertAsync(alert, ct);
 
+        // Create outbox entry for remote sync
+        string eventId = Guid.NewGuid().ToString();
+        string payloadJson = JsonSerializer.Serialize(alert, new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        });
+
+        OutboxEntry outboxEntry = new()
+        {
+            EventId = eventId,
+            EventType = "alert",
+            PayloadJson = payloadJson,
+            DedupeKey = $"alert:{alert.AlertType}:{alert.AlertId}",
+            Status = "pending",
+            RetryCount = 0,
+            CreatedAt = DateTime.UtcNow.ToString("O")
+        };
+
+        await _outboxRepo.InsertAsync(outboxEntry, ct);
+
         _logger.LogWarning(
             "Theta threshold breach: position {PositionId} ({Symbol}) theta=${Theta:F0}/day > threshold=${Threshold:F0}",
             position.PositionId, position.Symbol, Math.Abs(position.Theta!.Value), _thetaThreshold);
@@ -341,6 +404,26 @@ public sealed class GreeksMonitorWorker : BackgroundService
         };
 
         await _alertRepo.InsertAsync(alert, ct);
+
+        // Create outbox entry for remote sync
+        string eventId = Guid.NewGuid().ToString();
+        string payloadJson = JsonSerializer.Serialize(alert, new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        });
+
+        OutboxEntry outboxEntry = new()
+        {
+            EventId = eventId,
+            EventType = "alert",
+            PayloadJson = payloadJson,
+            DedupeKey = $"alert:{alert.AlertType}:{alert.AlertId}",
+            Status = "pending",
+            RetryCount = 0,
+            CreatedAt = DateTime.UtcNow.ToString("O")
+        };
+
+        await _outboxRepo.InsertAsync(outboxEntry, ct);
 
         _logger.LogWarning(
             "Vega threshold breach: position {PositionId} ({Symbol}) vega=${Vega:F0} > threshold=${Threshold:F0}",
