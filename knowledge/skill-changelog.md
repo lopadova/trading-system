@@ -260,3 +260,14 @@
 **Related**: ERR-018, LL-180
 
 ---
+
+## 2026-04-20 — Dashboard redesign feature complete (feat/dashboard-redesign, phases 1-5)
+
+**Skill changes**: None (this feature did not modify any `.claude/skills/*.md`; it followed existing skill guidance for React + Cloudflare Worker work without needing new patterns).
+
+**Knowledge changes**:
+- `knowledge/lessons-learned.md`: +LESSON-181 (CSS vars + Tailwind @theme bridge), +LESSON-182 (anchor gitignore patterns to repo root).
+- `knowledge/errors-registry.md`: no new CRITICAL errors discovered during the feature.
+
+**Related**: branch `feat/dashboard-redesign`, plans `docs/superpowers/plans/2026-04-20-dashboard-redesign{,-part2,-part3,-part4}.md`.
+
