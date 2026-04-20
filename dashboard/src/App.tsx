@@ -8,6 +8,9 @@ import { SettingsPage } from './pages/SettingsPage'
 import { StrategyWizardPage } from './pages/StrategyWizardPage'
 import { StrategyImportPage } from './pages/StrategyImportPage'
 import { StrategyConvertPage } from './pages/StrategyConvertPage'
+import { HealthPage } from './pages/HealthPage'
+import { IVTSPage } from './pages/IVTSPage'
+import { LogsPage } from './pages/LogsPage'
 import { ToastContainer } from './components/ui/Toast'
 
 type Route =
@@ -91,6 +94,12 @@ function App() {
         return <CampaignsPage />
       case '/alerts':
         return <AlertsPage />
+      case '/health':
+        return <HealthPage />
+      case '/ivts':
+        return <IVTSPage />
+      case '/logs':
+        return <LogsPage />
       case '/settings':
         return <SettingsPage />
       case '/strategies/new':
