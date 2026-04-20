@@ -1,96 +1,78 @@
 import {
-  Home,
-  Activity,
-  TrendingUp,
-  Settings,
-  FileText,
-  BarChart3,
-  AlertCircle,
-  FolderKanban,
+  Home, Activity, TrendingUp, FolderKanban, BarChart3,
+  AlertCircle, FileText, Settings as SettingsIcon, Sparkles
 } from 'lucide-react'
-import { useUiStore } from '../../stores/uiStore'
+import type { LucideIcon } from 'lucide-react'
 import { cn } from '../../utils/cn'
 
 interface NavItem {
-  icon: typeof Home
+  path: string
+  icon: LucideIcon
   label: string
-  href: string
   badge?: number
 }
 
-const navItems: NavItem[] = [
-  { icon: Home, label: 'Overview', href: '/' },
-  { icon: Activity, label: 'System Health', href: '/health' },
-  { icon: TrendingUp, label: 'Positions', href: '/positions' },
-  { icon: FolderKanban, label: 'Campaigns', href: '/campaigns' },
-  { icon: BarChart3, label: 'IVTS Monitor', href: '/ivts' },
-  { icon: AlertCircle, label: 'Alerts', href: '/alerts', badge: 0 },
-  { icon: FileText, label: 'Logs', href: '/logs' },
-  { icon: Settings, label: 'Settings', href: '/settings' },
+const items: NavItem[] = [
+  { path: '/', icon: Home, label: 'Overview' },
+  { path: '/health', icon: Activity, label: 'System Health' },
+  { path: '/positions', icon: TrendingUp, label: 'Positions' },
+  { path: '/campaigns', icon: FolderKanban, label: 'Campaigns' },
+  { path: '/ivts', icon: BarChart3, label: 'IVTS Monitor' },
+  { path: '/alerts', icon: AlertCircle, label: 'Alerts' },
+  { path: '/logs', icon: FileText, label: 'Logs' },
+  { path: '/strategies/new', icon: Sparkles, label: 'Strategy Wizard' },
+  { path: '/settings', icon: SettingsIcon, label: 'Settings' },
 ]
 
-export function Sidebar() {
-  const { sidebarOpen } = useUiStore()
-  const currentPath = window.location.pathname
+interface SidebarProps {
+  currentPath: string
+}
 
+function Logo({ size = 22 }: { size?: number }) {
   return (
-    <aside
-      className={cn(
-        'border-r border-[#1a2332] transition-all duration-300',
-        'flex flex-col relative',
-        sidebarOpen ? 'w-64' : 'w-0 overflow-hidden'
-      )}
-      style={{
-        background: 'linear-gradient(135deg, rgba(15, 20, 27, 0.9) 0%, rgba(10, 14, 20, 0.95) 100%)',
-        backdropFilter: 'blur(20px)',
-      }}
-    >
-      <nav className="flex-1 p-4 space-y-1.5">
-        {navItems.map((item) => {
-          const isActive = currentPath === item.href
+    <svg width={size} height={size * 28 / 30} viewBox="0 0 30 28" fill="none" aria-label="Trading System logo">
+      <path d="M19 2 L5 15 L13 15 L11 26 L25 13 L17 13 L19 2 Z" fill="var(--purple)" stroke="var(--purple)" strokeWidth="1.2" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+export function Sidebar({ currentPath }: SidebarProps) {
+  return (
+    <aside className="w-60 bg-[var(--bg-1)] border-r border-border flex flex-col h-screen shrink-0">
+      <div className="flex items-center gap-2.5 h-16 px-4 border-b border-border">
+        <Logo />
+        <div>
+          <div className="font-display font-bold text-[14px] tracking-tight text-[var(--fg-1)]">Trading System</div>
+          <div className="text-[10.5px] text-muted font-mono">dashboard · v0.1.0</div>
+        </div>
+      </div>
+      <nav className="flex-1 p-2.5 overflow-auto flex flex-col gap-0.5">
+        {items.map(it => {
+          const active = currentPath === it.path || (it.path === '/strategies/new' && currentPath.startsWith('/strategies'))
           return (
             <a
-              key={item.href}
-              href={item.href}
+              key={it.path}
+              href={it.path}
               className={cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-lg',
-                'transition-all duration-200',
-                'group relative overflow-hidden',
-                isActive
-                  ? 'bg-white/8 border border-[#253145] text-white'
-                  : 'text-[#8b95a8] hover:bg-white/5 border border-transparent hover:border-[#253145]'
+                'flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] transition-colors',
+                active ? 'bg-[var(--tint-blue)] text-[var(--blue)] font-medium' : 'text-[var(--fg-1)] hover:bg-[color:var(--fg-2)]/10'
               )}
             >
-              {isActive && (
-                <div
-                  className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-400 to-cyan-400"
-                  style={{ boxShadow: '0 0 12px rgba(59, 130, 246, 0.5)' }}
-                />
-              )}
-              <item.icon className={cn(
-                'h-4 w-4 transition-colors',
-                isActive ? 'text-blue-400' : 'text-[#5a6575] group-hover:text-[#8b95a8]'
-              )} />
-              <span className={cn(
-                'text-sm font-medium tracking-tight',
-                isActive && 'font-semibold'
-              )}>{item.label}</span>
-              {item.badge !== undefined && item.badge > 0 && (
-                <span className="ml-auto bg-red-500/20 text-red-400 text-[10px] font-mono font-bold px-2 py-0.5 rounded border border-red-500/30" style={{ boxShadow: '0 0 8px rgba(239, 68, 68, 0.2)' }}>
-                  {item.badge}
-                </span>
+              <it.icon size={16} className={active ? 'text-[var(--blue)]' : 'text-muted'} />
+              <span className="flex-1">{it.label}</span>
+              {it.badge != null && (
+                <span className="bg-[var(--red)] text-white text-[10px] font-semibold px-1.5 py-[1px] rounded-full">{it.badge}</span>
               )}
             </a>
           )
         })}
       </nav>
-
-      <div className="p-4 border-t border-[#1a2332] text-[10px] font-mono text-[#5a6575] space-y-1">
-        <p className="font-semibold tracking-wider uppercase">Trading System v0.1.0</p>
-        <div className="flex items-center gap-2">
-          <span className="text-[#8b95a8]">Mode:</span>
-          <span className="px-2 py-0.5 rounded bg-green-500/10 text-green-400 border border-green-500/20 font-bold">PAPER</span>
+      <div className="border-t border-border px-4 py-3 text-[11px] text-muted flex items-center justify-between">
+        <div>
+          <div>Paper Trading</div>
+          <div className="font-mono">IBKR · Connected</div>
         </div>
+        <span className="w-2 h-2 rounded-full bg-[var(--green)] pulse-dot" style={{ boxShadow: '0 0 6px var(--green)' }} />
       </div>
     </aside>
   )
