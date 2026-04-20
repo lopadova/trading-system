@@ -1,31 +1,60 @@
-import type { ReactNode } from 'react'
+import type { HTMLAttributes } from 'react'
 import { cn } from '../../utils/cn'
 
-type BadgeVariant = 'default' | 'success' | 'warning' | 'danger'
+export type BadgeTone = 'green' | 'red' | 'yellow' | 'blue' | 'purple' | 'muted'
+export type BadgeSize = 'sm' | 'md'
 
-interface BadgeProps {
-  children: ReactNode
+// Legacy variant names (back-compat; Phase 2 will migrate call sites to tone)
+export type BadgeVariant = 'default' | 'success' | 'warning' | 'danger'
+
+export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
+  tone?: BadgeTone
+  size?: BadgeSize
+  pulse?: boolean
+  /** @deprecated use `tone` */
   variant?: BadgeVariant
-  className?: string
 }
 
-const variantStyles: Record<BadgeVariant, string> = {
-  default: 'bg-muted/20 text-foreground',
-  success: 'bg-success/10 text-success border-success/20',
-  warning: 'bg-warning/10 text-warning border-warning/20',
-  danger: 'bg-danger/10 text-danger border-danger/20',
+const toneStyles: Record<BadgeTone, string> = {
+  green: 'bg-[var(--tint-green)] text-[var(--green)] border-[color:var(--green)]/25',
+  red: 'bg-[var(--tint-red)] text-[var(--red)] border-[color:var(--red)]/25',
+  yellow: 'bg-[var(--tint-yellow)] text-[var(--yellow)] border-[color:var(--yellow)]/25',
+  blue: 'bg-[var(--tint-blue)] text-[var(--blue)] border-[color:var(--blue)]/25',
+  purple: 'bg-[var(--tint-purple)] text-[var(--purple)] border-[color:var(--purple)]/25',
+  muted: 'bg-[var(--tint-muted)] text-[var(--fg-2)] border-[color:var(--fg-2)]/25',
 }
 
-export function Badge({ children, variant = 'default', className }: BadgeProps) {
+const dotColor: Record<BadgeTone, string> = {
+  green: 'bg-[var(--green)]',
+  red: 'bg-[var(--red)]',
+  yellow: 'bg-[var(--yellow)]',
+  blue: 'bg-[var(--blue)]',
+  purple: 'bg-[var(--purple)]',
+  muted: 'bg-[var(--fg-2)]',
+}
+
+const variantToTone: Record<BadgeVariant, BadgeTone> = {
+  default: 'muted',
+  success: 'green',
+  warning: 'yellow',
+  danger: 'red',
+}
+
+export function Badge({ tone, variant, size = 'md', pulse, className, children, ...rest }: BadgeProps) {
+  // Resolve effective tone — explicit tone wins, legacy variant falls back to map, otherwise muted
+  const effectiveTone: BadgeTone = tone ?? (variant ? variantToTone[variant] : 'muted')
+  const padding = size === 'sm' ? 'px-[7px] py-[1px] text-[10.5px]' : 'px-2.5 py-0.5 text-[11px]'
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold',
-        'border',
-        variantStyles[variant],
+        'inline-flex items-center gap-1.5 rounded-pill font-semibold tracking-wide whitespace-nowrap border',
+        toneStyles[effectiveTone],
+        padding,
         className
       )}
+      {...rest}
     >
+      {pulse && <span className={cn('w-1.5 h-1.5 rounded-full pulse-dot', dotColor[effectiveTone])} />}
       {children}
     </span>
   )
