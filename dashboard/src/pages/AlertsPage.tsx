@@ -25,7 +25,7 @@ export function AlertsPage() {
   // Loading state
   if (isLoading) {
     return (
-      <div className="space-y-6">
+      <div className="p-8 flex flex-col gap-5">
         <div className="flex items-center justify-center h-64">
           <div className="flex flex-col items-center gap-4">
             <RefreshCw className="h-8 w-8 animate-spin text-muted" />
@@ -39,15 +39,15 @@ export function AlertsPage() {
   // Error state
   if (isError) {
     return (
-      <div className="space-y-6">
+      <div className="p-8 flex flex-col gap-5">
         <Card>
           <CardContent className="py-12">
             <div className="text-center">
-              <p className="text-danger text-lg font-semibold mb-2">Failed to load alerts</p>
+              <p className="text-down text-lg font-semibold mb-2">Failed to load alerts</p>
               <p className="text-muted text-sm mb-4">{String(error)}</p>
               <button
                 onClick={() => refetch()}
-                className="px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors"
+                className="px-4 py-2 bg-[var(--blue)] text-white rounded-md hover:brightness-110 transition-[filter]"
               >
                 Retry
               </button>
@@ -61,7 +61,7 @@ export function AlertsPage() {
   // No data
   if (!data) {
     return (
-      <div className="space-y-6">
+      <div className="p-8 flex flex-col gap-5">
         <Card>
           <CardContent className="py-12">
             <div className="text-center">
@@ -74,7 +74,7 @@ export function AlertsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="p-8 flex flex-col gap-5">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -88,19 +88,19 @@ export function AlertsPage() {
             onClick={() => refetch()}
             disabled={isFetching}
             className={cn(
-              'p-2 rounded-lg border border-border hover:bg-muted/10 transition-colors',
+              'p-2 rounded-md border border-border hover:bg-[var(--bg-3)] transition-colors',
               isFetching && 'opacity-50 cursor-not-allowed'
             )}
             title="Refresh alerts"
           >
             <RefreshCw className={cn('h-5 w-5', isFetching && 'animate-spin')} />
           </button>
-          <div className="flex gap-1 border border-border rounded-lg p-1">
+          <div className="flex gap-1 border border-border rounded-md p-1">
             <button
               onClick={() => setViewMode('table')}
               className={cn(
                 'p-2 rounded transition-colors',
-                viewMode === 'table' ? 'bg-accent text-white' : 'hover:bg-muted/10'
+                viewMode === 'table' ? 'bg-[var(--blue)] text-white' : 'hover:bg-[var(--bg-3)]'
               )}
               title="Table view"
             >
@@ -110,7 +110,7 @@ export function AlertsPage() {
               onClick={() => setViewMode('cards')}
               className={cn(
                 'p-2 rounded transition-colors',
-                viewMode === 'cards' ? 'bg-accent text-white' : 'hover:bg-muted/10'
+                viewMode === 'cards' ? 'bg-[var(--blue)] text-white' : 'hover:bg-[var(--bg-3)]'
               )}
               title="Card view"
             >
@@ -134,7 +134,7 @@ export function AlertsPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
+        <div className="flex flex-col gap-4">
           {data.alerts.length === 0 ? (
             <Card>
               <CardContent className="py-12">
