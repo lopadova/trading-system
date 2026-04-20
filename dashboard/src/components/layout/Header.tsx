@@ -1,59 +1,40 @@
-import { Menu, Moon, Sun, Monitor } from 'lucide-react'
-import { useUiStore } from '../../stores/uiStore'
-import { cn } from '../../utils/cn'
+import { Bell, Sun, Moon } from 'lucide-react'
+import { Badge } from '../ui/Badge'
+import { useThemeStore } from '../../stores/themeStore'
 
-export function Header() {
-  const { theme, setTheme, toggleSidebar } = useUiStore()
+interface HeaderProps {
+  title: string
+  subtitle?: string
+}
 
-  const cycleTheme = () => {
-    const nextTheme: Record<typeof theme, typeof theme> = {
-      light: 'dark',
-      dark: 'system',
-      system: 'light',
-    }
-    setTheme(nextTheme[theme])
-  }
-
-  const ThemeIcon = theme === 'light' ? Sun : theme === 'dark' ? Moon : Monitor
-
+export function Header({ title, subtitle }: HeaderProps) {
+  const theme = useThemeStore(s => s.theme)
+  const toggle = useThemeStore(s => s.toggle)
   return (
-    <header className="border-b border-[#1a2332] sticky top-0 z-50" style={{
-      background: 'linear-gradient(135deg, rgba(15, 20, 27, 0.95) 0%, rgba(21, 27, 36, 0.9) 100%)',
-      backdropFilter: 'blur(20px)',
-      boxShadow: '0 4px 24px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.05)'
-    }}>
-      <div className="flex h-16 items-center justify-between px-6">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={toggleSidebar}
-            className="rounded-lg p-2 hover:bg-white/5 transition-all duration-200 border border-transparent hover:border-[#253145]"
-            aria-label="Toggle sidebar"
-          >
-            <Menu className="h-5 w-5" />
-          </button>
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center font-bold text-white text-sm" style={{ boxShadow: '0 0 20px rgba(59, 130, 246, 0.3)' }}>
-              TS
-            </div>
-            <h1 className="text-xl font-bold tracking-tight">
-              Trading System <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">Dashboard</span>
-            </h1>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            onClick={cycleTheme}
-            className={cn(
-              'rounded-lg p-2 px-3 hover:bg-white/5 transition-all duration-200',
-              'flex items-center gap-2 border border-transparent hover:border-[#253145]'
-            )}
-            aria-label={`Current theme: ${theme}. Click to cycle.`}
-          >
-            <ThemeIcon className="h-4 w-4" />
-            <span className="text-xs font-mono text-[#8b95a8] capitalize hidden sm:inline font-semibold tracking-wide">{theme}</span>
-          </button>
-        </div>
+    <header className="h-16 border-b border-border bg-[var(--bg-1)] flex items-center justify-between px-8 shrink-0">
+      <div>
+        <h1 className="font-display text-[20px] font-semibold text-[var(--fg-1)] m-0 tracking-tight">{title}</h1>
+        {subtitle && <div className="text-[12px] text-muted mt-0.5">{subtitle}</div>}
+      </div>
+      <div className="flex items-center gap-3">
+        <Badge tone="green" pulse>OPERATIONAL</Badge>
+        <div className="w-px h-6 bg-border" />
+        <button
+          type="button"
+          aria-label="Notifications"
+          className="w-8 h-8 rounded-md border border-border flex items-center justify-center text-muted hover:text-[var(--fg-1)] transition-colors"
+        >
+          <Bell size={15} />
+        </button>
+        <button
+          type="button"
+          aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+          onClick={toggle}
+          className="w-8 h-8 rounded-md border border-border flex items-center justify-center text-muted hover:text-[var(--fg-1)] transition-colors"
+        >
+          {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+        </button>
+        <div className="w-8 h-8 rounded-full bg-[var(--blue)] text-white flex items-center justify-center text-[12px] font-semibold">LP</div>
       </div>
     </header>
   )
