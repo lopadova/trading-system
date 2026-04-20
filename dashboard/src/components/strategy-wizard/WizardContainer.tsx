@@ -15,7 +15,6 @@ import { AnimatePresence, motion } from 'motion/react'
 import { Bars3Icon, XMarkIcon, QuestionMarkCircleIcon } from '@heroicons/react/24/outline'
 import { StepIndicator } from './StepIndicator'
 import { useWizardStore } from '../../stores/wizardStore'
-import '../../styles/wizard.css'
 
 // ============================================================================
 // TYPES

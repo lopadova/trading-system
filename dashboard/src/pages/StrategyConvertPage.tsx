@@ -23,9 +23,10 @@ export function StrategyConvertPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-6">Converti EasyLanguage</h1>
-      <div className="bg-card p-6 rounded-lg shadow">
+    <div className="wizard-root">
+      <div className="container mx-auto px-4 py-8">
+        <h1 className="text-3xl font-bold mb-6">Converti EasyLanguage</h1>
+        <div className="bg-card p-6 rounded-lg shadow">
         <div className="mb-4">
           <label className="block text-sm font-medium mb-2">
             Incolla codice EasyLanguage
@@ -82,6 +83,7 @@ export function StrategyConvertPage() {
               Continua nel wizard
             </button>
           )}
+        </div>
         </div>
       </div>
     </div>

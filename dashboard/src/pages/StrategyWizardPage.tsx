@@ -31,29 +31,31 @@ export function StrategyWizardPage({ mode = 'new', strategyId, step = 1 }: Strat
   }, [mode, strategyId, step, goToStep, resetWizard])
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-6">
-        {mode === 'new' ? 'Nuova Strategia' : 'Modifica Strategia'}
-      </h1>
+    <div className="wizard-root">
+      <div className="container mx-auto px-4 py-8">
+        <h1 className="text-3xl font-bold mb-6">
+          {mode === 'new' ? 'Nuova Strategia' : 'Modifica Strategia'}
+        </h1>
 
-      {/* Step indicator placeholder */}
-      <div className="mb-6 text-sm text-muted">
-        Step {currentStep} of {totalSteps}
-      </div>
+        {/* Step indicator placeholder */}
+        <div className="mb-6 text-sm text-muted">
+          Step {currentStep} of {totalSteps}
+        </div>
 
-      {/* Render appropriate step component based on currentStep */}
-      <div className="bg-card p-6 rounded-lg shadow">
-        {currentStep === 5 ? (
-          <LegsStep />
-        ) : (
-          <>
-            <p className="text-muted">
-              Wizard step {currentStep} implementation coming in next tasks
-            </p>
-            <p className="text-sm text-muted mt-2">Mode: {mode}</p>
-            {strategyId && <p className="text-sm text-muted">Strategy ID: {strategyId}</p>}
-          </>
-        )}
+        {/* Render appropriate step component based on currentStep */}
+        <div className="bg-card p-6 rounded-lg shadow">
+          {currentStep === 5 ? (
+            <LegsStep />
+          ) : (
+            <>
+              <p className="text-muted">
+                Wizard step {currentStep} implementation coming in next tasks
+              </p>
+              <p className="text-sm text-muted mt-2">Mode: {mode}</p>
+              {strategyId && <p className="text-sm text-muted">Strategy ID: {strategyId}</p>}
+            </>
+          )}
+        </div>
       </div>
     </div>
   )

@@ -11,7 +11,6 @@
 import type { ReactNode } from 'react'
 import * as Popover from '@radix-ui/react-popover'
 import { QuestionMarkCircleIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline'
-import '../../../styles/wizard.css'
 
 // ============================================================================
 // TYPES

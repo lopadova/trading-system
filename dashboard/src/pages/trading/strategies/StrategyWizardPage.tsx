@@ -14,8 +14,6 @@ import { useWizardStore } from '../../../stores/wizardStore'
 // import { Step02Instrument } from '../../../components/strategy-wizard/steps/Step02Instrument'
 // ... etc
 
-import '../../../styles/wizard.css'
-
 // ============================================================================
 // PLACEHOLDER STEP COMPONENTS
 // ============================================================================
@@ -134,23 +132,25 @@ export function StrategyWizardPage() {
   const currentStep = useWizardStore((state) => state.currentStep)
 
   return (
-    <WizardContainer helpContent={getHelpContent(currentStep)}>
-      {/* Render Current Step */}
-      <div className="min-h-[600px]">
-        {currentStep === 1 && <PlaceholderStep stepNumber={1} title="Identità Strategia" />}
-        {currentStep === 2 && <PlaceholderStep stepNumber={2} title="Strumento Finanziario" />}
-        {currentStep === 3 && <PlaceholderStep stepNumber={3} title="Filtri di Ingresso" />}
-        {currentStep === 4 && <PlaceholderStep stepNumber={4} title="Regole Campagna" />}
-        {currentStep === 5 && <PlaceholderStep stepNumber={5} title="Struttura Legs" />}
-        {currentStep === 6 && <PlaceholderStep stepNumber={6} title="Filtri di Selezione" />}
-        {currentStep === 7 && <PlaceholderStep stepNumber={7} title="Regole di Uscita" />}
-        {currentStep === 8 && <PlaceholderStep stepNumber={8} title="Esecuzione" />}
-        {currentStep === 9 && <PlaceholderStep stepNumber={9} title="Monitoring" />}
-        {currentStep === 10 && <PlaceholderStep stepNumber={10} title="Review & Publish" />}
-      </div>
+    <div className="wizard-root">
+      <WizardContainer helpContent={getHelpContent(currentStep)}>
+        {/* Render Current Step */}
+        <div className="min-h-[600px]">
+          {currentStep === 1 && <PlaceholderStep stepNumber={1} title="Identità Strategia" />}
+          {currentStep === 2 && <PlaceholderStep stepNumber={2} title="Strumento Finanziario" />}
+          {currentStep === 3 && <PlaceholderStep stepNumber={3} title="Filtri di Ingresso" />}
+          {currentStep === 4 && <PlaceholderStep stepNumber={4} title="Regole Campagna" />}
+          {currentStep === 5 && <PlaceholderStep stepNumber={5} title="Struttura Legs" />}
+          {currentStep === 6 && <PlaceholderStep stepNumber={6} title="Filtri di Selezione" />}
+          {currentStep === 7 && <PlaceholderStep stepNumber={7} title="Regole di Uscita" />}
+          {currentStep === 8 && <PlaceholderStep stepNumber={8} title="Esecuzione" />}
+          {currentStep === 9 && <PlaceholderStep stepNumber={9} title="Monitoring" />}
+          {currentStep === 10 && <PlaceholderStep stepNumber={10} title="Review & Publish" />}
+        </div>
 
-      {/* Navigation Footer */}
-      <NavigationButtons className="mt-8" />
-    </WizardContainer>
+        {/* Navigation Footer */}
+        <NavigationButtons className="mt-8" />
+      </WizardContainer>
+    </div>
   )
 }

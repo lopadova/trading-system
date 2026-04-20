@@ -12,7 +12,6 @@
 import { useState, useRef } from 'react'
 import { ArrowUpTrayIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline'
 import { useWizardStore } from '../../../stores/wizardStore'
-import '../../../styles/wizard.css'
 
 // ============================================================================
 // TYPES

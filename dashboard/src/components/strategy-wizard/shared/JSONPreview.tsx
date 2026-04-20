@@ -12,7 +12,6 @@
 import { useState } from 'react'
 import { Highlight, themes } from 'prism-react-renderer'
 import { ClipboardDocumentIcon, CheckIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline'
-import '../../../styles/wizard.css'
 
 // ============================================================================
 // TYPES
