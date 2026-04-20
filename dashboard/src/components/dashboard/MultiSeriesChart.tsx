@@ -151,21 +151,24 @@ export function MultiSeriesChart({ asset }: { asset: AssetBucket }) {
                 isAnimationActive={false}
               />
             )}
-            {SERIES.map(
-              s =>
-                shown[s.key] && (
-                  <Line
-                    key={s.key}
-                    type="monotone"
-                    dataKey={s.key}
-                    stroke={s.color}
-                    strokeWidth={s.strokeWidth}
-                    strokeDasharray={s.dash}
-                    dot={false}
-                    isAnimationActive={false}
-                  />
-                ),
-            )}
+            {SERIES.map(s => {
+              if (!shown[s.key]) return null
+              // Only spread strokeDasharray when defined — recharts types reject
+              // an explicit `undefined` under exactOptionalPropertyTypes
+              const dashProp = s.dash !== undefined ? { strokeDasharray: s.dash } : {}
+              return (
+                <Line
+                  key={s.key}
+                  type="monotone"
+                  dataKey={s.key}
+                  stroke={s.color}
+                  strokeWidth={s.strokeWidth}
+                  dot={false}
+                  isAnimationActive={false}
+                  {...dashProp}
+                />
+              )
+            })}
           </LineChart>
         </ResponsiveContainer>
       </div>
