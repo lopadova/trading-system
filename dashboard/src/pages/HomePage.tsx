@@ -11,6 +11,7 @@ import { MultiSeriesChart } from '../components/dashboard/MultiSeriesChart'
 import { DrawdownsSection } from '../components/dashboard/DrawdownsSection'
 import { MonthlyPerfSection } from '../components/dashboard/MonthlyPerfSection'
 import { RiskMetricsCard } from '../components/dashboard/RiskMetricsCard'
+import { SemaphoreCard } from '../components/dashboard/SemaphoreCard'
 import { AlertsMiniCard } from '../components/dashboard/AlertsMiniCard'
 import { SystemPerfMini } from '../components/dashboard/SystemPerfMini'
 import { RecentActivity } from '../components/dashboard/RecentActivity'
@@ -103,9 +104,14 @@ export function HomePage() {
         <AlertsMiniCard />
       </motion.div>
 
+      {/* Row 1.5 — Options Trading Semaphore (operator-facing composite gate) */}
+      <motion.div {...stagger(2)}>
+        <SemaphoreCard />
+      </motion.div>
+
       {/* Row 2 — main chart (2/3) + right column stack (1/3) */}
       <motion.div
-        {...stagger(2)}
+        {...stagger(3)}
         className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-4"
       >
         <Card className="min-h-[330px]">
@@ -118,19 +124,19 @@ export function HomePage() {
       </motion.div>
 
       {/* Rows 3..7 — full-width sections */}
-      <motion.div {...stagger(3)}>
+      <motion.div {...stagger(4)}>
         <SummaryCard asset={asset} />
       </motion.div>
-      <motion.div {...stagger(4)}>
+      <motion.div {...stagger(5)}>
         <DrawdownsSection asset={asset} />
       </motion.div>
-      <motion.div {...stagger(5)}>
+      <motion.div {...stagger(6)}>
         <MonthlyPerfSection asset={asset} />
       </motion.div>
-      <motion.div {...stagger(6)}>
+      <motion.div {...stagger(7)}>
         <ActivePositionsTable />
       </motion.div>
-      <motion.div {...stagger(7)}>
+      <motion.div {...stagger(8)}>
         <RecentActivity />
       </motion.div>
     </div>
