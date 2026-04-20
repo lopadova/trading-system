@@ -19,6 +19,7 @@ import { Card } from '../components/ui/Card'
 import { useAssetFilterStore } from '../stores/assetFilterStore'
 import { usePerformanceSummary } from '../hooks/usePerformanceSummary'
 import { useCampaignsSummary } from '../hooks/useCampaignsSummary'
+import { usePositions } from '../hooks/usePositions'
 import { formatCurrency, formatDelta } from '../utils/format'
 
 // Helper: staggered fade-in-up for each top-level row (index-driven delay)
@@ -34,12 +35,31 @@ export function HomePage() {
   const asset = useAssetFilterStore(s => s.asset)
   const { data: summary } = usePerformanceSummary(asset)
   const { data: camps } = useCampaignsSummary()
+  // Open positions drive both the KPI card ("Open P&L") and the
+  // ActivePositionsTable below — React Query dedupes the network call so
+  // fetching here and inside the table is free.
+  const { data: openPositions, isLoading: positionsLoading } = usePositions({
+    status: 'open',
+  })
 
   // Headline account card reads from the same summary query the SummaryCard uses
   const accountValue = summary ? formatCurrency(summary.base, 'USD') : '—'
   const accountDelta = summary
     ? formatDelta((summary.base * summary.m) / 100, summary.m, 'USD')
     : ''
+
+  // Open P&L KPI — sum unrealized P&L across all open positions. While the
+  // positions query is loading we show an em dash; once data lands we compute
+  // the total and colour it green/red depending on sign.
+  const openCount = openPositions?.positions.length ?? 0
+  const openPl =
+    openPositions?.positions.reduce((s, p) => s + p.unrealizedPnl, 0) ?? 0
+  const openPlValue =
+    !openPositions || positionsLoading ? '—' : formatCurrency(openPl, 'USD')
+  const openPlDelta = openPositions
+    ? `${openCount} position${openCount === 1 ? '' : 's'} · today`
+    : ''
+  const openPlTone: 'green' | 'red' = openPl >= 0 ? 'green' : 'red'
 
   return (
     <div className="p-8 flex flex-col gap-5">
@@ -69,9 +89,9 @@ export function HomePage() {
         />
         <StatCard
           label="Open P&L"
-          value="+$1,248.00"
-          delta="3 positions · today"
-          deltaTone="green"
+          value={openPlValue}
+          delta={openPlDelta}
+          deltaTone={openPlTone}
           icon={TrendingUp}
         />
         <StatCard
