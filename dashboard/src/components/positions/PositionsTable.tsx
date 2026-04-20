@@ -1,103 +1,123 @@
+// PositionsTable — flat 10-column table styled with kit tokens. Columns:
+// Symbol · Status · Qty · Cost · Mark · P&L · % · Δ · Θ · DTE.
+// P&L coloring uses kit text-up/text-down; status tone mirrors the status
+// chip palette on the filter bar.
+import { Badge, type BadgeTone } from '../ui/Badge'
 import type { Position } from '../../types/position'
-import { Badge } from '../ui/Badge'
-import { cn } from '../../utils/cn'
-import { ArrowUpRight, ArrowDownRight } from 'lucide-react'
+import { formatCurrency } from '../../utils/format'
 
-interface PositionsTableProps {
+interface Props {
   positions: Position[]
 }
 
-export function PositionsTable({ positions }: PositionsTableProps) {
+// Compute days-to-expiration from the option expiration string (ISO date).
+// Returns 0 for stocks/futures (no expiration) or past expirations.
+function daysToExpiration(position: Position): number {
+  if (!position.expiration) return 0
+  const exp = new Date(position.expiration).getTime()
+  const now = Date.now()
+  const diff = Math.round((exp - now) / (1000 * 60 * 60 * 24))
+  return Math.max(0, diff)
+}
+
+const statusToneMap: Record<Position['status'], BadgeTone> = {
+  open: 'green',
+  closed: 'muted',
+  pending: 'yellow',
+}
+
+export function PositionsTable({ positions }: Props) {
   if (positions.length === 0) {
     return (
-      <div className="text-center py-12">
-        <p className="text-muted text-lg">No positions found</p>
-        <p className="text-muted text-sm mt-2">Adjust your filters or wait for new positions</p>
-      </div>
+      <div className="text-center py-12 text-muted">No positions match</div>
     )
   }
 
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-border">
-            <th className="text-left py-3 px-4 font-semibold text-foreground">Symbol</th>
-            <th className="text-left py-3 px-4 font-semibold text-foreground">Strategy</th>
-            <th className="text-left py-3 px-4 font-semibold text-foreground">Type</th>
-            <th className="text-right py-3 px-4 font-semibold text-foreground">Quantity</th>
-            <th className="text-right py-3 px-4 font-semibold text-foreground">Avg Cost</th>
-            <th className="text-right py-3 px-4 font-semibold text-foreground">Current</th>
-            <th className="text-right py-3 px-4 font-semibold text-foreground">Market Value</th>
-            <th className="text-right py-3 px-4 font-semibold text-foreground">P&L</th>
-            <th className="text-right py-3 px-4 font-semibold text-foreground">P&L %</th>
-            <th className="text-center py-3 px-4 font-semibold text-foreground">Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {positions.map((position) => {
-            const isProfitable = position.unrealizedPnl >= 0
-            const pnlColor = isProfitable ? 'text-success' : 'text-danger'
-            const statusVariant =
-              position.status === 'open'
-                ? 'success'
-                : position.status === 'closed'
-                  ? 'default'
-                  : 'warning'
+  const headers = ['Symbol', 'Status', 'Qty', 'Cost', 'Mark', 'P&L', '%', 'Δ', 'Θ', 'DTE']
 
-            return (
-              <tr
-                key={position.id}
-                className="border-b border-border hover:bg-muted/5 transition-colors"
+  return (
+    <table className="w-full border-collapse">
+      <thead>
+        <tr className="bg-[var(--bg-1)]">
+          {headers.map((header, i) => (
+            <th
+              key={header}
+              className={`px-3 py-2.5 text-[11px] font-medium text-muted uppercase tracking-wider border-b border-border ${
+                i < 2 ? 'text-left' : 'text-right'
+              }`}
+            >
+              {header}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {positions.map(position => {
+          const up = (position.unrealizedPnl ?? 0) >= 0
+          const statusTone: BadgeTone = statusToneMap[position.status]
+          const dte = daysToExpiration(position)
+          const delta = position.greeks?.delta
+          const theta = position.greeks?.theta
+
+          return (
+            <tr
+              key={position.id}
+              className="border-b border-border last:border-0"
+            >
+              <td className="px-3 py-2.5">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono font-semibold">
+                    {position.symbol}
+                  </span>
+                  {position.strategy && (
+                    <Badge tone="purple" size="sm">
+                      {position.strategy}
+                    </Badge>
+                  )}
+                </div>
+              </td>
+              <td className="px-3 py-2.5">
+                <Badge tone={statusTone} size="sm">
+                  {position.status.toUpperCase()}
+                </Badge>
+              </td>
+              <td className="px-3 py-2.5 text-right font-mono tabular-nums text-muted">
+                {position.quantity}
+              </td>
+              <td className="px-3 py-2.5 text-right font-mono tabular-nums text-muted">
+                {formatCurrency(position.avgCost ?? 0, 'USD')}
+              </td>
+              <td className="px-3 py-2.5 text-right font-mono tabular-nums">
+                {formatCurrency(position.currentPrice ?? 0, 'USD')}
+              </td>
+              <td
+                className={`px-3 py-2.5 text-right font-mono tabular-nums font-medium ${
+                  up ? 'text-up' : 'text-down'
+                }`}
               >
-                <td className="py-3 px-4">
-                  <div>
-                    <p className="font-semibold">{position.symbol}</p>
-                    {position.type === 'option' && position.strike && position.right && (
-                      <p className="text-xs text-muted">
-                        ${position.strike} {position.right.toUpperCase()}
-                      </p>
-                    )}
-                  </div>
-                </td>
-                <td className="py-3 px-4">
-                  <span className="text-muted">{position.strategy || '-'}</span>
-                </td>
-                <td className="py-3 px-4">
-                  <Badge>
-                    {position.type === 'option' ? 'OPT' : position.type === 'stock' ? 'STK' : 'FUT'}
-                  </Badge>
-                </td>
-                <td className="py-3 px-4 text-right font-mono">{position.quantity}</td>
-                <td className="py-3 px-4 text-right font-mono">${position.avgCost.toFixed(2)}</td>
-                <td className="py-3 px-4 text-right font-mono">
-                  ${position.currentPrice.toFixed(2)}
-                </td>
-                <td className="py-3 px-4 text-right font-mono">
-                  ${position.marketValue.toFixed(2)}
-                </td>
-                <td className={cn('py-3 px-4 text-right font-mono font-semibold', pnlColor)}>
-                  <div className="flex items-center justify-end gap-1">
-                    {isProfitable ? (
-                      <ArrowUpRight className="h-3 w-3" />
-                    ) : (
-                      <ArrowDownRight className="h-3 w-3" />
-                    )}
-                    {isProfitable ? '+' : ''}${position.unrealizedPnl.toFixed(2)}
-                  </div>
-                </td>
-                <td className={cn('py-3 px-4 text-right font-mono font-semibold', pnlColor)}>
-                  {isProfitable ? '+' : ''}
-                  {position.unrealizedPnlPct.toFixed(2)}%
-                </td>
-                <td className="py-3 px-4 text-center">
-                  <Badge variant={statusVariant}>{position.status.toUpperCase()}</Badge>
-                </td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
-    </div>
+                {formatCurrency(position.unrealizedPnl ?? 0, 'USD')}
+              </td>
+              <td
+                className={`px-3 py-2.5 text-right text-[12px] ${
+                  up ? 'text-up' : 'text-down'
+                }`}
+              >
+                {up ? '▲' : '▼'}{' '}
+                {Math.abs(position.unrealizedPnlPct ?? 0).toFixed(2)}%
+              </td>
+              <td className="px-3 py-2.5 text-right font-mono text-muted">
+                {delta !== undefined ? delta.toFixed(2) : '—'}
+              </td>
+              <td className="px-3 py-2.5 text-right font-mono text-muted">
+                {theta !== undefined ? theta.toFixed(2) : '—'}
+              </td>
+              <td className="px-3 py-2.5 text-right font-mono text-muted">
+                {dte}d
+              </td>
+            </tr>
+          )
+        })}
+      </tbody>
+    </table>
   )
 }
