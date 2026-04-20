@@ -1,3 +1,8 @@
+
+# Design kit extraction (1.4MB archive not needed in repo)
+docs/design-kit/extracted/
+docs/design-kit/*.gz
+docs/design-kit/*.zip
 # ============================================================================
 # .NET / C# / Visual Studio
 # ============================================================================
@@ -142,10 +147,11 @@ strategies/private/
 strategies/*.json
 !strategies/examples/
 
-# Local trading data
-positions/
-trades/
-logs/
+# Local trading data (root-level runtime data only — do NOT match source dirs
+# like dashboard/src/components/positions/)
+/positions/
+/trades/
+/logs/
 *.log
 
 # ============================================================================
