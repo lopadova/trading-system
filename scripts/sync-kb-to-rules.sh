@@ -80,7 +80,8 @@ if [ -f "$KB_ERRORS" ]; then
     }
   ' "$KB_ERRORS" >> "$RULES_DIR/error-prevention.md"
 
-  CRITICAL_COUNT=$(grep -c "^## ERR-" "$RULES_DIR/error-prevention.md" || echo "0")
+  CRITICAL_COUNT=$(grep -c "^## ERR-" "$RULES_DIR/error-prevention.md" 2>/dev/null || true)
+  CRITICAL_COUNT=${CRITICAL_COUNT:-0}
   echo "   ✅ Extracted $CRITICAL_COUNT critical errors"
 else
   echo "   ⚠️  $KB_ERRORS not found"
@@ -110,12 +111,20 @@ cat >> "$RULES_DIR/architectural-decisions.md" << 'EOF'
 
 EOF
 
+ARCH_COUNT=0
 if [ -f "$KB_LESSONS" ]; then
-  # Estrai lessons marcate come [ARCHITECTURE] o [DESIGN]
-  grep -E "LESSON-[0-9]+.*\[(ARCHITECTURE|DESIGN)\]" "$KB_LESSONS" | head -20 | \
-    sed 's/^- LESSON-[0-9]*: /### /' >> "$RULES_DIR/architectural-decisions.md"
+  # Extract lessons tagged [ARCHITECTURE] or [DESIGN]. Disable pipefail locally
+  # because head closing stdin makes grep SIGPIPE under `set -o pipefail`
+  # (Windows bash in particular).
+  set +o pipefail
+  grep -E "LESSON-[0-9]+.*\[(ARCHITECTURE|DESIGN)\]" "$KB_LESSONS" 2>/dev/null \
+    | head -20 \
+    | sed 's/^- LESSON-[0-9]*: /### /' \
+    >> "$RULES_DIR/architectural-decisions.md" || true
+  set -o pipefail
 
-  ARCH_COUNT=$(grep -c "^###" "$RULES_DIR/architectural-decisions.md" || echo "0")
+  ARCH_COUNT=$(grep -c "^###" "$RULES_DIR/architectural-decisions.md" 2>/dev/null || true)
+  ARCH_COUNT=${ARCH_COUNT:-0}
   echo "   ✅ Extracted $ARCH_COUNT architectural lessons"
 else
   echo "   ⚠️  $KB_LESSONS not found"
@@ -145,11 +154,17 @@ cat >> "$RULES_DIR/performance-rules.md" << 'EOF'
 
 EOF
 
+PERF_COUNT=0
 if [ -f "$KB_LESSONS" ]; then
-  grep -E "LESSON-[0-9]+.*\[Performance\]" "$KB_LESSONS" | head -20 | \
-    sed 's/^- LESSON-[0-9]*: /### /' >> "$RULES_DIR/performance-rules.md"
+  set +o pipefail
+  grep -E "LESSON-[0-9]+.*\[Performance\]" "$KB_LESSONS" 2>/dev/null \
+    | head -20 \
+    | sed 's/^- LESSON-[0-9]*: /### /' \
+    >> "$RULES_DIR/performance-rules.md" || true
+  set -o pipefail
 
-  PERF_COUNT=$(grep -c "^###" "$RULES_DIR/performance-rules.md" || echo "0")
+  PERF_COUNT=$(grep -c "^###" "$RULES_DIR/performance-rules.md" 2>/dev/null || true)
+  PERF_COUNT=${PERF_COUNT:-0}
   echo "   ✅ Extracted $PERF_COUNT performance lessons"
 else
   echo "   ⚠️  $KB_LESSONS not found"
