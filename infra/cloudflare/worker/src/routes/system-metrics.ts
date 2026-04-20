@@ -9,8 +9,12 @@
 import { Hono } from 'hono'
 import type { Env } from '../types/env'
 import type { SystemMetricsSample } from '../types/api'
+import { authMiddleware } from '../middleware/auth'
 
 export const systemMetrics = new Hono<{ Bindings: Env }>()
+
+// All system-metrics routes require authentication
+systemMetrics.use('*', authMiddleware)
 
 systemMetrics.get('/metrics', (c) => {
   const payload: SystemMetricsSample = {

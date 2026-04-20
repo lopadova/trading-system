@@ -9,6 +9,7 @@
 import { Hono } from 'hono'
 import type { Env } from '../types/env'
 import type { AssetBucket, PerfRange, SummaryData, PerfSeries } from '../types/api'
+import { authMiddleware } from '../middleware/auth'
 
 // ---------------------------------------------------------------------------
 // Allowed query-parameter values
@@ -62,6 +63,9 @@ const CROP: Record<PerfRange, number> = { '1W': 7, '1M': 20, '3M': 42, YTD: 50, 
 // Route handlers
 // ---------------------------------------------------------------------------
 export const performance = new Hono<{ Bindings: Env }>()
+
+// All performance aggregate routes require authentication
+performance.use('*', authMiddleware)
 
 performance.get('/summary', (c) => {
   const asset = parseAsset(c.req.query('asset') ?? undefined)

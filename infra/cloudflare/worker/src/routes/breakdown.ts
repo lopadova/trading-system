@@ -9,8 +9,12 @@
 import { Hono } from 'hono'
 import type { Env } from '../types/env'
 import type { PositionsBreakdownResponse } from '../types/api'
+import { authMiddleware } from '../middleware/auth'
 
 export const breakdown = new Hono<{ Bindings: Env }>()
+
+// All breakdown routes require authentication
+breakdown.use('*', authMiddleware)
 
 breakdown.get('/', (c) => {
   const payload: PositionsBreakdownResponse = {

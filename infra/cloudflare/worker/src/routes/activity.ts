@@ -10,6 +10,7 @@
 import { Hono } from 'hono'
 import type { Env } from '../types/env'
 import type { ActivityResponse, ActivityEvent } from '../types/api'
+import { authMiddleware } from '../middleware/auth'
 
 // ---------------------------------------------------------------------------
 // Mock events — ordered most-recent first
@@ -26,6 +27,9 @@ const EVENTS: ActivityEvent[] = [
 ]
 
 export const activity = new Hono<{ Bindings: Env }>()
+
+// All activity routes require authentication
+activity.use('*', authMiddleware)
 
 activity.get('/recent', (c) => {
   const rawLimit = Number(c.req.query('limit') ?? 8)

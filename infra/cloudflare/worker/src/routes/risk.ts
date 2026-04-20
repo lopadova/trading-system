@@ -9,8 +9,12 @@
 import { Hono } from 'hono'
 import type { Env } from '../types/env'
 import type { RiskMetrics } from '../types/api'
+import { authMiddleware } from '../middleware/auth'
 
 export const risk = new Hono<{ Bindings: Env }>()
+
+// All risk routes require authentication
+risk.use('*', authMiddleware)
 
 risk.get('/metrics', (c) => {
   const payload: RiskMetrics = {

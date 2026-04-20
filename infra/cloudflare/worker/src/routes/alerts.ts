@@ -11,10 +11,13 @@ import { authMiddleware } from '../middleware/auth'
 
 const alerts = new Hono<{ Bindings: Env }>()
 
+// All alert routes require authentication — including the dashboard-facing
+// /summary-24h aggregate (consistent auth policy across all endpoints).
+alerts.use('*', authMiddleware)
+
 /**
  * GET /api/alerts/summary-24h
- * Dashboard-facing aggregate — intentionally mounted BEFORE authMiddleware so
- * the public Overview card can read it without an API key.
+ * Dashboard-facing aggregate — counts by severity over the last 24h.
  *
  * TODO in a later phase: replace the mock with a real D1 query grouped by
  * severity over the last 24h.
@@ -23,9 +26,6 @@ alerts.get('/summary-24h', (c) => {
   const payload: AlertsSummary = { total: 14, critical: 2, warning: 5, info: 7 }
   return c.json(payload)
 })
-
-// All remaining routes require authentication
-alerts.use('*', authMiddleware)
 
 /**
  * GET /api/alerts

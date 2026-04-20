@@ -9,8 +9,12 @@
 import { Hono } from 'hono'
 import type { Env } from '../types/env'
 import type { CampaignsSummary } from '../types/api'
+import { authMiddleware } from '../middleware/auth'
 
 export const campaignsSummary = new Hono<{ Bindings: Env }>()
+
+// All campaigns-summary routes require authentication
+campaignsSummary.use('*', authMiddleware)
 
 campaignsSummary.get('/summary', (c) => {
   const payload: CampaignsSummary = {

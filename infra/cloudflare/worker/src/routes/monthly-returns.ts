@@ -9,6 +9,7 @@
 import { Hono } from 'hono'
 import type { Env } from '../types/env'
 import type { AssetBucket, MonthlyReturnsResponse } from '../types/api'
+import { authMiddleware } from '../middleware/auth'
 
 // ---------------------------------------------------------------------------
 // Static mock matrix: 12 entries per year, nulls for months outside reporting
@@ -48,6 +49,9 @@ const ASSETS: AssetBucket[] = ['all', 'systematic', 'options', 'other']
 // Route handler
 // ---------------------------------------------------------------------------
 export const monthlyReturns = new Hono<{ Bindings: Env }>()
+
+// All monthly-returns routes require authentication
+monthlyReturns.use('*', authMiddleware)
 
 monthlyReturns.get('/', (c) => {
   const asset = (c.req.query('asset') ?? 'all') as AssetBucket

@@ -14,6 +14,7 @@ import type {
   DrawdownsResponse,
   WorstDrawdown,
 } from '../types/api'
+import { authMiddleware } from '../middleware/auth'
 
 // ---------------------------------------------------------------------------
 // Mock series — 80 points, negative values represent drawdown %
@@ -74,6 +75,9 @@ const WORST: WorstDrawdown[] = [
 // Route handler
 // ---------------------------------------------------------------------------
 export const drawdowns = new Hono<{ Bindings: Env }>()
+
+// All drawdown aggregate routes require authentication
+drawdowns.use('*', authMiddleware)
 
 drawdowns.get('/', (c) => {
   const asset = (c.req.query('asset') ?? 'all') as AssetBucket
