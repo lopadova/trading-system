@@ -1,10 +1,13 @@
 <Project>
   <PropertyGroup>
-    <!-- Strong-Name Signing Configuration -->
-    <SignAssembly>true</SignAssembly>
-    <AssemblyOriginatorKeyFile>$(MSBuildThisFileDirectory)TradingSystem.snk</AssemblyOriginatorKeyFile>
-
-    <!-- Public Key Token will be calculated after first build -->
-    <PublicSign>false</PublicSign>
+    <!--
+      Strong-name signing removed (was: SignAssembly=true + TradingSystem.snk).
+      .snk file was never checked in; CI was failing with CS7027.
+      Re-add signing later if a specific consumer requires it: generate with
+      `sn -k TradingSystem.snk`, commit the .snk, and restore the two
+      properties below.
+    -->
+    <!-- <SignAssembly>true</SignAssembly> -->
+    <!-- <AssemblyOriginatorKeyFile>$(MSBuildThisFileDirectory)TradingSystem.snk</AssemblyOriginatorKeyFile> -->
   </PropertyGroup>
 </Project>

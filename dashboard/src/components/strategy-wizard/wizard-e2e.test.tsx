@@ -140,7 +140,7 @@ const PARTIAL_EL_CONVERSION_RESULT = {
 
 // Mock fetch for publish and convert endpoints
 const mockFetch = vi.fn()
-global.fetch = mockFetch as any
+;(globalThis as unknown as { fetch: typeof fetch }).fetch = mockFetch as unknown as typeof fetch
 
 // Mock console methods to suppress validation warnings during tests
 const originalConsoleWarn = console.warn
@@ -203,8 +203,9 @@ describe('E2E-W-01: Complete wizard flow (new strategy)', () => {
     expect(state.draft.strategy_id).toBe('test-iron-condor-001')
     expect(state.isDirty).toBe(true)
 
-    // Step 3: Validate and proceed to step 2
-    const canProceed = useWizardStore.getState().nextStep()
+    // Step 3: Validate and proceed to step 2 — nextStep return value intentionally
+    // unused here; the invariant under test is that currentStep is valid after the call.
+    useWizardStore.getState().nextStep()
     state = useWizardStore.getState()
 
     // May or may not proceed depending on validation
@@ -221,16 +222,16 @@ describe('E2E-W-01: Complete wizard flow (new strategy)', () => {
     useWizardStore.getState().setField('structure.legs', [
       {
         leg_id: 'leg-1',
-        action: 'SELL',
-        right: 'PUT',
+        action: 'sell',
+        right: 'put',
         quantity: 1,
         delta_pct: -15,
       },
     ])
 
     state = useWizardStore.getState()
-    expect(state.draft.structure.legs).toHaveLength(1)
-    expect(state.draft.structure.legs[0].action).toBe('SELL')
+    expect(state.draft.structure?.legs).toHaveLength(1)
+    expect(state.draft.structure?.legs?.[0]?.action).toBe('sell')
 
     // Step 5: Navigate through steps (test navigation works)
     // Can't jump directly to step 10 - only visited or next step allowed
@@ -281,7 +282,7 @@ describe('E2E-W-02: JSON import flow', () => {
     // Verify draft populated
     expect(state.draft.strategy_id).toBe('iron-condor-spx-weekly')
     expect(state.draft.name).toBe('Iron Condor SPX Weekly')
-    expect(state.draft.structure.legs).toHaveLength(4)
+    expect(state.draft.structure?.legs).toHaveLength(4)
 
     // Verify all steps are now visited (can navigate freely)
     expect(state.visitedSteps).toHaveLength(10)
@@ -384,7 +385,7 @@ describe('E2E-W-03: EL conversion flow', () => {
     // Verify draft updated with conversion result
     expect(state.draft.strategy_id).toBe('el-converted-strategy')
     expect(state.draft.name).toBe('Converted from EasyLanguage')
-    expect(state.draft.structure.legs).toHaveLength(1)
+    expect(state.draft.structure?.legs).toHaveLength(1)
 
     // Verify mode changed to convert
     expect(state.mode).toBe('convert')
@@ -449,18 +450,17 @@ describe('E2E-W-03: EL conversion flow', () => {
     const partialStrategy: Partial<StrategyDraft> = {
       strategy_id: 'partial-converted',
       name: 'Partially Converted',
+      // Note: fields like `underlying`, `target_dte_min`, `target_delta_pct`
+      // live on StrategyDraft itself (not on `structure`), so they're omitted here.
+      // Test assertions only verify the nested legs payload applied correctly.
       structure: {
-        underlying: 'SPX',
-        target_dte_min: 0,
-        target_dte_max: 7,
-        target_delta_pct: 10,
         legs: [
           {
             leg_id: 'leg-1',
-            action: 'SELL',
-            right: 'CALL',
+            action: 'sell',
+            right: 'call',
             quantity: 1,
-            delta_pct: 10,
+            target_delta: 10,
           },
         ],
       },
@@ -473,7 +473,7 @@ describe('E2E-W-03: EL conversion flow', () => {
     // Verify applied
     expect(state.draft.strategy_id).toBe('partial-converted')
     expect(state.draft.name).toBe('Partially Converted')
-    expect(state.draft.structure.legs).toHaveLength(1)
+    expect(state.draft.structure?.legs).toHaveLength(1)
 
     // Verify merged with defaults (other fields should exist)
     expect(state.draft.schema_version).toBe(1)
@@ -510,11 +510,12 @@ describe('E2E-W-04: Validation blocks nextStep when errors exist', () => {
     expect(state.currentStep).toBe(1) // Still on step 1
 
     // Check that errors were recorded
-    expect(state.stepErrors[1]).toBeDefined()
-    expect(state.stepErrors[1].length).toBeGreaterThan(0)
+    const step1Errors = state.stepErrors[1]
+    expect(step1Errors).toBeDefined()
+    expect(step1Errors?.length ?? 0).toBeGreaterThan(0)
 
     // Verify at least one error has severity 'error'
-    const hasBlockingError = state.stepErrors[1].some((e) => e.severity === 'error')
+    const hasBlockingError = (step1Errors ?? []).some((e) => e.severity === 'error')
     expect(hasBlockingError).toBe(true)
   })
 
@@ -523,7 +524,9 @@ describe('E2E-W-04: Validation blocks nextStep when errors exist', () => {
     useWizardStore.getState().setField('name', '')
 
     let state = useWizardStore.getState()
-    const initialErrors = state.stepErrors[1] || []
+    // Initial state captured via getState — error snapshot not asserted here
+    // because the important assertion is post-fix (errors cleared).
+    void state
 
     // Fix the error
     useWizardStore.getState().setField('name', 'Fixed Strategy Name')

@@ -85,7 +85,11 @@ jobs:
 
       - name: Install dependencies
         working-directory: infra/cloudflare/worker
-        run: bun install
+        # Use npm instead of bun in CI: `bun install` has recurring tarball
+        # extraction failures for @img/sharp-libvips-linux-x64 (transitive
+        # optional dep of wrangler/miniflare). npm tolerates optional-dep
+        # install fallback more gracefully.
+        run: npm install --no-audit --no-fund
 
       - name: Run tests
         working-directory: infra/cloudflare/worker
@@ -117,23 +121,25 @@ jobs:
 
       - name: Install dependencies
         working-directory: dashboard
-        run: bun install
+        run: npm install --no-audit --no-fund
 
       - name: Type check
         working-directory: dashboard
-        run: bun run typecheck
+        run: npm run typecheck
 
       - name: Lint
         working-directory: dashboard
-        run: bun run lint
+        run: npm run lint
 
       - name: Run tests
         working-directory: dashboard
-        run: bun test
+        # Dashboard tests MUST use `npm test` (vitest + happy-dom), NOT `bun test`.
+        # Bun's runner lacks DOM support required by @testing-library/react.
+        run: npm test
 
       - name: Build dashboard
         working-directory: dashboard
-        run: bun run build
+        run: npm run build
 
       - name: Upload dashboard build
         uses: actions/upload-artifact@v4
@@ -182,11 +188,14 @@ jobs:
           echo "Gitignore rules verified"
 
   # Job 5: Deploy (manual trigger only)
+  # ⚠ DISABLED until Phase 7 production-readiness (per Lorenzo).
+  # Re-enable by removing `if: false` once the real market-data pipeline
+  # and deployment runbook are in place.
   deploy:
     name: Deploy
     runs-on: ubuntu-latest
     needs: [dotnet-build-test, cloudflare-worker, dashboard, security]
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    if: false && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     environment: production
 
     steps:
