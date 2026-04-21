@@ -271,3 +271,137 @@ bunx wrangler d1 execute trading-db --local \
   `infra/cloudflare/worker/test/integration/phase7-ingest-integration.integration-spec.ts`
 - Parent plan: `docs/superpowers/specs/2026-04-20-dashboard-redesign-design.md`,
   `~/.claude/plans/spicy-wondering-flamingo.md` (Phase 7.1 section)
+
+---
+
+## 8. .NET Collector Details
+
+This section documents the **producer side** of the pipeline — the .NET workers
+that sit inside `TradingSupervisorService` and feed `sync_outbox`.
+
+### 8.1 Worker roster
+
+| Worker                  | File | Emits                                          | Cadence                          |
+|-------------------------|------|------------------------------------------------|----------------------------------|
+| `MarketDataCollector`   | `src/TradingSupervisorService/Workers/MarketDataCollector.cs` | `market_quote`, `vix_snapshot`, `account_equity` | 15 s (quotes) / 60 s (account)   |
+| `BenchmarkCollector`    | `src/TradingSupervisorService/Workers/BenchmarkCollector.cs`  | `benchmark_close`                                | Once per UTC day at 22:30 UTC    |
+| `GreeksMonitorWorker`   | `src/TradingSupervisorService/Workers/GreeksMonitorWorker.cs` | `position_greeks` (+ existing `alert`)           | On every tickOptionComputation   |
+
+Cadences are configurable in `appsettings.json` (`MarketDataCollector:*`,
+`BenchmarkCollector:*`, `GreeksMonitor:*`).
+
+### 8.2 MarketDataCollector
+
+Responsibilities:
+
+1. On start, wait up to 5 min for `IIbkrClient.IsConnected`.
+2. Subscribe to SPX, VIX and VIX3M on CBOE (`secType=IND`, `exchange=CBOE`)
+   via `IIbkrClient.RequestMarketData` (genericTickList empty → default quote
+   set).
+3. Register three event hooks on `TwsCallbackHandler`:
+   `TickPriceReceived`, `TickSizeReceived`, `AccountSummaryReceived`.
+4. Track per-symbol OHLCV state in a thread-safe in-memory cache.
+5. Every `QuoteIntervalSeconds` (default **15s**):
+   - For each symbol that has received a fresh LAST tick, queue one
+     `market_quote` Outbox event.
+   - Queue one combined `vix_snapshot` event (VIX + VIX3M).
+6. Every `AccountIntervalSeconds` (default **60s**):
+   - Call `IIbkrClient.RequestAccountSummary(6100)`.
+   - Aggregate incoming `accountSummary` tags (NetLiquidation, TotalCashValue,
+     BuyingPower, MaintMarginReq/FullInitMarginReq) into an `account_equity` event.
+
+ReqId allocation: SPX=6001, VIX=6002, VIX3M=6003, AccountSummary=6100
+(distinct from IvtsMonitor 5001-5004 and GreeksMonitor 7000+).
+
+### 8.3 BenchmarkCollector
+
+Responsibilities:
+
+1. Wake every `CheckIntervalMinutes` (default 30 min) — cheap clock check.
+2. Fire exactly once per UTC calendar day, once current UTC time ≥ `DailyRunTimeUtc`
+   (default **22:30 UTC**, chosen to sit after the US close at 21:00-21:15 UTC
+   and before the European session opens the next day, so closes are fully
+   posted on Stooq / Yahoo).
+3. For each symbol in `Symbols` (default SPX, SWDA):
+   - **Primary**: Stooq CSV (`https://stooq.com/q/d/l/?s={sym}&i=d`).
+   - **Fallback**: Yahoo Finance v8 chart JSON.
+   - **On double failure**: WARNING log + `ITelegramAlerter.QueueAlertAsync`.
+4. Dedupe locally via `supervisor.db.benchmark_fetch_log` — only insert Outbox
+   events for dates strictly newer than `last_fetched_date` (cap: newest
+   `MaxBackfillRows=30` rows on cold start).
+
+Event dedupe key: `benchmark_close:{symbol}:{date}` → idempotent replays.
+
+### 8.4 GreeksMonitorWorker (Phase 7.1 upgrade)
+
+Pre-Phase-7.1 behavior (preserved):
+
+- Every `IntervalSeconds`, scan `active_positions` from `options.db` and raise
+  threshold alerts on delta / gamma / theta / vega breaches.
+
+Phase 7.1 additions (when `GreeksMonitor:LiveTicksEnabled=true` **and** the
+worker is resolved with non-null IBKR / callback / db dependencies):
+
+1. Each cycle reconciles tick subscriptions with the current open-positions set:
+   - New positions → subscribe via
+     `IIbkrClient.RequestMarketData(reqId, symbol, "OPT", "SMART", "USD", genericTickList="106,100")`.
+   - Closed positions → `CancelMarketData`.
+2. On every `TwsCallbackHandler.TickOptionComputationReceived`:
+   - Update an in-memory `CachedGreeks` dict.
+   - Fire-and-forget a persistence task that:
+     - `INSERT OR IGNORE` into `position_greeks_cache` (supervisor.db).
+     - `INSERT OR IGNORE` a `position_greeks` Outbox event (dedupe
+       `position_greeks:{pid}:{yyyyMMddTHHmmssZ}`).
+3. Threshold checks prefer cached values (when < 2·IntervalSeconds old) over
+   the options.db mirror — so the alerts fire on *fresh* data.
+
+### 8.5 IBKR tick IDs used
+
+| Generic tick | Meaning                         | Used by                     |
+|--------------|---------------------------------|-----------------------------|
+| `""` (empty) | Default IBKR tick set (LAST, BID, ASK, OPEN, HIGH, LOW, CLOSE, VOLUME) | MarketDataCollector |
+| `"100"`      | Option Greeks (delta, gamma, theta, vega, underlying) | GreeksMonitorWorker |
+| `"106"`      | Option implied volatility       | GreeksMonitorWorker         |
+
+Tick-type constants used when routing `tickPrice` fields:
+
+| Field | Meaning          | Consumer                    |
+|-------|------------------|-----------------------------|
+| 4     | LAST             | OHLC last-price tracking    |
+| 6     | HIGH (session)   | OHLC high                   |
+| 7     | LOW (session)    | OHLC low                    |
+| 8     | VOLUME (tickSize)| OHLC volume                 |
+| 9     | CLOSE (previous) | Prior-day close             |
+| 14    | OPEN (session)   | OHLC open                   |
+
+### 8.6 Local cache tables (supervisor.db)
+
+Migration `003_MarketDataCache` (`src/TradingSupervisorService/Migrations/003_MarketDataCache.cs`):
+
+- **`benchmark_fetch_log(symbol, last_fetched_date, last_success_ts, last_error, last_error_ts, source)`**
+  Tracks the freshest date queued per benchmark symbol. Drives daily dedupe.
+
+- **`position_greeks_cache(position_id, snapshot_ts, delta, gamma, theta, vega, iv, underlying_price)`**
+  Rolling per-position Greeks snapshots captured from live IBKR ticks.
+  Index `idx_pg_cache_position_ts` supports the "latest snapshot per position"
+  query. Index `idx_pg_cache_ts` supports retention pruning.
+
+### 8.7 Graceful degradation
+
+| Failure mode                 | Behavior                                                     |
+|------------------------------|--------------------------------------------------------------|
+| IBKR disconnected at startup | `WaitForIbkrConnectionAsync` polls for up to 5 min, then the worker exits cleanly. It will restart on next host cycle. |
+| IBKR drops mid-session       | `IbkrClient` reconnect logic runs (existing). Collectors skip emissions where `IsConnected==false` and log a WARNING. |
+| No ticks yet for a symbol    | `MarketDataCollector` skips that symbol's `market_quote` event for the cycle — no stale or zero-filled payload. |
+| Stooq returns HTML / empty   | BenchmarkCollector falls back to Yahoo.                       |
+| Yahoo also fails             | Telegram alert queued; `benchmark_fetch_log.last_error*` updated; retry next daily window. |
+| Outbox insert fails          | Exception logged, worker continues. Outbox is retried by `OutboxSyncWorker` once rows exist. |
+| position_greeks_cache insert fails | Logged, worker continues; the in-memory `CachedGreeks` is still used for threshold checks. |
+
+### 8.8 Culture safety
+
+All numeric strings that ship into Outbox payloads use
+`CultureInfo.InvariantCulture` (decimal point, 24-hour `HH:mm`, ISO 8601 dates
+— see knowledge/errors-registry.md ERR-015). Dedupe keys, timestamps and CSV
+parsing are invariant too, so the collectors are safe on Italian / any non-US
+locale Windows hosts.
