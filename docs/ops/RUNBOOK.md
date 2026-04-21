@@ -401,6 +401,62 @@ keeps the same rows for offline inspection when the Worker is unreachable.
 
 ---
 
+## Playbook 7 — Rotating secrets
+
+### When
+
+Every 90 days per environment, or **immediately** on any of:
+
+- Suspected leak (secret committed to git, emailed, posted in chat).
+- Operator offboarding (former operator had access to the password manager).
+- Provider-initiated rotation (Cloudflare forces key rotation; BotFather
+  warns of abuse).
+
+### Procedure
+
+Full step-by-step lives in [`docs/ops/SECRETS.md`](./SECRETS.md). The short
+version:
+
+```bash
+# 1. Regenerate the secret at the source (Cloudflare / Telegram / etc.).
+#    Store BOTH old + new in your password manager before touching any file.
+
+# 2. Update cleartext env file (gitignored).
+$EDITOR secrets/.env.production
+
+# 3. Re-wrap DPAPI side (if applicable — secrets shared with .NET services).
+echo -n "NEW_VALUE" | dotnet run --project src/Tools/EncryptConfigValue
+#   → paste DPAPI:<blob> into appsettings.Production.json
+
+# 4. Push to Cloudflare.
+./scripts/provision-secrets.sh production
+
+# 5. Restart services.
+Restart-Service TradingSupervisorService
+Restart-Service OptionsExecutionService
+
+# 6. Monitor 10 minutes (see Playbook 1 + 2 for signals to watch).
+
+# 7. Revoke OLD secret at source. Done.
+```
+
+### Rollback
+
+If step 6 surfaces 401s / AUTH_FAILED metric spikes:
+
+1. Copy OLD secret back from your password manager.
+2. Re-run steps 2-5 with the old value.
+3. Do not revoke the old secret at the source until investigation is complete.
+
+### After
+
+If this was an emergency rotation, instantiate the
+[`.github/ISSUE_TEMPLATE/secret-rotation.md`](../../.github/ISSUE_TEMPLATE/secret-rotation.md)
+issue to track follow-up (revoke old secret at source, update PM entries,
+schedule the next calendar rotation).
+
+---
+
 ## Escalation
 
 - **Padosoft on-call**: lorenzo.padovani@padosoft.com (this is a solo-op
