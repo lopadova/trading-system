@@ -4,6 +4,7 @@ using SharedKernel.Data;
 using SharedKernel.Domain;
 using SharedKernel.Ibkr;
 using SharedKernel.Observability;
+using SharedKernel.Services;
 using TradingSupervisorService.Bot;
 using TradingSupervisorService.Collectors;
 using TradingSupervisorService.Configuration;
@@ -181,8 +182,29 @@ try
             // Register port scanner for IBKR diagnostics
             services.AddSingleton<IbkrPortScanner>();
 
-            // Telegram alerting service
-            services.AddSingleton<ITelegramAlerter, TelegramAlerter>();
+            // Telegram alerting service — also implements IAlerter for severity routing.
+            services.AddSingleton<TelegramAlerter>();
+            services.AddSingleton<ITelegramAlerter>(sp => sp.GetRequiredService<TelegramAlerter>());
+            services.AddSingleton<IAlerter>(sp => sp.GetRequiredService<TelegramAlerter>());
+
+            // Email alerter — last-resort channel. Only fires on Critical.
+            // Binds SMTP config via IConfiguration at construction.
+            services.AddSingleton<ISmtpClient>(sp =>
+            {
+                EmailAlerterConfig cfg = new()
+                {
+                    Enabled = config.GetValue<bool>("Smtp:Enabled", false),
+                    Host = config.GetValue<string>("Smtp:Host") ?? string.Empty,
+                    Port = config.GetValue<int>("Smtp:Port", 587),
+                    Username = config.GetValue<string>("Smtp:Username") ?? string.Empty,
+                    Password = config.GetValue<string>("Smtp:Password") ?? string.Empty,
+                    From = config.GetValue<string>("Smtp:From") ?? string.Empty,
+                    To = config.GetValue<string>("Smtp:To") ?? string.Empty,
+                    EnableSsl = config.GetValue<bool>("Smtp:EnableSsl", true)
+                };
+                return new SystemSmtpClient(cfg);
+            });
+            services.AddSingleton<IAlerter, EmailAlerter>();
 
             // Bot configuration
             services.Configure<BotOptions>(config.GetSection("Bots"));
@@ -199,6 +221,7 @@ try
             services.AddHostedService<GreeksMonitorWorker>();
             services.AddHostedService<MarketDataCollector>();
             services.AddHostedService<BenchmarkCollector>();
+            services.AddHostedService<SafetyAlertsWorker>();
 
             // Bot webhook registrar (runs at startup)
             services.AddHostedService<BotWebhookRegistrar>();
