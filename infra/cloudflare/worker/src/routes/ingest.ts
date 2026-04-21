@@ -1,25 +1,92 @@
 /**
  * Ingest API Route
- * POST endpoint for receiving events from TradingSupervisorService outbox
+ * POST endpoint for receiving events from TradingSupervisorService outbox.
+ *
+ * Phase 7.1 — extends the original 3 event types (heartbeat / alert / position)
+ * with 5 market-data event types that feed the dashboard aggregate endpoints.
+ *
+ * Idempotency: every new handler uses INSERT OR REPLACE against a table with
+ * a natural primary key (date, (symbol,date), (position_id, snapshot_ts)) so
+ * replaying the same Outbox entry after a retry never creates duplicates.
  */
 
-import { Hono } from 'hono'
+import { Hono, type Context } from 'hono'
+import { z } from 'zod'
 import type { Env } from '../types/env'
 import { authMiddleware } from '../middleware/auth'
+
+type IngestContext = Context<{ Bindings: Env }>
 
 const ingest = new Hono<{ Bindings: Env }>()
 
 // All routes require authentication
 ingest.use('*', authMiddleware)
 
+// ============================================================================
+// Zod schemas — strict validation for each event type
+// ============================================================================
+
+// ISO date format YYYY-MM-DD
+const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected ISO date YYYY-MM-DD')
+
+// Optional nullable number helper (payloads may omit or explicitly null)
+const optionalNumber = z.number().nullable().optional()
+
+const AccountEquityPayloadSchema = z.object({
+  date: isoDate,
+  account_value: z.number(),
+  cash: z.number(),
+  buying_power: z.number(),
+  margin_used: z.number(),
+  margin_used_pct: z.number()
+})
+
+const MarketQuotePayloadSchema = z.object({
+  symbol: z.string().min(1).max(32),
+  date: isoDate,
+  open: optionalNumber,
+  high: optionalNumber,
+  low: optionalNumber,
+  close: z.number(),
+  volume: z.number().int().nullable().optional()
+})
+
+const VixSnapshotPayloadSchema = z.object({
+  date: isoDate,
+  vix: optionalNumber,
+  vix1d: optionalNumber,
+  vix3m: optionalNumber,
+  vix6m: optionalNumber
+})
+
+const BenchmarkClosePayloadSchema = z.object({
+  symbol: z.string().min(1).max(32),
+  date: isoDate,
+  close: z.number(),
+  close_normalized: optionalNumber
+})
+
+const PositionGreeksPayloadSchema = z.object({
+  position_id: z.string().min(1),
+  snapshot_ts: z.string().min(1),  // ISO 8601 timestamp (not just date)
+  delta: optionalNumber,
+  gamma: optionalNumber,
+  theta: optionalNumber,
+  vega: optionalNumber,
+  iv: optionalNumber,
+  underlying_price: optionalNumber
+})
+
 /**
  * POST /api/v1/ingest
- * Receives outbox events from TradingSupervisorService and inserts into D1
+ * Receives outbox events from TradingSupervisorService and inserts into D1.
  *
- * Expected payload:
+ * Expected envelope:
  * {
  *   event_id: string,
- *   event_type: 'heartbeat' | 'alert' | 'position',
+ *   event_type: 'heartbeat' | 'alert' | 'position'
+ *             | 'account_equity' | 'market_quote' | 'vix_snapshot'
+ *             | 'benchmark_close' | 'position_greeks',
  *   payload: { ... event-specific data }
  * }
  */
@@ -27,7 +94,7 @@ ingest.post('/', async (c) => {
   try {
     const body = await c.req.json()
 
-    // Validate required fields
+    // Validate required envelope fields
     if (!body.event_id || !body.event_type || !body.payload) {
       return c.json(
         {
@@ -42,6 +109,7 @@ ingest.post('/', async (c) => {
 
     // Route to appropriate handler based on event_type
     switch (event_type) {
+      // --- existing event types (preserved unchanged) ---
       case 'heartbeat':
         await handleHeartbeat(c.env.DB, event_id, payload)
         break
@@ -53,6 +121,42 @@ ingest.post('/', async (c) => {
       case 'position':
         await handlePosition(c.env.DB, event_id, payload)
         break
+
+      // --- Phase 7.1 market-data event types ---
+      case 'account_equity': {
+        const parsed = AccountEquityPayloadSchema.safeParse(payload)
+        if (!parsed.success) return validationError(c, event_type, parsed.error)
+        await handleAccountEquity(c.env.DB, event_id, parsed.data)
+        break
+      }
+
+      case 'market_quote': {
+        const parsed = MarketQuotePayloadSchema.safeParse(payload)
+        if (!parsed.success) return validationError(c, event_type, parsed.error)
+        await handleMarketQuote(c.env.DB, event_id, parsed.data)
+        break
+      }
+
+      case 'vix_snapshot': {
+        const parsed = VixSnapshotPayloadSchema.safeParse(payload)
+        if (!parsed.success) return validationError(c, event_type, parsed.error)
+        await handleVixSnapshot(c.env.DB, event_id, parsed.data)
+        break
+      }
+
+      case 'benchmark_close': {
+        const parsed = BenchmarkClosePayloadSchema.safeParse(payload)
+        if (!parsed.success) return validationError(c, event_type, parsed.error)
+        await handleBenchmarkClose(c.env.DB, event_id, parsed.data)
+        break
+      }
+
+      case 'position_greeks': {
+        const parsed = PositionGreeksPayloadSchema.safeParse(payload)
+        if (!parsed.success) return validationError(c, event_type, parsed.error)
+        await handlePositionGreeks(c.env.DB, event_id, parsed.data)
+        break
+      }
 
       default:
         return c.json(
@@ -82,6 +186,37 @@ ingest.post('/', async (c) => {
     )
   }
 })
+
+// ============================================================================
+// Helpers
+// ============================================================================
+
+/**
+ * Build a consistent 400 response from a Zod validation failure.
+ * Never leak full stack; report only the flattened field errors.
+ */
+function validationError(
+  c: IngestContext,
+  eventType: string,
+  error: z.ZodError
+) {
+  const issues = error.issues.map(i => ({
+    path: i.path.join('.'),
+    message: i.message
+  }))
+  return c.json(
+    {
+      error: 'invalid_payload',
+      message: `Payload failed validation for event_type=${eventType}`,
+      issues
+    },
+    400
+  )
+}
+
+// ============================================================================
+// Existing handlers (heartbeat / alert / position) — preserved unchanged
+// ============================================================================
 
 /**
  * Handle heartbeat event - upsert into service_heartbeats table
@@ -121,7 +256,7 @@ async function handleHeartbeat(db: D1Database, eventId: string, payload: any) {
     )
     .run()
 
-  console.log(`✓ Heartbeat ingested: ${payload.serviceName} (event ${eventId})`)
+  console.log(`[INGEST] heartbeat ok: ${payload.serviceName} (event ${eventId})`)
 }
 
 /**
@@ -149,7 +284,7 @@ async function handleAlert(db: D1Database, eventId: string, payload: any) {
     )
     .run()
 
-  console.log(`✓ Alert ingested: ${payload.alertType} (event ${eventId})`)
+  console.log(`[INGEST] alert ok: ${payload.alertType} (event ${eventId})`)
 }
 
 /**
@@ -180,7 +315,174 @@ async function handlePosition(db: D1Database, eventId: string, payload: any) {
     )
     .run()
 
-  console.log(`✓ Position ingested: ${payload.contractSymbol} (event ${eventId})`)
+  console.log(`[INGEST] position ok: ${payload.contractSymbol} (event ${eventId})`)
+}
+
+// ============================================================================
+// Phase 7.1 — Market-data handlers (UPSERT idempotent)
+// ============================================================================
+
+/**
+ * account_equity — one row per calendar day. Re-ingesting same date replaces
+ * the previous row (latest snapshot wins).
+ */
+async function handleAccountEquity(
+  db: D1Database,
+  eventId: string,
+  payload: z.infer<typeof AccountEquityPayloadSchema>
+) {
+  const sql = `
+    INSERT OR REPLACE INTO account_equity_daily
+      (date, account_value, cash, buying_power, margin_used, margin_used_pct)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `
+  await db.prepare(sql)
+    .bind(
+      payload.date,
+      payload.account_value,
+      payload.cash,
+      payload.buying_power,
+      payload.margin_used,
+      payload.margin_used_pct
+    )
+    .run()
+
+  console.log(`[INGEST] account_equity ok: ${payload.date} (event ${eventId})`)
+}
+
+/**
+ * market_quote — daily OHLCV per symbol. Replay-safe via (symbol, date) PK.
+ */
+async function handleMarketQuote(
+  db: D1Database,
+  eventId: string,
+  payload: z.infer<typeof MarketQuotePayloadSchema>
+) {
+  const sql = `
+    INSERT OR REPLACE INTO market_quotes_daily
+      (symbol, date, open, high, low, close, volume)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `
+  await db.prepare(sql)
+    .bind(
+      payload.symbol,
+      payload.date,
+      payload.open ?? null,
+      payload.high ?? null,
+      payload.low ?? null,
+      payload.close,
+      payload.volume ?? null
+    )
+    .run()
+
+  console.log(`[INGEST] market_quote ok: ${payload.symbol}@${payload.date} (event ${eventId})`)
+}
+
+/**
+ * vix_snapshot — denormalized curve. Writes the term-structure row AND mirrors
+ * each non-null leg into market_quotes_daily so downstream chart endpoints can
+ * treat VIX/VIX1D/VIX3M/VIX6M as regular symbols.
+ */
+async function handleVixSnapshot(
+  db: D1Database,
+  eventId: string,
+  payload: z.infer<typeof VixSnapshotPayloadSchema>
+) {
+  // Primary: denormalized term-structure row
+  const curveSql = `
+    INSERT OR REPLACE INTO vix_term_structure
+      (date, vix, vix1d, vix3m, vix6m)
+    VALUES (?, ?, ?, ?, ?)
+  `
+  await db.prepare(curveSql)
+    .bind(
+      payload.date,
+      payload.vix ?? null,
+      payload.vix1d ?? null,
+      payload.vix3m ?? null,
+      payload.vix6m ?? null
+    )
+    .run()
+
+  // Secondary: mirror every present leg into market_quotes_daily as close-only
+  const legs: Array<{ symbol: string; close: number | null | undefined }> = [
+    { symbol: 'VIX', close: payload.vix },
+    { symbol: 'VIX1D', close: payload.vix1d },
+    { symbol: 'VIX3M', close: payload.vix3m },
+    { symbol: 'VIX6M', close: payload.vix6m }
+  ]
+
+  const mirrorSql = `
+    INSERT OR REPLACE INTO market_quotes_daily
+      (symbol, date, open, high, low, close, volume)
+    VALUES (?, ?, NULL, NULL, NULL, ?, NULL)
+  `
+
+  for (const leg of legs) {
+    if (leg.close === null || leg.close === undefined) continue
+    await db.prepare(mirrorSql)
+      .bind(leg.symbol, payload.date, leg.close)
+      .run()
+  }
+
+  console.log(`[INGEST] vix_snapshot ok: ${payload.date} (event ${eventId})`)
+}
+
+/**
+ * benchmark_close — pre-normalized benchmark close. Used for chart overlay.
+ */
+async function handleBenchmarkClose(
+  db: D1Database,
+  eventId: string,
+  payload: z.infer<typeof BenchmarkClosePayloadSchema>
+) {
+  const sql = `
+    INSERT OR REPLACE INTO benchmark_series
+      (symbol, date, close, close_normalized)
+    VALUES (?, ?, ?, ?)
+  `
+  await db.prepare(sql)
+    .bind(
+      payload.symbol,
+      payload.date,
+      payload.close,
+      payload.close_normalized ?? null
+    )
+    .run()
+
+  console.log(`[INGEST] benchmark_close ok: ${payload.symbol}@${payload.date} (event ${eventId})`)
+}
+
+/**
+ * position_greeks — rolling time-series. PK is (position_id, snapshot_ts) so
+ * two distinct snapshots for the same position are both preserved.
+ */
+async function handlePositionGreeks(
+  db: D1Database,
+  eventId: string,
+  payload: z.infer<typeof PositionGreeksPayloadSchema>
+) {
+  const sql = `
+    INSERT OR REPLACE INTO position_greeks
+      (position_id, snapshot_ts, delta, gamma, theta, vega, iv, underlying_price)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `
+  await db.prepare(sql)
+    .bind(
+      payload.position_id,
+      payload.snapshot_ts,
+      payload.delta ?? null,
+      payload.gamma ?? null,
+      payload.theta ?? null,
+      payload.vega ?? null,
+      payload.iv ?? null,
+      payload.underlying_price ?? null
+    )
+    .run()
+
+  console.log(
+    `[INGEST] position_greeks ok: ${payload.position_id}@${payload.snapshot_ts} (event ${eventId})`
+  )
 }
 
 export { ingest }
