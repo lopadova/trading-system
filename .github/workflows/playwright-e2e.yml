@@ -1,0 +1,87 @@
+# Phase 7.6 — Playwright E2E
+#
+# Runs the dashboard critical-journey suite. Triggered on merge-to-main
+# (after PR green) or manual dispatch. Deliberately NOT a required PR check
+# yet — that gate is part of Phase 7.7 once flake rate is measured.
+#
+# The workflow targets either:
+#   - the Cloudflare Pages preview URL associated with the current commit
+#     (via secrets.PLAYWRIGHT_STAGING_URL), or
+#   - a local Vite dev server spun up in-workflow (default fallback).
+#
+# Set `staging_url` in workflow_dispatch inputs to override at runtime.
+
+name: Playwright E2E
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      staging_url:
+        description: 'Base URL to run against (blank = spin up local Vite server)'
+        required: false
+        default: ''
+
+env:
+  NODE_VERSION: '20.x'
+
+jobs:
+  e2e:
+    name: Dashboard E2E (Chromium, 1920x1080 + 1366x768)
+    runs-on: ubuntu-latest
+    # Skip on the merge-commit for bot-authored PRs to prevent double-runs.
+    if: github.event_name != 'push' || github.actor != 'dependabot[bot]'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+
+      - name: Install dependencies
+        working-directory: dashboard
+        run: npm ci --no-audit --no-fund
+
+      # Browsers change more often than test code — prefer fresh install over
+      # caching; a ~200MB download is cheap relative to the cost of a stale
+      # browser hitting a new Playwright API surface.
+      - name: Install Playwright browsers
+        working-directory: dashboard
+        run: npx playwright install --with-deps chromium
+
+      - name: Build dashboard (so preview mode works if used)
+        working-directory: dashboard
+        run: npm run build
+
+      # Decide whether to point at a remote URL or rely on the config's
+      # webServer: { command: 'npm run dev' } fallback. The staging URL path
+      # uses SKIP_WEBSERVER=1 so playwright doesn't try to spin up Vite.
+      - name: Run Playwright
+        working-directory: dashboard
+        env:
+          CI: 'true'
+          PLAYWRIGHT_BASE_URL: ${{ github.event.inputs.staging_url || secrets.PLAYWRIGHT_STAGING_URL || '' }}
+          SKIP_WEBSERVER: ${{ (github.event.inputs.staging_url != '' || secrets.PLAYWRIGHT_STAGING_URL != '') && '1' || '' }}
+        run: npx playwright test --reporter=list,html
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: dashboard/playwright-report/
+          retention-days: 14
+
+      - name: Upload Playwright traces (if any)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: dashboard/test-results/
+          retention-days: 14
