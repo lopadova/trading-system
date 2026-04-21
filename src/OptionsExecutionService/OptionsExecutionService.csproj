@@ -7,8 +7,14 @@
     <UserSecretsId>dotnet-OptionsExecutionService-9gb3c2e9-5d6f-5fag-b8c4-2d3e4f5g6h7i</UserSecretsId>
     <LangVersion>13.0</LangVersion>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <NoWarn>CA1416</NoWarn>
+    <!-- NU1510 silenced: FrameworkReference 'Microsoft.AspNetCore.App' includes Hosting transitively. -->
+    <NoWarn>CA1416;NU1510</NoWarn>
   </PropertyGroup>
+
+  <!-- Add ASP.NET Core runtime for the /health minimal-API endpoint. -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Google.Protobuf" Version="3.29.5" />

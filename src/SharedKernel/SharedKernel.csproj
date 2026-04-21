@@ -6,7 +6,15 @@
     <Nullable>enable</Nullable>
     <LangVersion>13.0</LangVersion>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- NU1510 silenced: FrameworkReference 'Microsoft.AspNetCore.App' includes the Hosting +
+         Configuration packages transitively. We keep explicit PackageReferences for version control. -->
+    <NoWarn>NU1510</NoWarn>
   </PropertyGroup>
+
+  <!-- SharedKernel hosts HealthEndpointHost (minimal-API /health server) — needs AspNetCore.App. -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Dapper" Version="2.1.28" />

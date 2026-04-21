@@ -202,8 +202,26 @@ try
 
             // Bot webhook registrar (runs at startup)
             services.AddHostedService<BotWebhookRegistrar>();
+
+            // Observability — health-state tracker; exposed via /health HTTP endpoint below.
+            services.AddSingleton<IHealthState>(sp =>
+            {
+                IIbkrClient ibkr = sp.GetRequiredService<IIbkrClient>();
+                IDbConnectionFactory db = sp.GetRequiredService<IDbConnectionFactory>();
+                ILogger<HealthState> healthLogger = sp.GetRequiredService<ILogger<HealthState>>();
+                return new HealthState("supervisor", ibkr, db, healthLogger);
+            });
         })
         .Build();
+
+    // Start the /health HTTP endpoint as a side-car minimal API on port 5088.
+    // This runs alongside the main host and shuts down with it via IHostApplicationLifetime.
+    int healthPort = configForValidation.GetValue<int>("Observability:Health:Port", 5088);
+    IHealthState healthState = host.Services.GetRequiredService<IHealthState>();
+    IHostApplicationLifetime lifetime = host.Services.GetRequiredService<IHostApplicationLifetime>();
+    ILoggerFactory healthLoggerFactory = host.Services.GetRequiredService<ILoggerFactory>();
+    Microsoft.Extensions.Logging.ILogger healthStartupLogger = healthLoggerFactory.CreateLogger("HealthEndpointHost");
+    HealthEndpointHost.StartAlongside(lifetime, healthState, healthPort, healthStartupLogger);
 
     // Run database migrations before starting services
     Log.Information("Running database migrations...");
