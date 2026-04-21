@@ -111,11 +111,25 @@ next-env.d.ts
 # ============================================================================
 
 # .NET secrets
+# Per-environment appsettings overrides are gitignored — the .example
+# templates with placeholder values ARE committed (see appsettings.*.json.example).
 appsettings.Production.json
+appsettings.Staging.json
 appsettings.Live.json
 appsettings.Local.json
 **/secrets.json
 UserSecrets/
+
+# Phase 7.5 — Cloudflare Worker secrets staging area.
+# scripts/provision-secrets.sh reads secrets/.env.<env> and feeds values
+# to `bunx wrangler secret put`. The files contain cleartext tokens and
+# MUST NEVER be committed. The three explicitly-whitelisted files document
+# the directory shape for new operators. NOTE: we use `secrets/*` (not
+# `secrets/`) because Git cannot re-include files from an excluded directory.
+secrets/*
+!secrets/.gitkeep
+!secrets/README.md
+!secrets/.env.example
 
 # Node/Cloudflare secrets
 .env

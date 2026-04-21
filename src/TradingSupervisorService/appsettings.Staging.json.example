@@ -1,0 +1,39 @@
+{
+  "__": [
+    "TradingSupervisorService — STAGING overrides (Phase 7.5).",
+    "Copy to appsettings.Staging.json (gitignored) on the staging host,",
+    "replace REPLACE_WITH_* placeholders with real values, and wrap any",
+    "sensitive value via the EncryptConfigValue CLI so it ends up as",
+    "\"DPAPI:<base64>\" instead of cleartext.",
+    "Start the service with DOTNET_ENVIRONMENT=Staging (set by",
+    "infra/windows/install-supervisor.ps1 -Environment Staging)."
+  ],
+  "TradingMode": "paper",
+  "Cloudflare": {
+    "WorkerUrl": "https://ts-staging.padosoft.workers.dev",
+    "ApiKey": "DPAPI:REPLACE_WITH_PROTECTED_BASE64"
+  },
+  "Telegram": {
+    "Enabled": true,
+    "BotToken": "DPAPI:REPLACE_WITH_PROTECTED_BASE64",
+    "ChatId": 0
+  },
+  "Bots": {
+    "ActiveBot": "telegram",
+    "WebhookUrl": "https://ts-staging.padosoft.workers.dev/api/bot",
+    "TelegramBotToken": "DPAPI:REPLACE_WITH_PROTECTED_BASE64",
+    "DiscordBotToken": "DPAPI:REPLACE_WITH_PROTECTED_BASE64",
+    "DiscordPublicKey": "DPAPI:REPLACE_WITH_PROTECTED_BASE64",
+    "Whitelist": "REPLACE_WITH_COMMA_SEPARATED_USER_IDS"
+  },
+  "Smtp": {
+    "Enabled": false,
+    "Host": "smtp.gmail.com",
+    "Port": 587,
+    "Username": "REPLACE_WITH_SMTP_USER",
+    "Password": "DPAPI:REPLACE_WITH_PROTECTED_BASE64",
+    "From": "REPLACE_WITH_FROM_ADDRESS",
+    "To": "REPLACE_WITH_TO_ADDRESS",
+    "EnableSsl": true
+  }
+}
