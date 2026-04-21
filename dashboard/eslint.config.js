@@ -20,17 +20,17 @@ export default defineConfig([
       globals: globals.browser,
     },
     rules: {
-      // Downgrade cosmetic rules from error → warn so CI doesn't fail on
-      // pre-existing tech debt. Tracked as follow-up cleanup in Phase 7.
-      // Re-promote to 'error' once the baseline is clean.
+      // Baseline is clean as of 2026-04-21 (chore/lint-cleanup). These rules
+      // are promoted back to 'error' so new tech debt fails CI instead of
+      // silently accumulating as warnings.
       '@typescript-eslint/no-unused-vars': [
-        'warn',
+        'error',
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
       ],
-      '@typescript-eslint/no-explicit-any': 'warn',
-      '@typescript-eslint/no-empty-object-type': 'warn',
-      'no-useless-escape': 'warn',
-      'prefer-const': 'warn',
+      '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/no-empty-object-type': 'error',
+      'no-useless-escape': 'error',
+      'prefer-const': 'error',
     },
   },
 ])
