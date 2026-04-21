@@ -17,11 +17,18 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { env, SELF } from 'cloudflare:test'
 
-// Lock "today" so date('now') in SQLite and the Phase 7.2 seed window align
-// deterministically. We still query with date('now','-N days') in the route
-// code but the SEEDS below are bounded such that any 1Y / 2Y / 5Y lookback
-// intersects the dataset.
-const SEED_END_DATE = '2026-04-20'
+// Anchor the seed window to the current UTC date so SQLite `date('now', ...)`
+// in the route code continues to overlap the seeded dataset as real time moves
+// forward. Using a hard-coded date here would make every 1Y / 2Y / 5Y lookback
+// test future-flaky the moment the clock passes past the seed's last day
+// (routes would fall back to mocks and the endpoint-math assertions would fail).
+// If a route later accepts an explicit `asOf` param we can pin the window
+// deterministically instead; until then, derive from real "today".
+function getCurrentUtcIsoDate(): string {
+  return new Date().toISOString().slice(0, 10)
+}
+
+const SEED_END_DATE = getCurrentUtcIsoDate()
 const SEED_DAYS = 500  // ~2 years of trading days
 
 // ---------------------------------------------------------------------------
@@ -238,12 +245,12 @@ describe('Phase 7.2 real-data integration', () => {
         'INSERT OR REPLACE INTO position_greeks ' +
         '(position_id, snapshot_ts, delta, gamma, theta, vega, iv, underlying_price) ' +
         'VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      ).bind('pos-1', '2026-04-20T14:30:00Z', 0.25, 0.01, -1.2, 3.4, 0.18, 450),
+      ).bind('pos-1', `${SEED_END_DATE}T14:30:00Z`, 0.25, 0.01, -1.2, 3.4, 0.18, 450),
       env.DB.prepare(
         'INSERT OR REPLACE INTO position_greeks ' +
         '(position_id, snapshot_ts, delta, gamma, theta, vega, iv, underlying_price) ' +
         'VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      ).bind('pos-2', '2026-04-20T14:31:00Z', -0.30, 0.02, -0.8, 2.1, 0.21, 380),
+      ).bind('pos-2', `${SEED_END_DATE}T14:31:00Z`, -0.30, 0.02, -0.8, 2.1, 0.21, 380),
     ])
 
     // Heartbeats — a few services with recent samples
@@ -253,13 +260,13 @@ describe('Phase 7.2 real-data integration', () => {
         '(service_name, hostname, last_seen_at, uptime_seconds, cpu_percent, ' +
         'ram_percent, disk_free_gb, trading_mode, version, created_at, updated_at) ' +
         'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      ).bind('svc1', 'host1', '2026-04-20T14:30:00Z', 3600, 35.0, 62.0, 150, 'paper', '1.0', '2026-04-20T14:30:00Z', '2026-04-20T14:30:00Z'),
+      ).bind('svc1', 'host1', `${SEED_END_DATE}T14:30:00Z`, 3600, 35.0, 62.0, 150, 'paper', '1.0', `${SEED_END_DATE}T14:30:00Z`, `${SEED_END_DATE}T14:30:00Z`),
       env.DB.prepare(
         'INSERT OR REPLACE INTO service_heartbeats ' +
         '(service_name, hostname, last_seen_at, uptime_seconds, cpu_percent, ' +
         'ram_percent, disk_free_gb, trading_mode, version, created_at, updated_at) ' +
         'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      ).bind('svc2', 'host2', '2026-04-20T14:29:00Z', 7200, 22.0, 55.0, 155, 'paper', '1.0', '2026-04-20T14:29:00Z', '2026-04-20T14:29:00Z'),
+      ).bind('svc2', 'host2', `${SEED_END_DATE}T14:29:00Z`, 7200, 22.0, 55.0, 155, 'paper', '1.0', `${SEED_END_DATE}T14:29:00Z`, `${SEED_END_DATE}T14:29:00Z`),
     ])
 
     // Alerts + executions for activity feed
@@ -268,17 +275,17 @@ describe('Phase 7.2 real-data integration', () => {
         'INSERT OR REPLACE INTO alert_history ' +
         '(alert_id, alert_type, severity, message, details_json, source_service, created_at) ' +
         'VALUES (?, ?, ?, ?, NULL, ?, ?)',
-      ).bind('alr-1', 'DeltaBreach', 'warning', 'Delta exceeds threshold', 'risk', '2026-04-20T14:00:00Z'),
+      ).bind('alr-1', 'DeltaBreach', 'warning', 'Delta exceeds threshold', 'risk', `${SEED_END_DATE}T14:00:00Z`),
       env.DB.prepare(
         'INSERT OR REPLACE INTO alert_history ' +
         '(alert_id, alert_type, severity, message, details_json, source_service, created_at) ' +
         'VALUES (?, ?, ?, ?, NULL, ?, ?)',
-      ).bind('alr-2', 'IBKRDrop', 'critical', 'IBKR disconnected', 'supervisor', '2026-04-20T13:00:00Z'),
+      ).bind('alr-2', 'IBKRDrop', 'critical', 'IBKR disconnected', 'supervisor', `${SEED_END_DATE}T13:00:00Z`),
       env.DB.prepare(
         'INSERT OR REPLACE INTO execution_log ' +
         '(execution_id, order_id, campaign_id, symbol, contract_symbol, side, quantity, fill_price, commission, executed_at, created_at) ' +
         'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      ).bind('exec-1', 'ord-1', 'c-1', 'SPY', 'SPY240419C450', 'BUY', 3, 12.40, 1.5, '2026-04-20T13:30:00Z', '2026-04-20T13:30:00Z'),
+      ).bind('exec-1', 'ord-1', 'c-1', 'SPY', 'SPY240419C450', 'BUY', 3, 12.40, 1.5, `${SEED_END_DATE}T13:30:00Z`, `${SEED_END_DATE}T13:30:00Z`),
     ])
   })
 

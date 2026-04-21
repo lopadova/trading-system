@@ -342,22 +342,32 @@ performance.get('/series', async (c) => {
 // ---------------------------------------------------------------------------
 
 /**
- * Extract a normalized series for a given benchmark symbol. Prefers the
- * pre-normalized `close_normalized` column when populated; otherwise
- * recomputes on the fly so the overlay always starts at 100. Returns an array
- * the same length as the portfolio equity crop (callers pad/truncate as
- * needed). If no rows are present, returns an empty array.
+ * Extract a normalized series for a given benchmark symbol, ALWAYS rebased
+ * to 100 at the first point of the REQUESTED window.
+ *
+ * The persisted `close_normalized` column is typically normalized from
+ * inception (i.e. base=100 at the benchmark's earliest date), so returning
+ * it as-is for a cropped window (e.g. last 30 days) produces overlays that
+ * don't start at 100 and can't be compared apples-to-apples with the
+ * portfolio series (which IS rebased to 100 at the window start). We
+ * instead divide through by the first value of the cropped slice so both
+ * series share a common `y = 100` origin — then the chart is a clean
+ * relative-performance comparison.
+ *
+ * If no rows are present, returns an empty array.
  */
 function normalizedBenchmark(rows: BenchmarkRow[], symbol: string): number[] {
   const filtered = rows.filter((r) => r.symbol === symbol)
   if (filtered.length === 0) return []
 
-  const allNormalized = filtered.every((r) => r.close_normalized !== null && r.close_normalized !== undefined)
-  if (allNormalized) {
-    return filtered.map((r) => +(r.close_normalized as number).toFixed(2))
-  }
-  const closes = filtered.map((r) => r.close)
-  return normalizeToBase100(closes)
+  const allNormalized = filtered.every(
+    (r) => r.close_normalized !== null && r.close_normalized !== undefined,
+  )
+  const source = allNormalized
+    ? filtered.map((r) => r.close_normalized as number)
+    : filtered.map((r) => r.close)
+
+  return normalizeToBase100(source)
 }
 
 // ---------------------------------------------------------------------------

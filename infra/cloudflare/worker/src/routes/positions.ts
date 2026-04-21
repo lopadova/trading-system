@@ -30,13 +30,17 @@ positions.get('/active', async (c) => {
   //
   // Phase 7.2: also LEFT JOIN the latest row of `position_greeks` per position
   // so the Active Positions table can render fresh delta/theta without a
-  // separate round-trip. The CTE `latest_greeks` finds MAX(snapshot_ts) per
-  // position_id (natural key for "latest snapshot"), then we join back to
-  // `position_greeks` on (position_id, snapshot_ts) to pull the greek values.
+  // separate round-trip. The CTE `latest_greeks` is SCOPED to active positions
+  // (inner-joined to `active_positions`) so the cost scales with open-book
+  // size rather than total greek history — without this scope it would
+  // degenerate into a full-table scan of position_greeks per request as the
+  // snapshot history grows.
   let sql =
     'WITH latest_greeks AS (' +
-    '  SELECT position_id, MAX(snapshot_ts) AS max_ts ' +
-    '  FROM position_greeks GROUP BY position_id' +
+    '  SELECT pg.position_id, MAX(pg.snapshot_ts) AS max_ts ' +
+    '  FROM position_greeks pg ' +
+    '  INNER JOIN active_positions ap ON ap.position_id = pg.position_id ' +
+    '  GROUP BY pg.position_id' +
     ') ' +
     'SELECT p.*, c.name AS campaign, ' +
     '       g.delta AS delta, g.gamma AS gamma, g.theta AS theta, ' +
@@ -150,12 +154,13 @@ positions.get('/:position_id', async (c) => {
 
   try {
     // Phase 7.2: include latest greeks via the same latest_greeks CTE used by
-    // /active so detail views and table views stay in sync.
+    // /active (scoped to the specific positionId we're fetching, so the CTE
+    // work stays O(1) per detail request regardless of total greek history).
     const row = await c.env.DB
       .prepare(
         'WITH latest_greeks AS (' +
         '  SELECT position_id, MAX(snapshot_ts) AS max_ts ' +
-        '  FROM position_greeks GROUP BY position_id' +
+        '  FROM position_greeks WHERE position_id = ? GROUP BY position_id' +
         ') ' +
         'SELECT p.*, c.name AS campaign, ' +
         '       g.delta AS delta, g.gamma AS gamma, g.theta AS theta, ' +
@@ -167,7 +172,7 @@ positions.get('/:position_id', async (c) => {
         '  AND g.snapshot_ts = lg.max_ts ' +
         'WHERE p.position_id = ?'
       )
-      .bind(positionId)
+      .bind(positionId, positionId)
       .first<
         ActivePositionRow & {
           campaign: string | null

@@ -107,33 +107,52 @@ async function computeMetrics(db: D1Database): Promise<RiskMetrics | null> {
  *
  * IV rank = (count of rows with close <= current close) / total count.
  *
- * This is a placeholder that uses SPX close as the "IV proxy" — if/when real
- * implied-vol data arrives via the ingest pipeline, swap the symbol/column
- * below without changing the response contract. Returns null when <2
- * historical points exist (can't compute a meaningful percentile).
+ * This is a placeholder that uses SPY (or SPX fallback) close as the "IV
+ * proxy" — if/when real implied-vol data arrives via the ingest pipeline,
+ * swap the symbol/column below without changing the response contract.
+ *
+ * We deliberately pick ONE symbol for both the "latest" value and the
+ * historical denominator so the rank is stable. Mixing SPX and SPY rows
+ * (as a prior revision did via `symbol IN ('SPX','SPY')`) produced unstable
+ * results because it (a) picked "latest" from whichever symbol had the most
+ * recent row and (b) computed the percentile over a combined distribution
+ * that effectively double-counted overlapping dates.
+ *
+ * Returns null when <2 historical points exist for the chosen symbol
+ * (can't compute a meaningful percentile).
  */
 async function computeIvRankSpy(db: D1Database): Promise<number | null> {
-  const latest = await db
-    .prepare(
-      "SELECT close FROM market_quotes_daily " +
-      "WHERE symbol IN ('SPX','SPY') AND date >= date('now', '-365 days') " +
-      "ORDER BY date DESC LIMIT 1",
-    )
-    .first<{ close: number }>()
-  if (!latest) return null
+  // Deterministic priority: SPY first (ETF close is typically more stable
+  // coverage in a retail data stream); SPX only as a fallback.
+  const symbols: readonly string[] = ['SPY', 'SPX']
 
-  const counts = await db
-    .prepare(
-      "SELECT " +
-      "  SUM(CASE WHEN close <= ? THEN 1 ELSE 0 END) AS at_or_below, " +
-      "  COUNT(*) AS total " +
-      "FROM market_quotes_daily " +
-      "WHERE symbol IN ('SPX','SPY') AND date >= date('now', '-365 days')",
-    )
-    .bind(latest.close)
-    .first<{ at_or_below: number; total: number }>()
-  if (!counts || counts.total < 2) return null
-  return +(counts.at_or_below / counts.total).toFixed(2)
+  for (const symbol of symbols) {
+    const latest = await db
+      .prepare(
+        "SELECT close FROM market_quotes_daily " +
+        "WHERE symbol = ? AND date >= date('now', '-365 days') " +
+        "ORDER BY date DESC LIMIT 1",
+      )
+      .bind(symbol)
+      .first<{ close: number }>()
+    if (!latest) continue
+
+    const counts = await db
+      .prepare(
+        "SELECT " +
+        "  SUM(CASE WHEN close <= ? THEN 1 ELSE 0 END) AS at_or_below, " +
+        "  COUNT(*) AS total " +
+        "FROM market_quotes_daily " +
+        "WHERE symbol = ? AND date >= date('now', '-365 days')",
+      )
+      .bind(latest.close, symbol)
+      .first<{ at_or_below: number; total: number }>()
+    if (!counts || counts.total < 2) continue
+
+    return +(counts.at_or_below / counts.total).toFixed(2)
+  }
+
+  return null
 }
 
 function fallbackMetrics(): RiskMetrics {

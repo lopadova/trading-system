@@ -36,8 +36,9 @@ interface ActivityRow {
   ts: string
   a: string  // alert severity or execution side
   b: string  // alert type or order symbol
-  c: string  // alert message or contract_symbol + qty
+  c: string  // alert message or contract_symbol
   d: number | null  // fill_price for execution; null for alerts
+  e: number | null  // execution quantity; null for alerts
 }
 
 // ---------------------------------------------------------------------------
@@ -95,19 +96,24 @@ activity.get('/recent', async (c) => {
     //
     // alert_history:
     //   source='alert', id=alert_id, ts=created_at,
-    //   a=severity, b=alert_type, c=message, d=NULL
+    //   a=severity, b=alert_type, c=message, d=NULL, e=NULL
     //
     // execution_log:
     //   source='execution', id=execution_id, ts=executed_at,
-    //   a=side, b=symbol, c=contract_symbol || quantity, d=fill_price
+    //   a=side, b=symbol, c=contract_symbol, d=fill_price, e=quantity
+    //
+    // The execution branch surfaces the quantity in the rendered subtitle
+    // (pre-Phase-7.2 the mock showed "SPY 450C × 3 @ $12.40") — that
+    // information lives in execution_log.quantity, so it MUST come through
+    // the UNION column set.
     const sql =
       "SELECT * FROM (" +
       "  SELECT 'alert' AS source, alert_id AS id, created_at AS ts, " +
-      "         severity AS a, alert_type AS b, message AS c, NULL AS d " +
+      "         severity AS a, alert_type AS b, message AS c, NULL AS d, NULL AS e " +
       "  FROM alert_history " +
       "  UNION ALL " +
       "  SELECT 'execution' AS source, execution_id AS id, executed_at AS ts, " +
-      "         side AS a, symbol AS b, contract_symbol AS c, fill_price AS d " +
+      "         side AS a, symbol AS b, contract_symbol AS c, fill_price AS d, quantity AS e " +
       "  FROM execution_log " +
       ") ORDER BY ts DESC LIMIT ?"
 
@@ -122,12 +128,13 @@ activity.get('/recent', async (c) => {
     const events: ActivityEvent[] = rows.map((r) => {
       if (r.source === 'execution') {
         const priceStr = r.d === null || r.d === undefined ? '' : ` @ $${r.d.toFixed(2)}`
+        const qtyStr = r.e === null || r.e === undefined ? '' : ` × ${r.e}`
         return {
           id: r.id,
           icon: executionIcon(),
           tone: 'green' as ActivityTone,
           title: `Order ${r.a === 'BUY' ? 'bought' : 'sold'}`,
-          subtitle: `${r.c}${priceStr}`,
+          subtitle: `${r.c}${qtyStr}${priceStr}`,
           timestamp: r.ts,
         }
       }

@@ -65,13 +65,16 @@ campaignsSummary.get('/summary', async (c) => {
     return c.json(payload)
   } catch (error) {
     console.error('campaigns/summary query failed:', error)
-    // On DB error, surface a safe zero payload with fallback-mock indicator.
+    // On DB error, surface a literal zero payload with the fallback-mock
+    // header so the dashboard can show "demo data" / "unavailable". DO NOT
+    // return plausible mock counts here — that would silently mislead
+    // operators about campaign state when the DB is actually broken.
     c.header('X-Data-Source', 'fallback-mock')
     return c.json<CampaignsSummary>({
-      active: 2,
-      paused: 1,
-      draft: 1,
-      detail: '1 paused · 1 draft',
+      active: 0,
+      paused: 0,
+      draft: 0,
+      detail: 'data unavailable',
     })
   }
 })

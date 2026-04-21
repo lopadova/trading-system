@@ -63,10 +63,17 @@ const DISK_TOTAL_GB = 200
 
 systemMetrics.get('/metrics', async (c) => {
   try {
-    // Pull the latest 20 heartbeats across all services. Ordered DESC by
-    // last_seen_at so index reads stay cheap; we reverse in-memory to present
-    // chronological (oldest → newest) sparklines matching the dashboard's
-    // existing expectation.
+    // NOTE on payload semantics:
+    // `service_heartbeats` PK is (service_name) — we store ONLY the latest
+    // sample per service, not a time-series. So `LIMIT 20` here returns at
+    // most N rows where N = number of registered services (supervisor +
+    // options-execution + etc.), NOT 20 time-ordered samples of one service.
+    //
+    // For now we return these per-service latest snapshots as the "cpu/ram/
+    // network" arrays so the dashboard sparkline still has SOMETHING to
+    // render (showing the current fleet state across services). A proper
+    // time-series needs a separate append-only `service_heartbeat_samples`
+    // table. Tracked as TODO(Phase 7.x-samples).
     const res = await c.env.DB
       .prepare(
         'SELECT last_seen_at, cpu_percent, ram_percent, disk_free_gb ' +
