@@ -238,6 +238,111 @@ config file.
 
 ---
 
+## GitHub Actions secrets (CI/CD)
+
+Phase 7.7 re-enabled the deploy workflows. They need a handful of
+secrets stored at the GitHub repository level (or scoped to a
+GitHub Environment) so `wrangler deploy`, `cloudflare/pages-action`,
+and the Telegram alert step can authenticate. Without these, the CI
+jobs fail with "in a non-interactive environment, it's necessary to
+set a CLOUDFLARE_API_TOKEN environment variable" or equivalent.
+
+### Required secrets
+
+| Name                    | Used by                                      | Where to get it |
+|-------------------------|----------------------------------------------|-----------------|
+| `CLOUDFLARE_API_TOKEN`  | Every wrangler / Pages deploy job            | Cloudflare dashboard → **My Profile → API Tokens → Create Token**. Use the "Edit Cloudflare Workers" template and add these additional permissions: **Account → Workers Scripts:Edit**, **Account → Workers KV Storage:Edit**, **Account → D1:Edit**, **Account → Cloudflare Pages:Edit**, **Account → Account Analytics:Read**. Scope to the specific account. |
+| `CLOUDFLARE_ACCOUNT_ID` | `cloudflare/pages-action@v1` (dashboard deploys) | Cloudflare dashboard → any site → right sidebar, "Account ID". |
+| `TELEGRAM_BOT_TOKEN`    | `data-freshness.yml` failure alert           | BotFather `/mybots → <bot> → API Token`. |
+| `TELEGRAM_CHAT_ID`      | `data-freshness.yml` failure alert           | Send a message to the bot, then `curl https://api.telegram.org/bot<TOKEN>/getUpdates` — the numeric `chat.id` from the latest update. |
+
+`GITHUB_TOKEN` is auto-provided by Actions; no setup needed.
+
+### Where to store them
+
+**Repository secrets** (simplest, applies to every workflow):
+
+1. GitHub repo → **Settings → Secrets and variables → Actions**.
+2. Click **New repository secret**.
+3. Enter `Name` (exactly matching the table above) and `Value`.
+4. Repeat for each required secret.
+
+**Environment secrets** (recommended for `CLOUDFLARE_API_TOKEN` if
+you want a reviewer-required gate per Phase 7.7's `production` environment):
+
+1. GitHub repo → **Settings → Environments**.
+2. Select the `production` environment (create it if missing — see
+   `docs/ops/BRANCH_PROTECTION.md § 4`).
+3. Add the secret inside the environment. Repeat for `staging` if you
+   want separate tokens per environment.
+
+**Scope recommendation**: a single `CLOUDFLARE_API_TOKEN` at the
+repository level is the simplest working setup. Per-environment tokens
+buy you isolation (a leaked staging token cannot deploy prod) — worth
+it if you want the rail but not required for MVP.
+
+### First-time CI provisioning — step by step
+
+```
+1. Cloudflare → create API token per table above.
+   Copy the token string (shown once — if you lose it, create a new one).
+
+2. Cloudflare → note the Account ID from the right-hand sidebar of any
+   resource page.
+
+3. BotFather → /mybots → <your bot> → API Token. Copy.
+
+4. Send any message to your bot from YOUR Telegram account, then:
+     curl -s https://api.telegram.org/bot<BOT_TOKEN>/getUpdates | jq '.result[-1].message.chat.id'
+   Copy the numeric ID.
+
+5. GitHub repo → Settings → Secrets and variables → Actions.
+   Create these four secrets:
+     CLOUDFLARE_API_TOKEN  = <step 1>
+     CLOUDFLARE_ACCOUNT_ID = <step 2>
+     TELEGRAM_BOT_TOKEN    = <step 3>
+     TELEGRAM_CHAT_ID      = <step 4>
+
+6. Trigger a test deploy:
+     git commit --allow-empty -m "ci: test deploy after secret provisioning"
+     git push origin main
+   → Watch the Actions tab. deploy-worker-staging should succeed.
+
+7. If step 6 fails with "non-interactive environment" or 401:
+   → token lacks a required permission. Delete it and re-create with
+     the full permission list above.
+```
+
+### Rotating CI secrets
+
+CI secrets follow the same 90-day cadence as runtime secrets. On rotation:
+
+1. Cloudflare → create the NEW token. Leave the old one active for now.
+2. GitHub → update `CLOUDFLARE_API_TOKEN` value (same secret name).
+3. Trigger a smoke deploy (`workflow_dispatch` on `Cloudflare Worker &
+   Dashboard Deploy` for staging) — confirm success.
+4. Cloudflare → revoke the old token.
+5. Record the rotation in the quarterly
+   `.github/ISSUE_TEMPLATE/secret-rotation.md` checklist.
+
+### Required scopes on the Cloudflare token
+
+Verify the token has at minimum these permissions (paste into the
+"Edit Cloudflare Workers" template + additions):
+
+- **Account → Workers Scripts: Edit** — `wrangler deploy` + `wrangler rollback`
+- **Account → Workers KV Storage: Edit** — KV bindings
+- **Account → D1: Edit** — `wrangler d1 execute/export`, daily backup script
+- **Account → Cloudflare Pages: Edit** — dashboard deploys
+- **Account → Account Analytics: Read** — SLO measurement queries
+- **Zone → Zone: Read** (if routes attach to custom domains)
+
+Missing any of these → the deploy fails mid-run with a Cloudflare API
+4xx, NOT with the "non-interactive" error. Read the actual failure
+message — it names the scope that was refused.
+
+---
+
 ## Never
 
 - Commit `.env.staging` / `.env.production` / `appsettings.Staging.json` /
