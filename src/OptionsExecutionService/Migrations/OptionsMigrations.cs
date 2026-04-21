@@ -17,7 +17,7 @@ public static class OptionsMigrations
         new OptionsInitial001(),
         new AddGreeksColumns002(),
         new AddOrderTracking003(),
+        new SafetyFlagsAndAudit004(),
         // Future migrations will be added here:
-        // new AddRollHistoryTable004(),
     };
 }
