@@ -1,0 +1,4 @@
+{
+  "error": "invalid_event_type",
+  "message": "Unknown event_type: not_a_type"
+}

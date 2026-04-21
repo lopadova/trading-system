@@ -1,0 +1,15 @@
+{
+  "serviceName": "TradingSupervisorService",
+  "hostname": "padosoft-prod-01",
+  "lastSeenAt": "2026-04-20T14:30:00.0000000Z",
+  "uptimeSeconds": 86400,
+  "cpuPercent": 4.2,
+  "ramPercent": 18.1,
+  "diskFreeGb": 112.5,
+  "diskTotalGb": 256.0,
+  "networkKbps": 42.5,
+  "tradingMode": "paper",
+  "version": "0.1.0",
+  "createdAt": "2026-04-20T14:30:00.0000000Z",
+  "updatedAt": "2026-04-20T14:30:00.0000000Z"
+}

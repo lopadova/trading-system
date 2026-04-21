@@ -1,0 +1,7 @@
+{
+  "error": "invalid_payload",
+  "message": "Payload failed validation for event_type=account_equity",
+  "issues": [
+    { "path": "account_value", "message": "Expected number, received string" }
+  ]
+}

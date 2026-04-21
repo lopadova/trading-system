@@ -1,0 +1,6 @@
+{
+  "success": true,
+  "event_id": "evt-example-1234",
+  "event_type": "heartbeat",
+  "message": "Event ingested successfully"
+}

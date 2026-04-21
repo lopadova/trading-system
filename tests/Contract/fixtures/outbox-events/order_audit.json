@@ -1,0 +1,15 @@
+{
+  "audit_id": "aud-00001111-2222-3333-4444-555566667777",
+  "order_id": "ord-abcdef",
+  "ts": "2026-04-20T14:30:00.0000000+00:00",
+  "actor": "system",
+  "strategy_id": "test-strategy",
+  "contract_symbol": "SPX   250321P05000000",
+  "side": "BUY",
+  "quantity": 2,
+  "price": null,
+  "semaphore_status": "green",
+  "outcome": "placed",
+  "override_reason": null,
+  "details_json": "{\"limitPrice\":15.5}"
+}

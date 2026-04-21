@@ -1,0 +1,11 @@
+{
+  "alertId": "alert-20260420-1001",
+  "alertType": "greeks_high_delta",
+  "severity": "warning",
+  "message": "High delta risk: position SPY has delta 0.85 (threshold 0.80)",
+  "detailsJson": "{\"positionId\":\"p-123\",\"delta\":0.85,\"threshold\":0.80}",
+  "sourceService": "TradingSupervisorService",
+  "createdAt": "2026-04-20T14:30:00.0000000Z",
+  "resolvedAt": null,
+  "resolvedBy": null
+}
