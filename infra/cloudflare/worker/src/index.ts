@@ -10,6 +10,7 @@ import { positions } from './routes/positions'
 import { alerts } from './routes/alerts'
 import { heartbeats } from './routes/heartbeats'
 import { ingest } from './routes/ingest'
+import { logs } from './routes/logs'
 import { strategiesConvert } from './routes/strategies-convert'
 import { botTelegram } from './routes/bot-telegram'
 import { botDiscord } from './routes/bot-discord'
@@ -58,6 +59,7 @@ app.route('/api/positions', positions)
 app.route('/api/alerts', alerts)
 app.route('/api/heartbeats', heartbeats)
 app.route('/api/v1/ingest', ingest)
+app.route('/api/v1/logs', logs)
 app.route('/api/v1/strategies', strategiesConvert)
 
 // Dashboard-facing aggregate routes (Phase 3 — deterministic mocks, D1 wiring later)
@@ -122,6 +124,7 @@ app.get('/', (c) => {
       'GET /api/activity/recent',
       'GET /api/campaigns/summary',
       'POST /api/v1/ingest',
+      'POST /api/v1/logs',
       'POST /api/v1/strategies/convert-el',
       'POST /api/bot/webhook/telegram',
       'POST /api/bot/webhook/discord'

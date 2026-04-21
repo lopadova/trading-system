@@ -7,8 +7,18 @@
     <UserSecretsId>dotnet-TradingSupervisorService-8fa2b1d8-4c5e-4e9f-a7b3-1c2d3e4f5a6b</UserSecretsId>
     <LangVersion>13.0</LangVersion>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <NoWarn>CA1416;CA2024</NoWarn>
+    <!-- NU1510 silenced: FrameworkReference 'Microsoft.AspNetCore.App' includes the Hosting +
+         Http packages transitively, but we keep the explicit PackageReference for clarity and
+         independence from the AspNetCore.App version graph. -->
+    <NoWarn>CA1416;CA2024;NU1510</NoWarn>
   </PropertyGroup>
+
+  <!-- Add ASP.NET Core runtime for the /health minimal-API endpoint.
+       FrameworkReference is the recommended way to pull in AspNetCore.App
+       from a Worker SDK project without converting to Sdk.Web. -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Google.Protobuf" Version="3.29.5" />
@@ -19,6 +29,7 @@
     <PackageReference Include="Serilog.Extensions.Hosting" Version="10.0.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="5.0.1" />
     <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
+    <PackageReference Include="Serilog.Sinks.Http" Version="9.0.0" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.0" />
     <PackageReference Include="Dapper" Version="2.1.28" />
     <!-- IBApi placeholder - will be replaced with actual IBKR TWS API DLL reference -->

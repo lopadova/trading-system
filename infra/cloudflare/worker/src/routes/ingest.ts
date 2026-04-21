@@ -14,6 +14,7 @@ import { Hono, type Context } from 'hono'
 import { z } from 'zod'
 import type { Env } from '../types/env'
 import { authMiddleware } from '../middleware/auth'
+import { recordMetric } from '../lib/metrics'
 
 type IngestContext = Context<{ Bindings: Env }>
 
@@ -75,6 +76,19 @@ const PositionGreeksPayloadSchema = z.object({
   vega: optionalNumber,
   iv: optionalNumber,
   underlying_price: optionalNumber
+})
+
+// Phase 7.3 — browser Web Vitals emitted by the dashboard web-vitals reporter.
+// Kept lenient: clients can send the raw payload produced by the web-vitals
+// library (name, value, id, navigationType, rating) without preprocessing.
+const WebVitalsPayloadSchema = z.object({
+  session_id: z.string().min(1),
+  name: z.enum(['CLS', 'INP', 'LCP', 'FCP', 'TTFB']),
+  value: z.number(),
+  rating: z.enum(['good', 'needs-improvement', 'poor']).optional(),
+  navigationType: z.string().optional(),
+  id: z.string().optional(),
+  timestamp: z.string().optional()  // ISO 8601; auto-filled if absent
 })
 
 /**
@@ -158,7 +172,18 @@ ingest.post('/', async (c) => {
         break
       }
 
+      case 'web_vitals': {
+        const parsed = WebVitalsPayloadSchema.safeParse(payload)
+        if (!parsed.success) return validationError(c, event_type, parsed.error)
+        await handleWebVitals(c.env.DB, event_id, parsed.data)
+        break
+      }
+
       default:
+        recordMetric(c.env, 'ingest.event_type', {
+          type: String(event_type),
+          status: 'rejected_unknown_type'
+        })
         return c.json(
           {
             error: 'invalid_event_type',
@@ -167,6 +192,12 @@ ingest.post('/', async (c) => {
           400
         )
     }
+
+    // Success metric — tagged by event type so Cloudflare Analytics can split.
+    recordMetric(c.env, 'ingest.event_type', {
+      type: String(event_type),
+      status: 'accepted'
+    })
 
     return c.json({
       success: true,
@@ -177,6 +208,7 @@ ingest.post('/', async (c) => {
 
   } catch (error) {
     console.error('Failed to ingest event:', error)
+    recordMetric(c.env, 'd1.error', { route: 'ingest' })
     return c.json(
       {
         error: 'ingest_error',
@@ -204,6 +236,10 @@ function validationError(
     path: i.path.join('.'),
     message: i.message
   }))
+  recordMetric(c.env, 'ingest.event_type', {
+    type: eventType,
+    status: 'rejected_validation'
+  })
   return c.json(
     {
       error: 'invalid_payload',
@@ -482,6 +518,40 @@ async function handlePositionGreeks(
 
   console.log(
     `[INGEST] position_greeks ok: ${payload.position_id}@${payload.snapshot_ts} (event ${eventId})`
+  )
+}
+
+/**
+ * web_vitals — single browser Core Web Vitals sample. PK (session_id, name,
+ * timestamp) ensures re-send of the same metric (e.g. the web-vitals library
+ * firing a second time with the same id on a back-forward navigation) does
+ * not bloat the table. Timestamp defaults to server-time if the client omits.
+ */
+async function handleWebVitals(
+  db: D1Database,
+  eventId: string,
+  payload: z.infer<typeof WebVitalsPayloadSchema>
+) {
+  const ts = payload.timestamp ?? new Date().toISOString()
+  const sql = `
+    INSERT OR REPLACE INTO web_vitals
+      (session_id, name, value, rating, navigation_type, metric_id, timestamp)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `
+  await db.prepare(sql)
+    .bind(
+      payload.session_id,
+      payload.name,
+      payload.value,
+      payload.rating ?? null,
+      payload.navigationType ?? null,
+      payload.id ?? null,
+      ts
+    )
+    .run()
+
+  console.log(
+    `[INGEST] web_vitals ok: ${payload.name}=${payload.value} (session ${payload.session_id}, event ${eventId})`
   )
 }
 

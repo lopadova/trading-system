@@ -6,6 +6,7 @@ using Serilog;
 using SharedKernel.Configuration;
 using SharedKernel.Data;
 using SharedKernel.Ibkr;
+using SharedKernel.Observability;
 using SharedKernel.Options;
 using SharedKernel.Strategy;
 using OptionsExecutionService.Campaign;
@@ -76,6 +77,7 @@ try
     });
 
     // Configure Serilog
+    HttpSinkOptions optionsSinkOpts = ObservabilityConfig.ReadOptions(builder.Configuration, "options-execution");
     builder.Services.AddSerilog((services, loggerConfig) => loggerConfig
         .ReadFrom.Services(services)
         .Enrich.FromLogContext()
@@ -89,7 +91,9 @@ try
             rollingInterval: RollingInterval.Day,
             retainedFileCountLimit: 30,
             outputTemplate:
-                "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff} {Level:u3}] [{Service}] {Message:lj}{NewLine}{Exception}"));
+                "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff} {Level:u3}] [{Service}] {Message:lj}{NewLine}{Exception}")
+        // HTTP sink: Warning+ only, batched, streams to Worker /api/v1/logs. File sink keeps full history locally.
+        .AddLogShipping(optionsSinkOpts));
 
     // Register database connection factory
     string dbPath = builder.Configuration["Sqlite:OptionsDbPath"] ?? "data/options-execution.db";
@@ -166,6 +170,15 @@ try
     builder.Services.AddHostedService<IbkrConnectionWorker>();
     builder.Services.AddHostedService<CampaignMonitorWorker>();
 
+    // Observability — health-state tracker; exposed via /health HTTP endpoint below.
+    builder.Services.AddSingleton<IHealthState>(sp =>
+    {
+        IIbkrClient ibkr = sp.GetRequiredService<IIbkrClient>();
+        IDbConnectionFactory db = sp.GetRequiredService<IDbConnectionFactory>();
+        ILogger<HealthState> healthLogger = sp.GetRequiredService<ILogger<HealthState>>();
+        return new HealthState("options-execution", ibkr, db, healthLogger);
+    });
+
     // Configure shutdown timeout (allow 30s for graceful shutdown)
     builder.Services.Configure<HostOptions>(options =>
     {
@@ -173,6 +186,14 @@ try
     });
 
     IHost host = builder.Build();
+
+    // Start the /health HTTP endpoint on port 5089 (convention) as a side-car.
+    int healthPort = builder.Configuration.GetValue<int>("Observability:Health:Port", 5089);
+    IHealthState healthState = host.Services.GetRequiredService<IHealthState>();
+    IHostApplicationLifetime lifetime = host.Services.GetRequiredService<IHostApplicationLifetime>();
+    ILoggerFactory healthLoggerFactory = host.Services.GetRequiredService<ILoggerFactory>();
+    Microsoft.Extensions.Logging.ILogger healthStartupLogger = healthLoggerFactory.CreateLogger("HealthEndpointHost");
+    HealthEndpointHost.StartAlongside(lifetime, healthState, healthPort, healthStartupLogger);
 
     // Run database migrations before starting workers
     await RunMigrationsAsync(host.Services);

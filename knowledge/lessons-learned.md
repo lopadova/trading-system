@@ -2943,3 +2943,171 @@ Date formatting: use a static `['Jan','Feb',...]` array rather than `toLocaleStr
 **Impatto**: Algorithm runs in O(N) with no allocations beyond the episode array; handles 10Y of daily data (~2520 rows) in sub-millisecond.
 
 **Reference**: `computeWorst()` in `infra/cloudflare/worker/src/routes/drawdowns.ts`.
+
+## LESSON-188 — Worker ingest pattern for high-volume write-only telemetry: batch + UPSERT + fire-and-forget metric
+
+**Context**: Phase 7.3 observability — centralized log ingest (`/api/v1/logs`)
+receives potentially thousands of entries per minute from .NET Serilog sinks,
+the Worker itself, and the Dashboard. We needed a shape that scaled under
+load, was idempotent on retry, and did not let observability signals (like
+Analytics Engine metrics) block the response path.
+
+**Discovery**: Three-pronged pattern:
+
+1. **Batch envelope**: `{ batch: LogEntry[] }` with Zod `.min(1).max(500)`.
+   Clients can send up to 500 entries per POST, amortizing auth + TLS +
+   JSON-parse cost over many rows. Hard cap at 500 prevents runaway payloads
+   from exhausting Worker CPU budget.
+2. **Natural-key UPSERT**: `PRIMARY KEY (service, ts, sequence)` where
+   `sequence` is the entry's index inside the batch. The SAME batch posted
+   twice (retry after a transient 5xx) lands on the same PKs and
+   `INSERT OR REPLACE` dedupes — zero duplicate rows even under aggressive
+   client retry. No need for an external idempotency key or a Redis-like
+   dedup store.
+3. **Fire-and-forget metric**: `recordMetric(c.env, 'logs.batch', {...})`
+   emits to Analytics Engine. Wrapped in try/catch; a failing metric write
+   logs once and NEVER rethrows. The Env type declares `METRICS?` as
+   optional so local `wrangler dev` without the binding still runs — which
+   is critical for keeping the test surface simple.
+
+**Impact**: Same pattern now applies to any future write-only telemetry
+endpoint (audit logs, command records, etc.). Key design invariant: if your
+ingest handler has no SELECT-before-INSERT, and the PK is something the
+client naturally computes (timestamp + sequence + scope), you get
+idempotency for free with zero extra infrastructure.
+
+**Reference**:
+- `infra/cloudflare/worker/src/routes/logs.ts`
+- `infra/cloudflare/worker/src/lib/metrics.ts`
+- `infra/cloudflare/worker/migrations/0008_service_logs.sql`
+
+## LESSON-189 — Sentry replaysSessionSampleRate=0 for MVP: bandwidth cost vs debugging value
+
+**Context**: Phase 7.3 dashboard observability. We added `@sentry/react`
+for automatic error + breadcrumb capture, plus browser tracing at 10%.
+Sentry offers session replays — literal DOM-mutation recordings playable
+in the Sentry UI — with two knobs: `replaysSessionSampleRate` (record every
+Nth session regardless of errors) and `replaysOnErrorSampleRate` (record
+only when an error fires, 30s backfill).
+
+**Discovery**: We set session replay to **0** and on-error replay to **0.5**.
+Rationale:
+
+- Session replay records 50-100 KB/min per active user. For a solo-dev
+  dashboard with one operator, this is pure overhead — there's no usage
+  pattern we'd discover from a random session that we couldn't see by
+  sitting at the dashboard ourselves.
+- On-error replay is different: when something breaks, having a 30-second
+  DOM rewind with clicks + network activity is gold. 50% sample is enough
+  to catch most issues without swamping the Sentry quota (free tier: 50
+  replays/month on the individual plan).
+- The trade-off flips if we later open the dashboard to multiple users:
+  session replay becomes a usability-research tool. Revisit after the
+  14-day paper-trading window in Phase 7.7.
+
+**Impact**: ~90% reduction in Sentry replay bandwidth vs the "just enable
+it" default many teams hit when first wiring Sentry. Cost: we lose
+visibility into "happy path" sessions, which we didn't need anyway for a
+two-person operation.
+
+**Reference**: `dashboard/src/main.tsx` (Sentry.init block).
+
+## LESSON-190 — Serilog HTTP sink: size+time batch + Warning-only shipping for low-bandwidth log forwarding
+
+**Context**: Phase 7.3 .NET side. We needed to forward logs from both Windows
+services (TradingSupervisorService, OptionsExecutionService) to the Cloudflare
+Worker for centralized search. Naive approaches — one HTTP POST per log line
+or "ship everything" — would either hammer the Worker with hundreds of tiny
+requests per minute or flood D1 with Information/Debug noise from every
+heartbeat cycle.
+
+**Discovery**: Two design knobs multiplied the value of the sink:
+
+1. **Batching by size OR time**: Serilog.Sinks.Http flushes on either 100
+   events OR 5 seconds, whichever first. This caps both worst-case latency
+   (5 s) and worst-case request rate (~1 req/min during quiet periods, bursting
+   to 12 req/min if logs saturate). In-memory queue of 5 MB absorbs transient
+   Worker outages without blocking the host service — the sink silently drops
+   oldest on overflow.
+2. **MinimumLevel = Warning for the HTTP sink specifically**: the local file
+   sink stays at Information+ (full detail retained on the box), but the wire
+   only carries events that actually warrant operator attention. This cut
+   projected D1 ingest cost by ~95% in our dry-run (Information-level logs
+   are ~20× more frequent than Warnings in a healthy system).
+
+The batch formatter reshapes Serilog's default JSON into the Worker's wanted
+shape (`{ batch: [{ts, level, service, message, properties, source_context,
+exception}] }`) — without this custom formatter, the default ArrayBatchFormatter
+emits raw Serilog shape which requires schema translation on the Worker side.
+
+**Impact**: 
+- Log shipping survives Worker downtime (5-minute buffer), never blocks the
+  host service (10 s HTTP timeout with drop-on-overflow).
+- Worker D1 log table ingest rate is predictable and affordable.
+- The file sink remains the source of truth for deep debugging — the HTTP
+  sink is for operational awareness, not archival.
+
+**Reference**: `src/SharedKernel/Observability/ObservabilityConfig.cs`
+(wiring), `LogShippingBatchFormatter.cs` (payload reshape),
+`ApiKeyAuthHttpClient.cs` (X-Api-Key header injection).
+
+## LESSON-191 — Alerter severity routing: Info→local-log, Warning→digest, Error/Critical→immediate, Email=Critical-only
+
+**Context**: Phase 7.3 .NET side. The Trading System already had a single
+`TelegramAlerter` that queued all alerts into a FIFO regardless of importance.
+That design had two failure modes: high-severity events waited behind a queue
+of Info/debug noise, and operators (rightly) stopped checking Telegram after
+a day of "margin at 62%" chatter.
+
+**Discovery**: A four-tier routing matrix with a second, strictly-Critical
+channel produces the right signal-to-noise shape:
+
+| Severity  | Telegram                                | Email (Critical-only)     |
+|-----------|-----------------------------------------|---------------------------|
+| Info      | Logged locally; NOT shipped             | Not shipped               |
+| Warning   | Buffered, flushed every 15 min as digest| Not shipped               |
+| Error     | Immediate send                          | Not shipped               |
+| Critical  | Immediate send                          | Immediate send (SMTP)     |
+
+Rationale for Email as Critical-only:
+- Email is slow (seconds to deliver), unreliable (spam filters), and easy to
+  ignore. Reserving it for "page Lorenzo at 3am" events means seeing an email
+  from the trading system ALWAYS means "read now".
+- Telegram covers Error/Warning well with real-time push; email is the
+  belt-and-suspenders channel when Telegram is itself down (e.g. token
+  revoked, bot rate-limited, Telegram API outage).
+
+Rationale for Info→local-log:
+- Info-level events fire dozens/hour (heartbeat cycles, routine state
+  transitions). Shipping them to an operator channel actively damages
+  operator attention. The local Serilog file sink still captures them for
+  post-incident review.
+
+Rationale for Warning→15-min digest:
+- Warnings fire multiple-per-hour during "noisy but fine" periods (one
+  margin blip every few minutes). Digesting into a "here are all the 47
+  Warning events from the last 15 min" message gives the operator pattern
+  recognition (margin creeping up vs flat) without constant interruption.
+- Buffer is capped at 100 entries — if exceeded, flush immediately. Prevents
+  unbounded memory if an upstream system jams the Warning channel.
+
+The composite pattern (multiple `IAlerter` implementations in `IEnumerable<IAlerter>`,
+each fanned out via `Task.WhenAll` with per-alerter error isolation) lets
+us add new channels (Slack, PagerDuty, SMS) without touching the caller.
+
+**Impact**:
+- Zero interruption for routine Info (previously: one Telegram message per
+  heartbeat = ~1440/day).
+- Operator gets a digestible 15-min summary for Warnings instead of a scroll
+  wall.
+- Critical events reach Lorenzo via TWO channels (Telegram + Email) — robust
+  against Telegram-side outages.
+- EmailAlerter at Critical-only means "email from trading-system" is
+  instantly meaningful, not a folder filtered to /dev/null.
+
+**Reference**: `src/SharedKernel/Observability/IAlerter.cs` (contract),
+`src/TradingSupervisorService/Services/TelegramAlerter.cs` (routing +
+digest timer), `src/SharedKernel/Services/EmailAlerter.cs` (Critical-only
+SMTP), `src/TradingSupervisorService/Workers/SafetyAlertsWorker.cs`
+(fan-out consumer with per-alerter error isolation).
+

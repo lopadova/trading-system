@@ -42,7 +42,8 @@ class FakeD1 {
     position_greeks: new FakeTable(),
     service_heartbeats: new FakeTable(),
     alert_history: new FakeTable(),
-    positions_history: new FakeTable()
+    positions_history: new FakeTable(),
+    web_vitals: new FakeTable()
   }
   log: StmtLog[] = []
 
@@ -122,6 +123,14 @@ class FakeD1 {
         'position_greeks',
         ['position_id', 'snapshot_ts', 'delta', 'gamma', 'theta', 'vega', 'iv', 'underlying_price'],
         ['position_id', 'snapshot_ts']
+      )
+      return
+    }
+    if (normalized.includes('INSERT OR REPLACE INTO web_vitals')) {
+      upsert(
+        'web_vitals',
+        ['session_id', 'name', 'value', 'rating', 'navigation_type', 'metric_id', 'timestamp'],
+        ['session_id', 'name', 'timestamp']
       )
       return
     }
@@ -422,5 +431,55 @@ describe('POST /api/v1/ingest — position_greeks', () => {
     await post(envelope('position_greeks', validPayload, 'evt-g-1'))
     await post(envelope('position_greeks', validPayload, 'evt-g-1'))
     expect(db.tables.position_greeks.rows.size).toBe(1)
+  })
+})
+
+// ============================================================================
+// web_vitals (Phase 7.3 dashboard telemetry)
+// ============================================================================
+
+describe('POST /api/v1/ingest — web_vitals', () => {
+  const validPayload = {
+    session_id: 'sess-abc-123',
+    name: 'LCP',
+    value: 2350.5,
+    rating: 'good',
+    navigationType: 'navigate',
+    id: 'v3-lcp-1',
+    timestamp: '2026-04-21T12:00:00.000Z'
+  }
+
+  it('accepts valid payload → 200 + row inserted', async () => {
+    const res = await post(envelope('web_vitals', validPayload))
+    expect(res.status).toBe(200)
+    expect(db.tables.web_vitals.rows.size).toBe(1)
+    const row = db.tables.web_vitals.rows.get('sess-abc-123|LCP|2026-04-21T12:00:00.000Z')!
+    expect(row.value).toBe(2350.5)
+    expect(row.rating).toBe('good')
+    expect(row.metric_id).toBe('v3-lcp-1')
+  })
+
+  it('accepts minimal payload (only session_id/name/value) and auto-fills timestamp', async () => {
+    const res = await post(envelope('web_vitals', {
+      session_id: 'sess-x',
+      name: 'CLS',
+      value: 0.05
+    }))
+    expect(res.status).toBe(200)
+    expect(db.tables.web_vitals.rows.size).toBe(1)
+  })
+
+  it('rejects invalid metric name with 400', async () => {
+    const res = await post(envelope('web_vitals', {
+      ...validPayload,
+      name: 'NOT_A_METRIC'
+    }))
+    expect(res.status).toBe(400)
+  })
+
+  it('is idempotent on (session_id, name, timestamp)', async () => {
+    await post(envelope('web_vitals', validPayload))
+    await post(envelope('web_vitals', validPayload))
+    expect(db.tables.web_vitals.rows.size).toBe(1)
   })
 })

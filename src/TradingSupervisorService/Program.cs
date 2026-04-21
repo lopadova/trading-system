@@ -3,6 +3,8 @@ using SharedKernel.Configuration;
 using SharedKernel.Data;
 using SharedKernel.Domain;
 using SharedKernel.Ibkr;
+using SharedKernel.Observability;
+using SharedKernel.Services;
 using TradingSupervisorService.Bot;
 using TradingSupervisorService.Collectors;
 using TradingSupervisorService.Configuration;
@@ -73,16 +75,26 @@ try
         {
             options.ServiceName = "TradingSupervisorService";
         })
-        .UseSerilog((context, services, loggerConfig) => loggerConfig
-            .ReadFrom.Services(services)
-            .Enrich.FromLogContext()
-            .Enrich.WithProperty("Service", "TradingSupervisorService")
-            .MinimumLevel.Information()
-            .WriteTo.Console(outputTemplate:
-                "[{Timestamp:HH:mm:ss} {Level:u3}] [{Service}] {Message:lj}{NewLine}{Exception}")
-            .WriteTo.File("logs/supervisor-.log",
-                rollingInterval: RollingInterval.Day,
-                retainedFileCountLimit: 30))
+        .UseSerilog((context, services, loggerConfig) =>
+        {
+            // Resolve log-shipping options once at host build — the sink reads these
+            // values at construction time, so we want the definitive IConfiguration here.
+            HttpSinkOptions sinkOpts = ObservabilityConfig.ReadOptions(context.Configuration, "supervisor");
+
+            loggerConfig
+                .ReadFrom.Services(services)
+                .Enrich.FromLogContext()
+                .Enrich.WithProperty("Service", "TradingSupervisorService")
+                .MinimumLevel.Information()
+                .WriteTo.Console(outputTemplate:
+                    "[{Timestamp:HH:mm:ss} {Level:u3}] [{Service}] {Message:lj}{NewLine}{Exception}")
+                .WriteTo.File("logs/supervisor-.log",
+                    rollingInterval: RollingInterval.Day,
+                    retainedFileCountLimit: 30)
+                // HTTP sink: Warning+ only, batched (100 events or 5s), streams to Worker /api/v1/logs.
+                // Local file sink above keeps the full Information+ history.
+                .AddLogShipping(sinkOpts);
+        })
         .ConfigureServices((context, services) =>
         {
             IConfiguration config = context.Configuration;
@@ -170,8 +182,29 @@ try
             // Register port scanner for IBKR diagnostics
             services.AddSingleton<IbkrPortScanner>();
 
-            // Telegram alerting service
-            services.AddSingleton<ITelegramAlerter, TelegramAlerter>();
+            // Telegram alerting service — also implements IAlerter for severity routing.
+            services.AddSingleton<TelegramAlerter>();
+            services.AddSingleton<ITelegramAlerter>(sp => sp.GetRequiredService<TelegramAlerter>());
+            services.AddSingleton<IAlerter>(sp => sp.GetRequiredService<TelegramAlerter>());
+
+            // Email alerter — last-resort channel. Only fires on Critical.
+            // Binds SMTP config via IConfiguration at construction.
+            services.AddSingleton<ISmtpClient>(sp =>
+            {
+                EmailAlerterConfig cfg = new()
+                {
+                    Enabled = config.GetValue<bool>("Smtp:Enabled", false),
+                    Host = config.GetValue<string>("Smtp:Host") ?? string.Empty,
+                    Port = config.GetValue<int>("Smtp:Port", 587),
+                    Username = config.GetValue<string>("Smtp:Username") ?? string.Empty,
+                    Password = config.GetValue<string>("Smtp:Password") ?? string.Empty,
+                    From = config.GetValue<string>("Smtp:From") ?? string.Empty,
+                    To = config.GetValue<string>("Smtp:To") ?? string.Empty,
+                    EnableSsl = config.GetValue<bool>("Smtp:EnableSsl", true)
+                };
+                return new SystemSmtpClient(cfg);
+            });
+            services.AddSingleton<IAlerter, EmailAlerter>();
 
             // Bot configuration
             services.Configure<BotOptions>(config.GetSection("Bots"));
@@ -188,11 +221,30 @@ try
             services.AddHostedService<GreeksMonitorWorker>();
             services.AddHostedService<MarketDataCollector>();
             services.AddHostedService<BenchmarkCollector>();
+            services.AddHostedService<SafetyAlertsWorker>();
 
             // Bot webhook registrar (runs at startup)
             services.AddHostedService<BotWebhookRegistrar>();
+
+            // Observability — health-state tracker; exposed via /health HTTP endpoint below.
+            services.AddSingleton<IHealthState>(sp =>
+            {
+                IIbkrClient ibkr = sp.GetRequiredService<IIbkrClient>();
+                IDbConnectionFactory db = sp.GetRequiredService<IDbConnectionFactory>();
+                ILogger<HealthState> healthLogger = sp.GetRequiredService<ILogger<HealthState>>();
+                return new HealthState("supervisor", ibkr, db, healthLogger);
+            });
         })
         .Build();
+
+    // Start the /health HTTP endpoint as a side-car minimal API on port 5088.
+    // This runs alongside the main host and shuts down with it via IHostApplicationLifetime.
+    int healthPort = configForValidation.GetValue<int>("Observability:Health:Port", 5088);
+    IHealthState healthState = host.Services.GetRequiredService<IHealthState>();
+    IHostApplicationLifetime lifetime = host.Services.GetRequiredService<IHostApplicationLifetime>();
+    ILoggerFactory healthLoggerFactory = host.Services.GetRequiredService<ILoggerFactory>();
+    Microsoft.Extensions.Logging.ILogger healthStartupLogger = healthLoggerFactory.CreateLogger("HealthEndpointHost");
+    HealthEndpointHost.StartAlongside(lifetime, healthState, healthPort, healthStartupLogger);
 
     // Run database migrations before starting services
     Log.Information("Running database migrations...");

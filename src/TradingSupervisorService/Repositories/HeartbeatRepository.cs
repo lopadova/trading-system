@@ -18,6 +18,20 @@ public sealed record ServiceHeartbeat
     public double CpuPercent { get; init; }
     public double RamPercent { get; init; }
     public double DiskFreeGb { get; init; }
+
+    /// <summary>
+    /// Total disk capacity in GB on the data drive. Nullable — missing on hosts where
+    /// DriveInfo cannot resolve total size. Added in migration 004 (Phase 7.3).
+    /// </summary>
+    public double? DiskTotalGb { get; init; }
+
+    /// <summary>
+    /// Averaged network throughput (kbit/s) since the previous heartbeat. Nullable —
+    /// null on the first heartbeat after startup (no baseline) or when counters fail.
+    /// Added in migration 004 (Phase 7.3).
+    /// </summary>
+    public double? NetworkKbps { get; init; }
+
     public string TradingMode { get; init; } = "paper";  // Default to safe mode
     public string Version { get; init; } = string.Empty;
     public string CreatedAt { get; init; } = string.Empty;  // ISO8601
@@ -85,12 +99,12 @@ public sealed class HeartbeatRepository : IHeartbeatRepository
         const string sql = """
             INSERT INTO service_heartbeats
                 (service_name, hostname, last_seen_at, uptime_seconds,
-                 cpu_percent, ram_percent, disk_free_gb, trading_mode, version,
-                 created_at, updated_at)
+                 cpu_percent, ram_percent, disk_free_gb, disk_total_gb, network_kbps,
+                 trading_mode, version, created_at, updated_at)
             VALUES
                 (@ServiceName, @Hostname, @LastSeenAt, @UptimeSeconds,
-                 @CpuPercent, @RamPercent, @DiskFreeGb, @TradingMode, @Version,
-                 @CreatedAt, datetime('now'))
+                 @CpuPercent, @RamPercent, @DiskFreeGb, @DiskTotalGb, @NetworkKbps,
+                 @TradingMode, @Version, @CreatedAt, datetime('now'))
             ON CONFLICT(service_name) DO UPDATE SET
                 hostname = excluded.hostname,
                 last_seen_at = excluded.last_seen_at,
@@ -98,6 +112,8 @@ public sealed class HeartbeatRepository : IHeartbeatRepository
                 cpu_percent = excluded.cpu_percent,
                 ram_percent = excluded.ram_percent,
                 disk_free_gb = excluded.disk_free_gb,
+                disk_total_gb = excluded.disk_total_gb,
+                network_kbps = excluded.network_kbps,
                 trading_mode = excluded.trading_mode,
                 version = excluded.version,
                 updated_at = datetime('now')
@@ -121,6 +137,8 @@ public sealed class HeartbeatRepository : IHeartbeatRepository
                 heartbeat.CpuPercent,
                 heartbeat.RamPercent,
                 heartbeat.DiskFreeGb,
+                heartbeat.DiskTotalGb,
+                heartbeat.NetworkKbps,
                 heartbeat.TradingMode,
                 heartbeat.Version,
                 CreatedAt = heartbeat.CreatedAt
@@ -157,6 +175,8 @@ public sealed class HeartbeatRepository : IHeartbeatRepository
                 cpu_percent AS CpuPercent,
                 ram_percent AS RamPercent,
                 disk_free_gb AS DiskFreeGb,
+                disk_total_gb AS DiskTotalGb,
+                network_kbps AS NetworkKbps,
                 trading_mode AS TradingMode,
                 version AS Version,
                 created_at AS CreatedAt,
@@ -202,6 +222,8 @@ public sealed class HeartbeatRepository : IHeartbeatRepository
                 cpu_percent AS CpuPercent,
                 ram_percent AS RamPercent,
                 disk_free_gb AS DiskFreeGb,
+                disk_total_gb AS DiskTotalGb,
+                network_kbps AS NetworkKbps,
                 trading_mode AS TradingMode,
                 version AS Version,
                 created_at AS CreatedAt,

@@ -6,12 +6,24 @@
     <Nullable>enable</Nullable>
     <LangVersion>13.0</LangVersion>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- NU1510 silenced: FrameworkReference 'Microsoft.AspNetCore.App' includes the Hosting +
+         Configuration packages transitively. We keep explicit PackageReferences for version control. -->
+    <NoWarn>NU1510</NoWarn>
   </PropertyGroup>
+
+  <!-- SharedKernel hosts HealthEndpointHost (minimal-API /health server) — needs AspNetCore.App. -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Dapper" Version="2.1.28" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.0" />
+    <PackageReference Include="Serilog" Version="4.3.0" />
+    <PackageReference Include="Serilog.Sinks.Http" Version="9.0.0" />
   </ItemGroup>
 
 </Project>
