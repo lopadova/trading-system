@@ -20,8 +20,8 @@ namespace OptionsExecutionService.Orders;
 ///   <item><description>Gate #1 — <see cref="SemaphoreGate"/>: fail-closed composite market indicator. Overridable via <c>Safety:OverrideSemaphore</c> (loudly).</description></item>
 ///   <item><description>Gate #2 — <see cref="ISafetyFlagStore"/> <c>trading_paused</c>: set by DailyPnLWatcher when daily drawdown exceeds the budget.</description></item>
 ///   <item><description>Gate #3 — Request validation (<see cref="OrderRequest.Validate"/>).</description></item>
-///   <item><description>Gate #4 — Per-order safety validators (size, value, account balance, risk-pct).</description></item>
-///   <item><description>Gate #5 — Circuit breaker (see <see cref="RecordFailureAsync"/>). Classified via <see cref="IbkrFailureType"/> so network noise doesn't trip the breaker.</description></item>
+///   <item><description>Gate #4 — Circuit breaker (see <see cref="RecordFailureAsync"/>). Classified via <see cref="IbkrFailureType"/> so network noise doesn't trip the breaker.</description></item>
+///   <item><description>Gate #5 — Per-order safety validators (size, value, account balance, risk-pct).</description></item>
 /// </list>
 /// Every gate outcome writes exactly one <see cref="OrderAuditEntry"/> so the
 /// dashboard's order-audit view is the single source of truth for "was an
@@ -86,40 +86,54 @@ public sealed class OrderPlacer : IOrderPlacer
             throw new ArgumentNullException(nameof(request));
         }
 
-        // Snapshot semaphore state once per call. All audit rows for this attempt
-        // record the SAME semaphore value — otherwise the audit trail would be
-        // inconsistent if the state flipped mid-pipeline.
+        // Snapshot semaphore state ONCE per call — both the gate decision AND
+        // the audit entry use the same value. Previously we called
+        // GetCurrentStatusAsync() and then IsRed() separately; IsRed() can
+        // re-fetch (or time out fail-closed) and produce a decision that
+        // disagrees with the audit's recorded snapshot — worst-case a Green
+        // snapshot + Red rejection.
         SemaphoreStatus semaphoreSnapshot = await _semaphoreGate.GetCurrentStatusAsync(ct).ConfigureAwait(false);
 
         // ===== GATE #1 — Semaphore =====
-        // Fail-closed synchronous check. Timeout + exception = true (blocked).
-        bool isRed = _semaphoreGate.IsRed();
-        if (isRed && !_safetyOptions.OverrideSemaphore)
+        // ORANGE is the documented fail-cautious state for Worker/network
+        // failures (see SemaphoreGate + SemaphoreStatus docstrings): it must
+        // block NEW entries the same way RED does. Otherwise a Worker outage
+        // (which maps to ORANGE) would silently allow trades — defeating the
+        // entire fail-cautious posture.
+        bool isBlockedBySemaphore =
+            semaphoreSnapshot == SemaphoreStatus.Red ||
+            semaphoreSnapshot == SemaphoreStatus.Orange;
+
+        if (isBlockedBySemaphore && !_safetyOptions.OverrideSemaphore)
         {
             _logger.LogWarning(
-                "SemaphoreGate blocked order: {Symbol} {Side} {Qty} (strategy={Strategy})",
-                request.ContractSymbol, request.Side, request.Quantity, request.StrategyName);
+                "SemaphoreGate blocked order: {Symbol} {Side} {Qty} (strategy={Strategy}, status={SemaphoreStatus})",
+                request.ContractSymbol, request.Side, request.Quantity, request.StrategyName, semaphoreSnapshot);
 
             await _alerter.SendImmediateAsync(
                 AlertSeverity.Critical,
                 "Order blocked by SemaphoreGate",
-                $"{request.ContractSymbol} {request.Side} {request.Quantity} — semaphore RED. Strategy: {request.StrategyName}",
+                $"{request.ContractSymbol} {request.Side} {request.Quantity} — semaphore {semaphoreSnapshot}. Strategy: {request.StrategyName}",
                 ct).ConfigureAwait(false);
 
             await _auditSink.WriteAsync(
-                OrderAuditEntry.Rejected(request, SemaphoreStatus.Red, AuditOutcome.RejectedSemaphore, "semaphore-red"),
+                OrderAuditEntry.Rejected(
+                    request,
+                    semaphoreSnapshot,
+                    AuditOutcome.RejectedSemaphore,
+                    $"semaphore-{semaphoreSnapshot.ToString().ToLowerInvariant()}"),
                 ct).ConfigureAwait(false);
 
-            return OrderResult.Fail(OrderStatus.ValidationFailed, "Order blocked by SemaphoreGate (RED)");
+            return OrderResult.Fail(OrderStatus.ValidationFailed, $"Order blocked by SemaphoreGate ({semaphoreSnapshot})");
         }
 
         // Surface override visibility in the per-order log — prevents "why did it
-        // trade on red?" confusion when the override is intentional.
-        if (isRed && _safetyOptions.OverrideSemaphore)
+        // trade on a blocked semaphore?" confusion when the override is intentional.
+        if (isBlockedBySemaphore && _safetyOptions.OverrideSemaphore)
         {
             _logger.LogCritical(
-                "SemaphoreGate is RED but Safety:OverrideSemaphore=true — order ALLOWED: {Symbol} {Side} {Qty}",
-                request.ContractSymbol, request.Side, request.Quantity);
+                "SemaphoreGate is {SemaphoreStatus} but Safety:OverrideSemaphore=true — order ALLOWED: {Symbol} {Side} {Qty}",
+                semaphoreSnapshot, request.ContractSymbol, request.Side, request.Quantity);
         }
 
         // ===== GATE #2 — DailyPnLWatcher pause flag =====

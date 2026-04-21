@@ -195,6 +195,13 @@ public sealed record OrderAuditEntry
         {
             throw new ArgumentException("orderId required", nameof(orderId));
         }
+        // NOTE on Price: the field is documented + filtered by consumers as a FILL
+        // price. An order that has only been placed has no fill yet, so we leave
+        // Price null here. The submission/limit price lives in DetailsJson under
+        // "limitPrice" for diagnostics without polluting the fill-price semantics.
+        string? detailsJson = request.LimitPrice.HasValue
+            ? $"{{\"limitPrice\":{request.LimitPrice.Value.ToString("G", System.Globalization.CultureInfo.InvariantCulture)}}}"
+            : null;
         return new OrderAuditEntry
         {
             AuditId = Guid.NewGuid().ToString(),
@@ -205,11 +212,11 @@ public sealed record OrderAuditEntry
             ContractSymbol = request.ContractSymbol,
             Side = request.Side.ToString().ToUpperInvariant(),
             Quantity = request.Quantity,
-            Price = request.LimitPrice,
+            Price = null,
             SemaphoreStatus = semaphore.ToWire(),
             Outcome = AuditOutcome.Placed.ToWire(),
             OverrideReason = null,
-            DetailsJson = null
+            DetailsJson = detailsJson
         };
     }
 

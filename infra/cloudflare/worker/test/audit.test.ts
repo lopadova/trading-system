@@ -74,13 +74,16 @@ class FakeD1 {
       async run() { return { success: true, meta: { duration: 0 } } },
       async all() {
         // Parse the SELECT issued by audit.ts. The shape is stable:
-        //   ... WHERE [ts >= ?] [AND outcome = ?] ORDER BY ts DESC, audit_id DESC LIMIT ?
+        //   ... WHERE [strftime('%Y-%m-%dT%H:%M:%fZ', ts) >= strftime('%Y-%m-%dT%H:%M:%fZ', ?)]
+        //         [AND outcome = ?] ORDER BY ts DESC, audit_id DESC LIMIT ?
+        // The strftime wrapper normalizes .NET "O" format and JS toISOString() to the
+        // same canonical millisecond-precision UTC form before comparison.
         const normalized = sql.replace(/\s+/g, ' ').trim()
         if (!normalized.includes('FROM order_audit_log')) return { results: [], success: true }
 
         const params = [...this._params]
         // Peek the WHERE substring to know which filters were attached.
-        const hasFrom = normalized.includes('ts >=')
+        const hasFrom = normalized.includes("strftime('%Y-%m-%dT%H:%M:%fZ', ts)")
         const hasOutcome = normalized.includes('outcome =')
 
         let fromBind: string | undefined

@@ -42,6 +42,24 @@ public sealed class SemaphoreGate
     /// <summary>Per-request HTTP timeout for the async fetch path. Short — we'd rather fall back than block.</summary>
     public static readonly TimeSpan HttpTimeout = TimeSpan.FromSeconds(2);
 
+    /// <summary>
+    /// Number of fetch attempts per <see cref="GetCurrentStatusAsync"/> call. One retry
+    /// after the initial attempt (total 2) is a good trade: absorbs a single blip
+    /// without delaying the hot path enough to trip <see cref="IsRedTimeout"/>.
+    /// Auth errors (401/403) and explicit caller cancellations are NOT retried —
+    /// retrying those would be either useless (auth doesn't self-heal) or wrong
+    /// (caller already gave up).
+    /// </summary>
+    internal const int MaxFetchAttempts = 2;
+
+    /// <summary>
+    /// Base backoff between retry attempts. Combined with per-call jitter this
+    /// stays well under <see cref="IsRedTimeout"/> (3s) even at MaxFetchAttempts−1
+    /// retries — total worst case ≈ HttpTimeout + backoff + HttpTimeout ≈ 2s + 0.25s + 2s,
+    /// which is why <see cref="IsRed"/> wraps the whole thing in a hard timeout.
+    /// </summary>
+    internal static readonly TimeSpan RetryBackoff = TimeSpan.FromMilliseconds(150);
+
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly CloudflareOptions _cloudflare;
     private readonly ILogger<SemaphoreGate> _logger;
@@ -132,12 +150,20 @@ public sealed class SemaphoreGate
     }
 
     /// <summary>
-    /// Performs the actual HTTP call. Error classification:
+    /// Outer fetch driver. Classifies errors and, for transient ones only
+    /// (network failure / HTTP timeout / 5xx), retries up to
+    /// <see cref="MaxFetchAttempts"/> with a small jittered backoff before
+    /// giving up to the defensive fallback. Terminal outcomes (URL blank,
+    /// auth failure, parseable payload, unparseable payload, caller-cancelled)
+    /// short-circuit the loop — retrying those is either useless or unsafe.
+    /// <para>
+    /// Error classification:
+    /// </para>
     /// <list type="bullet">
-    ///   <item><description>401/403 → <see cref="SemaphoreStatus.Red"/> + Critical alert (auth broken).</description></item>
-    ///   <item><description>Timeout / network / 5xx → <see cref="SemaphoreStatus.Orange"/> (fail-cautious).</description></item>
-    ///   <item><description>200 with known payload → parsed status.</description></item>
-    ///   <item><description>200 with unexpected payload → <see cref="SemaphoreStatus.Orange"/> (fail-cautious).</description></item>
+    ///   <item><description>401/403 → <see cref="SemaphoreStatus.Red"/> + Critical alert (auth broken; NO retry).</description></item>
+    ///   <item><description>Timeout / network / 5xx → retry up to <see cref="MaxFetchAttempts"/>, then <see cref="SemaphoreStatus.Orange"/>.</description></item>
+    ///   <item><description>200 with known payload → parsed status (NO retry — deterministic).</description></item>
+    ///   <item><description>200 with unexpected payload → <see cref="SemaphoreStatus.Orange"/> (NO retry — bad payload won't change on retry).</description></item>
     /// </list>
     /// </summary>
     private async Task<SemaphoreStatus> FetchFromWorkerAsync(CancellationToken ct)
@@ -152,6 +178,46 @@ public sealed class SemaphoreGate
 
         string endpoint = $"{_cloudflare.WorkerUrl.TrimEnd('/')}/api/risk/semaphore";
 
+        FetchAttemptResult last = default;
+        for (int attempt = 1; attempt <= MaxFetchAttempts; attempt++)
+        {
+            last = await TryFetchOnceAsync(endpoint, attempt, ct).ConfigureAwait(false);
+            if (!last.IsRetryable)
+            {
+                return last.Status;
+            }
+
+            if (attempt < MaxFetchAttempts && !ct.IsCancellationRequested)
+            {
+                // Full-jitter backoff (AWS recipe): random in [0, base] to avoid
+                // retry storms when multiple gate checks converge after the same
+                // outage. Short enough that 2 attempts stay under IsRedTimeout.
+                TimeSpan jitter = TimeSpan.FromMilliseconds(Random.Shared.NextDouble() * RetryBackoff.TotalMilliseconds);
+                try
+                {
+                    await Task.Delay(jitter, ct).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    // Caller cancelled during backoff — return the fallback we already have.
+                    return last.Status;
+                }
+            }
+        }
+
+        _logger.LogWarning(
+            "SemaphoreGate: all {Attempts} fetch attempt(s) to {Endpoint} failed transiently — defaulting to {Status}",
+            MaxFetchAttempts, endpoint, last.Status);
+        return last.Status;
+    }
+
+    /// <summary>
+    /// Single fetch attempt. Returns a struct carrying the fallback status and
+    /// a retryable flag so the caller (and tests) can reason about loop behaviour.
+    /// Never throws — all exception paths are translated into a fallback status.
+    /// </summary>
+    private async Task<FetchAttemptResult> TryFetchOnceAsync(string endpoint, int attempt, CancellationToken ct)
+    {
         try
         {
             HttpClient http = _httpClientFactory.CreateClient(nameof(SemaphoreGate));
@@ -166,58 +232,83 @@ public sealed class SemaphoreGate
             using HttpResponseMessage response = await http.SendAsync(request, HttpCompletionOption.ResponseContentRead, ct)
                 .ConfigureAwait(false);
 
-            // Auth failures ⇒ fail-CLOSED. Security-critical.
+            // Auth failures ⇒ fail-CLOSED. Security-critical; no retry (a 403 doesn't self-heal).
             if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
             {
                 _logger.LogCritical(
-                    "SemaphoreGate: Worker rejected X-Api-Key ({StatusCode}) — fail-closing to RED",
-                    (int)response.StatusCode);
+                    "SemaphoreGate: Worker rejected X-Api-Key ({StatusCode}) — fail-closing to RED (attempt {Attempt})",
+                    (int)response.StatusCode, attempt);
                 await _alerter.SendImmediateAsync(
                     AlertSeverity.Critical,
                     "SemaphoreGate auth failure",
                     $"Worker returned {(int)response.StatusCode} for {endpoint}. All new orders will be blocked until resolved.",
                     ct).ConfigureAwait(false);
-                return SemaphoreStatus.Red;
+                return FetchAttemptResult.Terminal(SemaphoreStatus.Red);
             }
 
-            // Non-2xx ⇒ Orange (Worker is reachable but unhappy — likely transient).
+            // 5xx ⇒ transient, RETRY. Reachable but unhappy; a second try often clears it.
+            if ((int)response.StatusCode >= 500)
+            {
+                _logger.LogWarning(
+                    "SemaphoreGate: Worker returned {StatusCode} on attempt {Attempt}/{Max} — will retry",
+                    (int)response.StatusCode, attempt, MaxFetchAttempts);
+                return FetchAttemptResult.Retryable(SemaphoreStatus.Orange);
+            }
+
+            // Other non-2xx (4xx except auth) ⇒ terminal; retrying a 404/400 is a waste.
             if (!response.IsSuccessStatusCode)
             {
                 _logger.LogWarning(
-                    "SemaphoreGate: Worker returned {StatusCode} — defaulting to ORANGE",
-                    (int)response.StatusCode);
-                return SemaphoreStatus.Orange;
+                    "SemaphoreGate: Worker returned {StatusCode} — defaulting to ORANGE (attempt {Attempt}, no retry)",
+                    (int)response.StatusCode, attempt);
+                return FetchAttemptResult.Terminal(SemaphoreStatus.Orange);
             }
 
             // Parse the JSON payload. Payload shape: {"status": "green"|"orange"|"red", ...}.
             string body = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
             SemaphoreStatus parsed = ParseStatusFromPayload(body);
-            return parsed;
+            return FetchAttemptResult.Terminal(parsed);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
-            // Caller cancelled — don't alter cache semantics; surface as Orange to be safe.
-            _logger.LogDebug("SemaphoreGate: caller cancelled; returning ORANGE");
-            return SemaphoreStatus.Orange;
+            // Caller cancelled — NOT retryable (caller gave up).
+            _logger.LogDebug("SemaphoreGate: caller cancelled on attempt {Attempt}; returning ORANGE", attempt);
+            return FetchAttemptResult.Terminal(SemaphoreStatus.Orange);
         }
         catch (TaskCanceledException ex)
         {
-            // HttpClient timeout surfaces as TaskCanceledException without ct cancellation.
-            _logger.LogWarning(ex, "SemaphoreGate: HTTP timeout to {Endpoint} — defaulting to ORANGE", endpoint);
-            return SemaphoreStatus.Orange;
+            // HttpClient timeout surfaces as TaskCanceledException without ct cancellation — RETRY.
+            _logger.LogWarning(ex,
+                "SemaphoreGate: HTTP timeout to {Endpoint} on attempt {Attempt}/{Max} — will retry",
+                endpoint, attempt, MaxFetchAttempts);
+            return FetchAttemptResult.Retryable(SemaphoreStatus.Orange);
         }
         catch (HttpRequestException ex)
         {
-            _logger.LogWarning(ex, "SemaphoreGate: HTTP error to {Endpoint} — defaulting to ORANGE", endpoint);
-            return SemaphoreStatus.Orange;
+            // Transport-level error (DNS, socket, TLS) — RETRY.
+            _logger.LogWarning(ex,
+                "SemaphoreGate: HTTP error to {Endpoint} on attempt {Attempt}/{Max} — will retry",
+                endpoint, attempt, MaxFetchAttempts);
+            return FetchAttemptResult.Retryable(SemaphoreStatus.Orange);
         }
         catch (Exception ex)
         {
-            // Truly unexpected — log at error, default to Orange to avoid locking
-            // trading on an unknown exception class.
-            _logger.LogError(ex, "SemaphoreGate: unexpected error — defaulting to ORANGE");
-            return SemaphoreStatus.Orange;
+            // Truly unexpected — log at error, default to Orange. NOT retried — we don't
+            // know whether this class is safe to retry, so fail-cautious to a single fallback.
+            _logger.LogError(ex, "SemaphoreGate: unexpected error on attempt {Attempt} — defaulting to ORANGE", attempt);
+            return FetchAttemptResult.Terminal(SemaphoreStatus.Orange);
         }
+    }
+
+    /// <summary>
+    /// Classification of a single fetch attempt — the outer loop uses
+    /// <see cref="IsRetryable"/> to decide whether to spend another attempt
+    /// or honour the fallback <see cref="Status"/> immediately.
+    /// </summary>
+    private readonly record struct FetchAttemptResult(SemaphoreStatus Status, bool IsRetryable)
+    {
+        public static FetchAttemptResult Terminal(SemaphoreStatus status) => new(status, false);
+        public static FetchAttemptResult Retryable(SemaphoreStatus fallback) => new(fallback, true);
     }
 
     /// <summary>

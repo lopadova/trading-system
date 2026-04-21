@@ -147,7 +147,17 @@ audit.get('/orders', async (c) => {
     const whereParts: string[] = []
     const binds: unknown[] = []
     if (fromIso !== undefined) {
-      whereParts.push('ts >= ?')
+      // Normalize both sides through strftime. The .NET writer emits timestamps
+      // via DateTimeOffset.UtcNow.ToString("O") — 7-digit fractional seconds
+      // and a "+00:00" suffix — while parseFrom() (and any JS client) produces
+      // Date.toISOString() — 3-digit fractional, "Z" suffix. A naive raw-string
+      // `ts >= ?` comparison is lexicographic: '+' (0x2B) sorts before '.'-
+      // adjacent digits, so a row written at 15:30:45.1234567+00:00 compares
+      // as LESS than a query bound 15:30:45.123Z and is silently excluded.
+      // strftime('%Y-%m-%dT%H:%M:%fZ', …) canonicalizes both sides to the same
+      // millisecond-precision UTC form, so the comparison is correct regardless
+      // of whichever ISO variant the writer used.
+      whereParts.push("strftime('%Y-%m-%dT%H:%M:%fZ', ts) >= strftime('%Y-%m-%dT%H:%M:%fZ', ?)")
       binds.push(fromIso)
     }
     if (outcome !== undefined) {

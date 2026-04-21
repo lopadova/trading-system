@@ -30,11 +30,17 @@ public sealed record SafetyOptions
     public bool OverrideSemaphore { get; init; } = false;
 
     /// <summary>
-    /// Absolute percentage drawdown (today vs yesterday close) that triggers
-    /// an automatic trading-paused flag. Compared against |pnlPct|, so a +2.1%
-    /// intraday rally won't trigger it (only losses actually halt trading
-    /// in the <c>DailyPnLWatcher</c>, but we store the magnitude here so the
-    /// watcher can apply its own sign convention). Default: 2.0 (2%).
+    /// Daily drawdown threshold (today vs yesterday close, LOSS side only)
+    /// that triggers an automatic <c>trading_paused</c> flag.
+    /// <para>
+    /// Stored as a positive magnitude; <c>DailyPnLWatcher</c> applies the
+    /// sign convention: only <c>pnlPct &lt;= -MaxDailyDrawdownPct</c>
+    /// triggers the pause. A +2.1% intraday rally will NOT trigger it —
+    /// "drawdown" in this config is by definition a loss event.
+    /// </para>
+    /// <para>
+    /// Default: 2.0 (meaning "halt if today's loss vs yesterday ≥ 2%").
+    /// </para>
     /// </summary>
     public decimal MaxDailyDrawdownPct { get; init; } = 2.0m;
 

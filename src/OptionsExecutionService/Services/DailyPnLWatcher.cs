@@ -127,14 +127,17 @@ public sealed class DailyPnLWatcher : BackgroundService
             return;
         }
 
-        decimal pnlPctMagnitude = Math.Abs(today.PnlPct);
         _logger.LogInformation(
             "DailyPnLWatcher: account={Account}, yesterday={Yesterday}, pnlPct={Pct}%",
             today.AccountValue.ToString("F2", CultureInfo.InvariantCulture),
             today.YesterdayClose?.ToString("F2", CultureInfo.InvariantCulture),
             today.PnlPct.ToString("F3", CultureInfo.InvariantCulture));
 
-        if (pnlPctMagnitude < _safety.MaxDailyDrawdownPct)
+        // "Drawdown" is a loss event by definition — trigger only on the negative
+        // side so a +2.5% rally doesn't accidentally halt trading. Threshold
+        // value in config is a magnitude; we apply the sign convention here.
+        decimal drawdownMagnitude = today.PnlPct < 0 ? -today.PnlPct : 0m;
+        if (drawdownMagnitude < _safety.MaxDailyDrawdownPct)
         {
             return;
         }
@@ -145,7 +148,7 @@ public sealed class DailyPnLWatcher : BackgroundService
         {
             _logger.LogInformation(
                 "DailyPnLWatcher: drawdown {Pct}% above {Threshold}% but trading_paused already set — no-op",
-                pnlPctMagnitude.ToString("F3", CultureInfo.InvariantCulture),
+                drawdownMagnitude.ToString("F3", CultureInfo.InvariantCulture),
                 _safety.MaxDailyDrawdownPct.ToString("F3", CultureInfo.InvariantCulture));
             return;
         }
@@ -159,7 +162,7 @@ public sealed class DailyPnLWatcher : BackgroundService
             CultureInfo.InvariantCulture,
             "Daily drawdown {0:F2}% exceeds budget {1:F2}%. Trading paused. Operator must unpause manually " +
             "(DELETE FROM safety_flags WHERE key='trading_paused'). account={2:F2} yesterdayClose={3:F2}",
-            pnlPctMagnitude,
+            drawdownMagnitude,
             _safety.MaxDailyDrawdownPct,
             today.AccountValue,
             today.YesterdayClose ?? 0m);
