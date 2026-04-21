@@ -17,6 +17,7 @@ public static class SupervisorMigrations
         new SupervisorInitial001(),
         new Migration002_IvtsMonitoring(),
         new Migration003_MarketDataCache(),
+        new Migration004_HeartbeatDiskNetworkCols(),
         // Future migrations will be added here:
     };
 }

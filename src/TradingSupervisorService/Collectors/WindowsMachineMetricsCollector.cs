@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using System.Diagnostics;
+using System.Net.NetworkInformation;
 
 namespace TradingSupervisorService.Collectors;
 
@@ -17,6 +18,12 @@ public sealed class WindowsMachineMetricsCollector : IMachineMetricsCollector, I
     // Performance counters (reused across calls for efficiency)
     private readonly PerformanceCounter _cpuCounter;
     private readonly PerformanceCounter _ramCounter;
+
+    // Network throughput — track the previous sample so we can compute a delta.
+    // Null on the first call (no baseline yet).
+    private long? _prevNetworkBytes;
+    private DateTime _prevNetworkSampleUtc;
+    private readonly object _networkLock = new();
 
     // Flag to track disposal
     private bool _disposed;
@@ -73,8 +80,11 @@ public sealed class WindowsMachineMetricsCollector : IMachineMetricsCollector, I
                 ? ((totalRamMb - availableRamMb) / totalRamMb) * 100.0
                 : 0.0;
 
-            // Disk: Get free space on C: drive (where logs/data typically live)
-            double diskFreeGb = GetDiskFreeGb("C:\\");
+            // Disk: Get free and total space on C: drive (where logs/data typically live)
+            (double diskFreeGb, double? diskTotalGb) = GetDiskGb("C:\\");
+
+            // Network: cumulative bytes across all "up" interfaces; returns null on first call.
+            double? networkKbps = SampleNetworkKbps();
 
             // Uptime: Process uptime (service uptime, not machine uptime)
             long uptimeSeconds = (long)(DateTime.UtcNow - _processStartTime).TotalSeconds;
@@ -86,11 +96,14 @@ public sealed class WindowsMachineMetricsCollector : IMachineMetricsCollector, I
                 CpuPercent = Math.Round(cpuPercent, 2),
                 RamPercent = Math.Round(ramPercent, 2),
                 DiskFreeGb = Math.Round(diskFreeGb, 2),
+                DiskTotalGb = diskTotalGb.HasValue ? Math.Round(diskTotalGb.Value, 2) : null,
+                NetworkKbps = networkKbps.HasValue ? Math.Round(networkKbps.Value, 2) : null,
                 TimestampUtc = DateTime.UtcNow
             };
 
-            _logger.LogTrace("Collected metrics: CPU={Cpu}%, RAM={Ram}%, Disk={Disk}GB, Uptime={Uptime}s",
-                metrics.CpuPercent, metrics.RamPercent, metrics.DiskFreeGb, metrics.UptimeSeconds);
+            _logger.LogTrace(
+                "Collected metrics: CPU={Cpu}%, RAM={Ram}%, DiskFree={DiskFree}GB, DiskTotal={DiskTotal}GB, Net={NetKbps}kbps, Uptime={Uptime}s",
+                metrics.CpuPercent, metrics.RamPercent, metrics.DiskFreeGb, metrics.DiskTotalGb, metrics.NetworkKbps, metrics.UptimeSeconds);
 
             // No actual async work, but keep async signature for interface compatibility
             // and future flexibility (e.g., network-based metrics collection)
@@ -125,8 +138,16 @@ public sealed class WindowsMachineMetricsCollector : IMachineMetricsCollector, I
 
     /// <summary>
     /// Gets free disk space in GB for the specified drive.
+    /// Retained for backward compatibility — delegates to <see cref="GetDiskGb(string)"/>.
     /// </summary>
-    private double GetDiskFreeGb(string drivePath)
+    private double GetDiskFreeGb(string drivePath) => GetDiskGb(drivePath).free;
+
+    /// <summary>
+    /// Gets both free AND total disk capacity in GB for the specified drive.
+    /// Returns (0, null) on failure so callers always get a valid free-space number
+    /// while allowing total-space to be omitted from the heartbeat.
+    /// </summary>
+    private (double free, double? total) GetDiskGb(string drivePath)
     {
         try
         {
@@ -134,17 +155,95 @@ public sealed class WindowsMachineMetricsCollector : IMachineMetricsCollector, I
             if (!drive.IsReady)
             {
                 _logger.LogWarning("Drive {Drive} is not ready", drivePath);
-                return 0.0;
+                return (0.0, null);
             }
 
-            double freeBytes = drive.AvailableFreeSpace;
-            return freeBytes / (1024.0 * 1024.0 * 1024.0);  // Convert to GB
+            const double BytesToGb = 1024.0 * 1024.0 * 1024.0;
+            double freeGb = drive.AvailableFreeSpace / BytesToGb;
+            double totalGb = drive.TotalSize / BytesToGb;
+            return (freeGb, totalGb);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to get disk space for {Drive}", drivePath);
-            return 0.0;
+            _logger.LogError(ex, "Failed to get disk info for {Drive}", drivePath);
+            return (0.0, null);
         }
+    }
+
+    /// <summary>
+    /// Samples aggregate network throughput across all "up" interfaces, returning
+    /// kilobits/second averaged over the interval since the previous call.
+    /// <para>
+    /// Returns null on the first call (no baseline) and whenever the counters are
+    /// unavailable. The delta approach ignores interface add/remove during sampling —
+    /// if the total bytes counter ever goes backwards we reset the baseline and return null.
+    /// </para>
+    /// </summary>
+    private double? SampleNetworkKbps()
+    {
+        try
+        {
+            long currentBytes = GetTotalNetworkBytes();
+            DateTime nowUtc = DateTime.UtcNow;
+
+            lock (_networkLock)
+            {
+                if (!_prevNetworkBytes.HasValue)
+                {
+                    // First sample → set baseline, no reading to report.
+                    _prevNetworkBytes = currentBytes;
+                    _prevNetworkSampleUtc = nowUtc;
+                    return null;
+                }
+
+                long deltaBytes = currentBytes - _prevNetworkBytes.Value;
+                double deltaSeconds = (nowUtc - _prevNetworkSampleUtc).TotalSeconds;
+
+                // Update baseline for the next call regardless of whether we can emit a reading.
+                _prevNetworkBytes = currentBytes;
+                _prevNetworkSampleUtc = nowUtc;
+
+                if (deltaBytes < 0 || deltaSeconds <= 0)
+                {
+                    // Counter reset (interface restart, overflow, ...); skip this sample.
+                    return null;
+                }
+
+                // bytes/s × 8 / 1000 = kbps
+                return (deltaBytes * 8.0) / (deltaSeconds * 1000.0);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Network throughput sample failed");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Returns the sum of BytesSent + BytesReceived across all UP network interfaces.
+    /// Skips loopback and tunnel adapters which would double-count LAN traffic.
+    /// </summary>
+    private static long GetTotalNetworkBytes()
+    {
+        long total = 0;
+        NetworkInterface[] interfaces = NetworkInterface.GetAllNetworkInterfaces();
+        foreach (NetworkInterface ni in interfaces)
+        {
+            if (ni.OperationalStatus != OperationalStatus.Up)
+            {
+                continue;
+            }
+            if (ni.NetworkInterfaceType == NetworkInterfaceType.Loopback ||
+                ni.NetworkInterfaceType == NetworkInterfaceType.Tunnel)
+            {
+                continue;
+            }
+
+            IPv4InterfaceStatistics stats = ni.GetIPv4Statistics();
+            total += stats.BytesSent + stats.BytesReceived;
+        }
+        return total;
     }
 
     /// <summary>
