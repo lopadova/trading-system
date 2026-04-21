@@ -1,10 +1,21 @@
 <Project>
   <PropertyGroup>
-    <!-- Strong-Name Signing Configuration -->
-    <SignAssembly>true</SignAssembly>
-    <AssemblyOriginatorKeyFile>$(MSBuildThisFileDirectory)TradingSystem.snk</AssemblyOriginatorKeyFile>
+    <!--
+      Strong-name signing removed (was: SignAssembly=true + TradingSystem.snk).
+      The .snk was never checked in; CI was failing with CS7027.
 
-    <!-- Public Key Token will be calculated after first build -->
-    <PublicSign>false</PublicSign>
+      If a consumer later requires strong-named assemblies:
+        1. Generate a dev key with `sn -k TradingSystem.snk`.
+        2. DO NOT commit the .snk to source control — it contains a private
+           signing key. Store it in a secret manager / CI secure file store
+           and materialise it in the build step (e.g., base64-decode from a
+           GitHub secret into the workspace before `dotnet build`).
+        3. For open-source "delay-signing" style builds, use <PublicSign>
+           with only the public key committed.
+        4. Restore the two properties below once the key is available at build
+           time.
+    -->
+    <!-- <SignAssembly>true</SignAssembly> -->
+    <!-- <AssemblyOriginatorKeyFile>$(MSBuildThisFileDirectory)TradingSystem.snk</AssemblyOriginatorKeyFile> -->
   </PropertyGroup>
 </Project>

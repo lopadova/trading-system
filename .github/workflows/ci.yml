@@ -78,14 +78,25 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: infra/cloudflare/worker/package-lock.json
+
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v1
+        uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
       - name: Install dependencies
         working-directory: infra/cloudflare/worker
-        run: bun install
+        # Use npm ci (deterministic, lockfile-enforced). bun install has
+        # recurring tarball extraction failures for @img/sharp-libvips-linux-x64
+        # (transitive optional wrangler dep) — npm tolerates the optional-dep
+        # fallback.
+        run: npm ci --no-audit --no-fund
 
       - name: Run tests
         working-directory: infra/cloudflare/worker
@@ -110,30 +121,34 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v1
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          bun-version: latest
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
 
       - name: Install dependencies
         working-directory: dashboard
-        run: bun install
+        run: npm ci --no-audit --no-fund
 
       - name: Type check
         working-directory: dashboard
-        run: bun run typecheck
+        run: npm run typecheck
 
       - name: Lint
         working-directory: dashboard
-        run: bun run lint
+        run: npm run lint
 
       - name: Run tests
         working-directory: dashboard
-        run: bun test
+        # Dashboard tests MUST use `npm test` (vitest + happy-dom), NOT `bun test`.
+        # Bun's runner lacks DOM support required by @testing-library/react.
+        run: npm test
 
       - name: Build dashboard
         working-directory: dashboard
-        run: bun run build
+        run: npm run build
 
       - name: Upload dashboard build
         uses: actions/upload-artifact@v4
@@ -182,11 +197,14 @@ jobs:
           echo "Gitignore rules verified"
 
   # Job 5: Deploy (manual trigger only)
+  # ⚠ DISABLED until Phase 7 production-readiness (per Lorenzo).
+  # Re-enable by removing `if: false` once the real market-data pipeline
+  # and deployment runbook are in place.
   deploy:
     name: Deploy
     runs-on: ubuntu-latest
     needs: [dotnet-build-test, cloudflare-worker, dashboard, security]
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    if: false && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     environment: production
 
     steps:
@@ -196,18 +214,21 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v4
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v1
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          bun-version: latest
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
 
-      # Deploy Cloudflare Worker
+      # Deploy Cloudflare Worker — use npm ci (not bun install) so re-enabling
+      # this (by removing the `if: false &&` gate) won't regress to the
+      # @img/sharp-libvips tarball failure seen when we used bun.
       - name: Deploy Cloudflare Worker
         working-directory: infra/cloudflare/worker
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
-          bun install
+          npm ci --no-audit --no-fund
           npx wrangler deploy
 
       # Deploy Dashboard to Cloudflare Pages

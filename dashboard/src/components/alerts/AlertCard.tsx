@@ -1,3 +1,12 @@
+/**
+ * File-level eslint suppression: the severity/type icon helpers (defined at
+ * module scope) return stable lucide components, but react-hooks/static-
+ * components flags both the `const ... = helper(prop)` declarations and the
+ * JSX usages inside render. Refactoring to a component-per-icon wrapper would
+ * add churn without changing behaviour. Disable the rule here and keep the
+ * helpers pure.
+ */
+/* eslint-disable react-hooks/static-components */
 import { formatDistanceToNow } from 'date-fns'
 import { Card, CardContent, CardHeader } from '../ui/Card'
 import { Badge, type BadgeTone } from '../ui/Badge'

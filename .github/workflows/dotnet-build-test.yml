@@ -50,11 +50,13 @@ jobs:
           !src/*/bin/Release/**/ref/**
         retention-days: 7
 
+  # ⚠ DISABLED until Phase 7 production-readiness (per Lorenzo).
+  # Re-enable by removing `false &&` once the production runbook is signed off.
   publish-services:
     name: Publish Windows Services
     runs-on: windows-latest
     needs: build-and-test
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: false && github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     steps:
     - name: Checkout code

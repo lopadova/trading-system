@@ -10,6 +10,9 @@ public interface EWrapper
     void error(Exception e);
     void error(string str);
     void error(int id, int errorCode, string errorMsg, string advancedOrderRejectJson);
+    // TWS API 10.19+ added an `errorTime` Unix-millis timestamp parameter between `id` and `errorCode`.
+    // Our callback handlers override this newer overload — expose both in the stub.
+    void error(int id, long errorTime, int errorCode, string errorMsg, string advancedOrderRejectJson);
     void connectionClosed();
     void currentTime(long time);
     void tickPrice(int tickerId, int field, double price, TickAttrib attribs);
@@ -28,6 +31,8 @@ public interface EWrapper
     void updateAccountTime(string timestamp);
     void accountDownloadEnd(string account);
     void orderStatus(int orderId, string status, decimal filled, decimal remaining, double avgFillPrice, int permId, int parentId, double lastFillPrice, int clientId, string whyHeld, double mktCapPrice);
+    // TWS API 10.19+ widened permId to long. Our handlers override the 64-bit variant.
+    void orderStatus(int orderId, string status, decimal filled, decimal remaining, double avgFillPrice, long permId, int parentId, double lastFillPrice, int clientId, string whyHeld, double mktCapPrice);
     void openOrder(int orderId, Contract contract, Order order, OrderState orderState);
     void openOrderEnd();
     void contractDetails(int reqId, ContractDetails contractDetails);
@@ -35,7 +40,14 @@ public interface EWrapper
     void execDetails(int reqId, Contract contract, Execution execution);
     void execDetailsEnd(int reqId);
     void commissionReport(CommissionReport commissionReport);
+    // TWS API 10.19+ renamed commissionReport → commissionAndFeesReport;
+    // the real SDK provides both for a transition window, so the stub does too.
+    void commissionAndFeesReport(CommissionAndFeesReport commissionAndFeesReport);
     void fundamentalData(int reqId, string data);
+    void accountSummary(int reqId, string account, string tag, string value, string currency);
+    void accountSummaryEnd(int reqId);
+    void familyCodes(FamilyCode[] familyCodes);
+    void historicalDataUpdate(int reqId, Bar bar);
     void historicalData(int reqId, Bar bar);
     void historicalDataEnd(int reqId, string start, string end);
     void marketDataType(int reqId, int marketDataType);
@@ -112,6 +124,8 @@ public class EClientSocket
     public void cancelMktData(int requestId) { }
     public void placeOrder(int orderId, Contract contract, Order order) { }
     public void cancelOrder(int orderId, string manualOrderCancelTime = "") { }
+    // TWS API 10.19+ switched cancelOrder's second arg to an OrderCancel object.
+    public void cancelOrder(int orderId, OrderCancel orderCancel) { }
     public void reqOpenOrders() { }
 }
 
@@ -190,6 +204,19 @@ public class CommissionReport
     public double Commission { get; set; }
 }
 
+// TWS API 10.19+ renamed CommissionReport → CommissionAndFeesReport with an
+// extended field set (fees, yield, yieldRedemptionDate). Stub exposes enough
+// surface for compile-time compat; runtime uses the real CSharpAPI.dll.
+public class CommissionAndFeesReport
+{
+    public string ExecId { get; set; } = "";
+    public double CommissionAndFees { get; set; }
+    public string Currency { get; set; } = "";
+    public double RealizedPNL { get; set; }
+    public double Yield { get; set; }
+    public int YieldRedemptionDate { get; set; }
+}
+
 public class Bar { }
 public class SoftDollarTier { }
 public class FamilyCode { }
@@ -202,5 +229,117 @@ public class HistoricalTick { }
 public class HistoricalTickBidAsk { }
 public class HistoricalTickLast { }
 public class HistoricalSession { }
+public class OrderCancel
+{
+    public string ManualOrderCancelTime { get; set; } = "";
+    public string ExtOperator { get; set; } = "";
+    public int ManualOrderIndicator { get; set; }
+}
+
+/// <summary>
+/// Convenience base class matching the real IBKR SDK's DefaultEWrapper: implements every
+/// EWrapper method with an empty body so consumer classes can override only what they need
+/// (pattern used by TwsCallbackHandler in both TradingSupervisorService and OptionsExecutionService).
+/// Keep this stub's method set in sync with the EWrapper interface above — the real SDK includes
+/// both, so we mirror both at compile time.
+/// </summary>
+public class DefaultEWrapper : EWrapper
+{
+    public virtual void error(Exception e) { }
+    public virtual void error(string str) { }
+    public virtual void error(int id, int errorCode, string errorMsg, string advancedOrderRejectJson) { }
+    public virtual void error(int id, long errorTime, int errorCode, string errorMsg, string advancedOrderRejectJson) { }
+    public virtual void connectionClosed() { }
+    public virtual void currentTime(long time) { }
+    public virtual void tickPrice(int tickerId, int field, double price, TickAttrib attribs) { }
+    public virtual void tickSize(int tickerId, int field, decimal size) { }
+    public virtual void tickString(int tickerId, int tickType, string value) { }
+    public virtual void tickGeneric(int tickerId, int field, double value) { }
+    public virtual void tickEFP(int tickerId, int tickType, double basisPoints, string formattedBasisPoints, double impliedFuture, int holdDays, string futureLastTradeDate, double dividendImpact, double dividendsToLastTradeDate) { }
+    public virtual void tickOptionComputation(int tickerId, int field, int tickAttrib, double impliedVolatility, double delta, double optPrice, double pvDividend, double gamma, double vega, double theta, double undPrice) { }
+    public virtual void tickSnapshotEnd(int tickerId) { }
+    public virtual void nextValidId(int orderId) { }
+    public virtual void deltaNeutralValidation(int reqId, DeltaNeutralContract deltaNeutralContract) { }
+    public virtual void managedAccounts(string accountsList) { }
+    public virtual void tickNews(int tickerId, long timeStamp, string providerCode, string articleId, string headline, string extraData) { }
+    public virtual void updateAccountValue(string key, string value, string currency, string accountName) { }
+    public virtual void updatePortfolio(Contract contract, decimal position, double marketPrice, double marketValue, double averageCost, double unrealizedPNL, double realizedPNL, string accountName) { }
+    public virtual void updateAccountTime(string timestamp) { }
+    public virtual void accountDownloadEnd(string account) { }
+    public virtual void orderStatus(int orderId, string status, decimal filled, decimal remaining, double avgFillPrice, int permId, int parentId, double lastFillPrice, int clientId, string whyHeld, double mktCapPrice) { }
+    public virtual void orderStatus(int orderId, string status, decimal filled, decimal remaining, double avgFillPrice, long permId, int parentId, double lastFillPrice, int clientId, string whyHeld, double mktCapPrice) { }
+    public virtual void openOrder(int orderId, Contract contract, Order order, OrderState orderState) { }
+    public virtual void openOrderEnd() { }
+    public virtual void contractDetails(int reqId, ContractDetails contractDetails) { }
+    public virtual void contractDetailsEnd(int reqId) { }
+    public virtual void execDetails(int reqId, Contract contract, Execution execution) { }
+    public virtual void execDetailsEnd(int reqId) { }
+    public virtual void commissionReport(CommissionReport commissionReport) { }
+    public virtual void commissionAndFeesReport(CommissionAndFeesReport commissionAndFeesReport) { }
+    public virtual void fundamentalData(int reqId, string data) { }
+    public virtual void accountSummary(int reqId, string account, string tag, string value, string currency) { }
+    public virtual void accountSummaryEnd(int reqId) { }
+    public virtual void familyCodes(FamilyCode[] familyCodes) { }
+    public virtual void historicalDataUpdate(int reqId, Bar bar) { }
+    public virtual void historicalData(int reqId, Bar bar) { }
+    public virtual void historicalDataEnd(int reqId, string start, string end) { }
+    public virtual void marketDataType(int reqId, int marketDataType) { }
+    public virtual void updateMktDepth(int tickerId, int position, int operation, int side, double price, decimal size) { }
+    public virtual void updateMktDepthL2(int tickerId, int position, string marketMaker, int operation, int side, double price, decimal size, bool isSmartDepth) { }
+    public virtual void updateNewsBulletin(int msgId, int msgType, string message, string origExchange) { }
+    public virtual void position(string account, Contract contract, decimal pos, double avgCost) { }
+    public virtual void positionEnd() { }
+    public virtual void realtimeBar(int reqId, long time, double open, double high, double low, double close, decimal volume, decimal WAP, int count) { }
+    public virtual void scannerParameters(string xml) { }
+    public virtual void scannerData(int reqId, int rank, ContractDetails contractDetails, string distance, string benchmark, string projection, string legsStr) { }
+    public virtual void scannerDataEnd(int reqId) { }
+    public virtual void receiveFA(int faDataType, string faXmlData) { }
+    public virtual void bondContractDetails(int reqId, ContractDetails contract) { }
+    public virtual void verifyMessageAPI(string apiData) { }
+    public virtual void verifyCompleted(bool isSuccessful, string errorText) { }
+    public virtual void verifyAndAuthMessageAPI(string apiData, string xyzChallenge) { }
+    public virtual void verifyAndAuthCompleted(bool isSuccessful, string errorText) { }
+    public virtual void displayGroupList(int reqId, string groups) { }
+    public virtual void displayGroupUpdated(int reqId, string contractInfo) { }
+    public virtual void connectAck() { }
+    public virtual void positionMulti(int requestId, string account, string modelCode, Contract contract, decimal pos, double avgCost) { }
+    public virtual void positionMultiEnd(int requestId) { }
+    public virtual void accountUpdateMulti(int requestId, string account, string modelCode, string key, string value, string currency) { }
+    public virtual void accountUpdateMultiEnd(int requestId) { }
+    public virtual void securityDefinitionOptionParameter(int reqId, string exchange, int underlyingConId, string tradingClass, string multiplier, HashSet<string> expirations, HashSet<double> strikes) { }
+    public virtual void securityDefinitionOptionParameterEnd(int reqId) { }
+    public virtual void softDollarTiers(int reqId, SoftDollarTier[] tiers) { }
+    public virtual void familyCodeList(FamilyCode[] familyCodes) { }
+    public virtual void symbolSamples(int reqId, ContractDescription[] contractDescriptions) { }
+    public virtual void mktDepthExchanges(DepthMktDataDescription[] depthMktDataDescriptions) { }
+    public virtual void tickNews2(int tickerId, long timeStamp, string providerCode, string articleId, string headline, string extraData) { }
+    public virtual void smartComponents(int reqId, Dictionary<int, KeyValuePair<string, char>> theMap) { }
+    public virtual void tickReqParams(int tickerId, double minTick, string bboExchange, int snapshotPermissions) { }
+    public virtual void newsProviders(NewsProvider[] newsProviders) { }
+    public virtual void newsArticle(int requestId, int articleType, string articleText) { }
+    public virtual void historicalNews(int requestId, string time, string providerCode, string articleId, string headline) { }
+    public virtual void historicalNewsEnd(int requestId, bool hasMore) { }
+    public virtual void headTimestamp(int reqId, string headTimestamp) { }
+    public virtual void histogramData(int reqId, HistogramEntry[] data) { }
+    public virtual void rerouteMktDataReq(int reqId, int conId, string exchange) { }
+    public virtual void rerouteMktDepthReq(int reqId, int conId, string exchange) { }
+    public virtual void marketRule(int marketRuleId, PriceIncrement[] priceIncrements) { }
+    public virtual void pnl(int reqId, double dailyPnL, double unrealizedPnL, double realizedPnL) { }
+    public virtual void pnlSingle(int reqId, decimal pos, double dailyPnL, double unrealizedPnL, double realizedPnL, double value) { }
+    public virtual void historicalTicks(int reqId, HistoricalTick[] ticks, bool done) { }
+    public virtual void historicalTicksBidAsk(int reqId, HistoricalTickBidAsk[] ticks, bool done) { }
+    public virtual void historicalTicksLast(int reqId, HistoricalTickLast[] ticks, bool done) { }
+    public virtual void tickByTickAllLast(int reqId, int tickType, long time, double price, decimal size, TickAttribLast tickAttribLast, string exchange, string specialConditions) { }
+    public virtual void tickByTickBidAsk(int reqId, long time, double bidPrice, double askPrice, decimal bidSize, decimal askSize, TickAttribBidAsk tickAttribBidAsk) { }
+    public virtual void tickByTickMidPoint(int reqId, long time, double midPoint) { }
+    public virtual void orderBound(long orderId, int apiClientId, int apiOrderId) { }
+    public virtual void completedOrder(Contract contract, Order order, OrderState orderState) { }
+    public virtual void completedOrdersEnd() { }
+    public virtual void replaceFAEnd(int reqId, string text) { }
+    public virtual void wshMetaData(int reqId, string dataJson) { }
+    public virtual void wshEventData(int reqId, string dataJson) { }
+    public virtual void historicalSchedule(int reqId, string startDateTime, string endDateTime, string timeZone, HistoricalSession[] sessions) { }
+    public virtual void userInfo(int reqId, string whiteBrandingId) { }
+}
 
 #pragma warning restore CA1040, CA1716, CA1819, CS8618, IDE0060

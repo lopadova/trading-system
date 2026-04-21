@@ -27,8 +27,23 @@ export function Donut({
   const radius = (size - thickness) / 2
   const circumference = 2 * Math.PI * radius
 
-  // Running offset used to position each arc end-to-end along the ring
-  let offset = 0
+  // Pre-compute each arc's dashoffset once so render stays pure (no mutation).
+  // cumulative[i] = sum of dashes for arcs [0..i-1]; that's the negative offset
+  // each arc needs to land end-to-end along the ring.
+  const arcs = segments.reduce<{
+    offsetSoFar: number
+    out: { key: number; dash: number; gap: number; offset: number; color: string }[]
+  }>(
+    (acc, segment, index) => {
+      const frac = segment.value / total
+      const dash = frac * circumference
+      const gap = circumference - dash
+      acc.out.push({ key: index, dash, gap, offset: acc.offsetSoFar, color: segment.color })
+      acc.offsetSoFar += dash
+      return acc
+    },
+    { offsetSoFar: 0, out: [] }
+  ).out
 
   return (
     <div
@@ -46,26 +61,19 @@ export function Donut({
           stroke="var(--bg-1)"
           strokeWidth={thickness}
         />
-        {segments.map((segment, index) => {
-          const frac = segment.value / total
-          const dash = frac * circumference
-          const gap = circumference - dash
-          const arc = (
-            <circle
-              key={index}
-              cx={cx}
-              cy={cy}
-              r={radius}
-              fill="none"
-              stroke={segment.color}
-              strokeWidth={thickness}
-              strokeDasharray={`${dash} ${gap}`}
-              strokeDashoffset={-offset}
-            />
-          )
-          offset += dash
-          return arc
-        })}
+        {arcs.map(arc => (
+          <circle
+            key={arc.key}
+            cx={cx}
+            cy={cy}
+            r={radius}
+            fill="none"
+            stroke={arc.color}
+            strokeWidth={thickness}
+            strokeDasharray={`${arc.dash} ${arc.gap}`}
+            strokeDashoffset={-arc.offset}
+          />
+        ))}
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <div className="font-mono text-[18px] font-semibold tabular-nums text-[var(--fg-1)]">

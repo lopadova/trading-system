@@ -77,12 +77,20 @@ export function DeltaSlider({
   const [inputValue, setInputValue] = useState(value.toFixed(3))
   const trackRef = useRef<HTMLDivElement>(null)
 
-  // Sync local value with prop
+  // Sync local state with prop when the external value (or bounds) change.
+  // The functional updater returns `prev` when values already match, so no
+  // render is triggered by a no-op sync. react-hooks/set-state-in-effect
+  // still flags this pattern defensively — we accept it here because the
+  // slider needs local state for controlled-input behaviour while also
+  // reacting to external prop changes (parent-driven reset, form restore).
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     const clamped = clamp(value, min, max)
-    setLocalValue(clamped)
-    setInputValue(clamped.toFixed(3))
+    const clampedStr = clamped.toFixed(3)
+    setLocalValue(prev => (prev === clamped ? prev : clamped))
+    setInputValue(prev => (prev === clampedStr ? prev : clampedStr))
   }, [value, min, max])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = parseFloat(e.target.value)
