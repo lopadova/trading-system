@@ -1,3 +1,15 @@
+---
+title: "Errors Registry"
+tags: ["knowledge-base", "errors", "reference"]
+aliases: ["errors-registry", "Errors"]
+status: current
+audience: ["ai-agent", "developer"]
+last-reviewed: "2026-04-21"
+related:
+  - "[[lessons-learned]]"
+  - "[[skill-changelog]]"
+---
+
 # Errors Registry — Trading System Build
 *Auto-aggiornato dagli agenti. Leggi questo file all'inizio di ogni task.*
 

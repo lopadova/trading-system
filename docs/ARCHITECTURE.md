@@ -1,3 +1,18 @@
+---
+title: "Trading System Architecture"
+tags: ["architecture", "reference", "dotnet", "worker", "dashboard"]
+aliases: ["Architecture", "System Architecture", "Architecture Deep Dive"]
+status: current
+audience: ["developer", "reviewer"]
+last-reviewed: "2026-04-21"
+related:
+  - "[[Trading System - Architecture Overview|ARCHITECTURE_OVERVIEW]]"
+  - "[[MARKET_DATA_PIPELINE]]"
+  - "[[OBSERVABILITY]]"
+  - "[[Strategy File Format|STRATEGY_FORMAT]]"
+  - "[[Trading System - Deployment Guide|DEPLOYMENT_GUIDE]]"
+---
+
 # Trading System Architecture
 
 > Production-ready automated options trading system

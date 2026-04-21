@@ -1,3 +1,12 @@
+---
+title: "GitHub Copilot Instructions - Trading System"
+tags: ["dev", "reference", "ai-agent"]
+aliases: ["Copilot Instructions"]
+status: current
+audience: ["ai-agent", "developer"]
+last-reviewed: "2026-04-21"
+---
+
 # GitHub Copilot Instructions - Trading System
 
 > **Repository**: Trading System  

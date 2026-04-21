@@ -1,3 +1,11 @@
+---
+title: "E2E-09: Service Restart and Campaign Resume"
+tags: ["dev", "testing", "incident-response"]
+status: reference
+audience: ["developer"]
+last-reviewed: "2026-04-21"
+---
+
 # E2E-09: Service Restart and Campaign Resume
 
 > Manual test checklist for graceful restart and state persistence

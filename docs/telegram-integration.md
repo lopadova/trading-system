@@ -1,3 +1,16 @@
+---
+title: "Telegram Alert Integration"
+tags: ["reference", "dotnet", "observability"]
+aliases: ["Telegram Integration", "Telegram Alerts"]
+status: current
+audience: ["developer"]
+last-reviewed: "2026-04-21"
+related:
+  - "[[Bot Setup Guide - Telegram & Discord Integration|BOT_SETUP_GUIDE]]"
+  - "[[OBSERVABILITY]]"
+  - "[[Configuration Reference|CONFIGURATION]]"
+---
+
 # Telegram Alert Integration
 
 Complete guide for configuring and using Telegram alerts in the Trading System.

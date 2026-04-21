@@ -1,3 +1,15 @@
+---
+title: "Documentation System"
+tags: ["dev", "reference", "workflow"]
+aliases: ["Docs Meta", "Documentation Meta"]
+status: current
+audience: ["developer", "ai-agent"]
+last-reviewed: "2026-04-21"
+related:
+  - "[[Trading System Docs — Index|INDEX]]"
+  - "[[Contributing Guide|CONTRIBUTING]]"
+---
+
 # Documentation System
 
 > **Purpose**: Maintain consistency across all README and documentation files  

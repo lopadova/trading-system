@@ -1,3 +1,15 @@
+---
+title: "Trading System Cloudflare Worker"
+tags: ["dev", "worker", "reference"]
+aliases: ["Worker README"]
+status: current
+audience: ["developer"]
+last-reviewed: "2026-04-21"
+related:
+  - "[[Trading System Architecture|ARCHITECTURE]]"
+  - "[[Trading System - Deployment Guide|DEPLOYMENT_GUIDE]]"
+---
+
 # Trading System Cloudflare Worker
 
 Hono-based API worker for querying trading system data from D1 database.

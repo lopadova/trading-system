@@ -1,3 +1,15 @@
+---
+title: "Trading System Integration Tests"
+tags: ["dev", "testing", "reference"]
+aliases: ["Tests README"]
+status: current
+audience: ["developer"]
+last-reviewed: "2026-04-21"
+related:
+  - "[[Trading System - End-to-End Test Plan|TEST_PLAN]]"
+  - "[[End-to-End Test Suite|E2E README]]"
+---
+
 # Trading System Integration Tests
 
 This directory contains comprehensive integration tests for the Trading System backend services.

@@ -1,3 +1,11 @@
+---
+title: "E2E-04: Campaign Creation and Entry Order Placement"
+tags: ["dev", "testing", "ibkr"]
+status: reference
+audience: ["developer"]
+last-reviewed: "2026-04-21"
+---
+
 # E2E-04: Campaign Creation and Entry Order Placement
 
 > Manual test checklist for loading strategies, creating campaigns, and placing entry orders

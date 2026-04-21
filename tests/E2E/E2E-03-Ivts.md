@@ -1,3 +1,11 @@
+---
+title: "E2E-03: IVTS Monitoring, IVR Calculation, and Alerts"
+tags: ["dev", "testing", "ibkr"]
+status: reference
+audience: ["developer"]
+last-reviewed: "2026-04-21"
+---
+
 # E2E-03: IVTS Monitoring, IVR Calculation, and Alerts
 
 > Manual test checklist for Implied Volatility Term Structure monitoring

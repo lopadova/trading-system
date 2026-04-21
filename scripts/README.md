@@ -1,3 +1,15 @@
+---
+title: "Trading System Scripts"
+tags: ["dev", "reference", "workflow"]
+aliases: ["Scripts README"]
+status: current
+audience: ["developer"]
+last-reviewed: "2026-04-21"
+related:
+  - "[[Scripts per Windows|scripts-windows]]"
+  - "[[Changelog — Scripts & Workflow|CHANGELOG-SCRIPTS]]"
+---
+
 # Trading System Scripts
 
 Automation scripts for building, testing, and deploying the Trading System.

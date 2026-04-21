@@ -1,3 +1,11 @@
+---
+title: "E2E-01: System Startup and IBKR Connection"
+tags: ["dev", "testing", "ibkr"]
+status: reference
+audience: ["developer"]
+last-reviewed: "2026-04-21"
+---
+
 # E2E-01: System Startup and IBKR Connection
 
 > Manual test checklist for system initialization and IBKR Paper Trading connection

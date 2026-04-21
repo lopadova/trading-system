@@ -1,3 +1,12 @@
+---
+title: "Contract Tests"
+tags: ["dev", "testing", "reference"]
+status: current
+audience: ["developer"]
+phase: "phase-7.6"
+last-reviewed: "2026-04-21"
+---
+
 # Contract Tests
 
 Phase 7.6 deliverable. These tests lock the wire contract between the .NET

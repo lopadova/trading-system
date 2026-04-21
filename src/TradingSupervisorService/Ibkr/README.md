@@ -1,3 +1,11 @@
+---
+title: "IBKR TWS API Integration"
+tags: ["dev", "ibkr", "dotnet", "reference"]
+status: current
+audience: ["developer"]
+last-reviewed: "2026-04-21"
+---
+
 # IBKR TWS API Integration
 
 This directory contains the Interactive Brokers TWS API integration layer for the Trading Supervisor Service.

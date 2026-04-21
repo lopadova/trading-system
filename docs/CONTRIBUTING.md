@@ -1,3 +1,17 @@
+---
+title: "Contributing Guide"
+tags: ["dev", "onboarding", "reference", "workflow"]
+aliases: ["Contributing", "Development Guide"]
+status: current
+audience: ["developer"]
+last-reviewed: "2026-04-21"
+related:
+  - "[[Trading System - Developer Onboarding|ONBOARDING]]"
+  - "[[Getting Started with Trading System|GETTING_STARTED]]"
+  - "[[BRANCH_PROTECTION]]"
+  - "[[Workflow Nuove Feature — Guida Completa|WORKFLOW-NUOVE-FEATURE]]"
+---
+
 # Contributing Guide
 
 > How to extend and improve the Trading System

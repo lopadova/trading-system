@@ -1,3 +1,10 @@
+---
+title: "Trading System"
+tags: ["overview"]
+aliases: ["Repository Overview"]
+status: current
+---
+
 # Trading System — Automated Options Trading with IBKR
 
 Production-ready automated trading system for options strategies via Interactive Brokers TWS/Gateway.

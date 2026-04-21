@@ -1,3 +1,16 @@
+---
+title: "Bot Setup Guide - Telegram & Discord Integration"
+tags: ["onboarding", "reference", "worker", "security"]
+aliases: ["Bot Setup Guide", "Discord Setup", "Telegram Setup"]
+status: current
+audience: ["operator", "new-user"]
+last-reviewed: "2026-04-21"
+related:
+  - "[[Telegram Alert Integration|telegram-integration]]"
+  - "[[Configuration Reference|CONFIGURATION]]"
+  - "[[SECRETS]]"
+---
+
 # Bot Setup Guide - Telegram & Discord Integration
 
 > **Guida completa e dettagliata** per configurare i bot Telegram e Discord nel Trading System.

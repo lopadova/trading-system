@@ -1,3 +1,11 @@
+---
+title: "Dashboard Integration Tests — TASK-21"
+tags: ["dev", "dashboard", "testing"]
+status: reference
+audience: ["developer"]
+last-reviewed: "2026-04-21"
+---
+
 # Dashboard Integration Tests — TASK-21
 
 > Integration tests for Trading System Dashboard with real Cloudflare Worker API

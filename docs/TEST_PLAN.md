@@ -1,3 +1,16 @@
+---
+title: "Trading System - End-to-End Test Plan"
+tags: ["testing", "ops", "reference"]
+aliases: ["E2E Test Plan", "Test Plan"]
+status: current
+audience: ["operator", "developer"]
+last-reviewed: "2026-04-21"
+related:
+  - "[[PAPER_VALIDATION]]"
+  - "[[LOAD_TESTING]]"
+  - "[[DAILY_OPS]]"
+---
+
 # Trading System - End-to-End Test Plan
 
 > This is the **end-to-end verification plan** (manual / semi-manual runs against a live paper-trading environment).

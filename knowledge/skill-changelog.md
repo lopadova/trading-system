@@ -1,3 +1,15 @@
+---
+title: "Skill Changelog"
+tags: ["knowledge-base", "skills", "reference"]
+aliases: ["skill-changelog"]
+status: current
+audience: ["ai-agent", "developer"]
+last-reviewed: "2026-04-21"
+related:
+  - "[[errors-registry]]"
+  - "[[lessons-learned]]"
+---
+
 # Skill Changelog
 *Traccia ogni aggiornamento a .claude/skills/*.md*
 

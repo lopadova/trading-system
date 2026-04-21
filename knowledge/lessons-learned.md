@@ -1,3 +1,15 @@
+---
+title: "Lessons Learned"
+tags: ["knowledge-base", "lessons", "reference"]
+aliases: ["lessons-learned", "Lessons"]
+status: current
+audience: ["ai-agent", "developer"]
+last-reviewed: "2026-04-21"
+related:
+  - "[[errors-registry]]"
+  - "[[skill-changelog]]"
+---
+
 # Lessons Learned — Trading System Build
 *Ogni agente aggiunge almeno 1 entry al termine del suo task.*
 
