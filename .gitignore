@@ -130,8 +130,11 @@ UserSecrets/
 # Database & Data Files (Local state - do not commit)
 # ============================================================================
 
-# SQLite databases
-data/
+# SQLite databases — scope to repository root ONLY so source directories
+# named `Data/` (e.g. src/SharedKernel/Data) don't get silently excluded.
+# (Same class of bug as the /positions/, /trades/, /logs/ fix below — see
+# commit 9c6f974.)
+/data/
 *.db
 *.db-wal
 *.db-shm
