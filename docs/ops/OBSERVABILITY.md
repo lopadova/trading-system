@@ -278,12 +278,133 @@ into the same channel by posting to its webhook with severity=CRITICAL.
 
 ---
 
-## 7. TODO
+## 7. .NET side (Phase 7.3)
+
+### 7.1 Serilog HTTP sink — log shipping to Worker
+
+Both services stream **Warning+** logs (not Information/Debug — too noisy) to
+`/api/v1/logs` on the Worker, batched by size-or-time. The local Serilog file
+sink continues to keep the full Information+ history.
+
+**Wiring** (see `src/SharedKernel/Observability/ObservabilityConfig.cs`):
+
+```csharp
+HttpSinkOptions sinkOpts = ObservabilityConfig.ReadOptions(context.Configuration, "supervisor");
+loggerConfig
+    .WriteTo.Console(...)
+    .WriteTo.File("logs/supervisor-.log", rollingInterval: RollingInterval.Day)
+    .AddLogShipping(sinkOpts);  // ← becomes a no-op if Cloudflare:WorkerUrl is blank
+```
+
+**Config keys** (`appsettings.json`):
+
+```json
+"Cloudflare": {
+  "WorkerUrl": "https://trading-bot.padosoft.workers.dev",
+  "ApiKey":    "…"
+},
+"Observability": {
+  "LogShipping": {
+    "BatchSize":          100,         // flush after 100 events
+    "BatchPeriodSeconds":   5,         // …or after 5s, whichever first
+    "MinimumLevel":    "Warning"       // Information/Debug stay local
+  }
+}
+```
+
+Failure mode: if the Worker is unreachable, the sink buffers in-memory
+(5 MB queue, drops oldest on overflow) with 10 s HTTP timeout — **never blocks
+the host service**. See `knowledge/lessons-learned.md` LESSON-190 for the
+rationale behind the size+time batch policy.
+
+### 7.2 Health endpoints
+
+Each service exposes a minimal-API `/health` + `/healthz` on its own port:
+
+| Service                    | Port | URL                               |
+|----------------------------|------|-----------------------------------|
+| TradingSupervisorService   | 5088 | http://localhost:5088/health      |
+| OptionsExecutionService    | 5089 | http://localhost:5089/health      |
+
+Sample response:
+
+```json
+{
+  "service": "supervisor",
+  "status":  "ok",                        // "ok" | "degraded" | "down"
+  "version": "1.0.0",
+  "uptime_seconds": 12345,
+  "now":     "2026-04-21T12:34:56.789Z",
+  "checks": {
+    "ibkr": "connected",                  // connected | disconnected | error | not-configured
+    "db":   "ok"                          // ok | error | not-configured
+  }
+}
+```
+
+Status aggregation: any check `error`/`down` → `down`; any non-ok/connected →
+`degraded`; else `ok`. The endpoint returns HTTP **503** for `down` (so
+UptimeRobot + Worker health aggregator flag it).
+
+### 7.3 Alerter severity matrix (as-implemented)
+
+| Severity  | TelegramAlerter                                 | EmailAlerter (Critical-only) |
+|-----------|-------------------------------------------------|------------------------------|
+| Info      | Logged locally; not shipped                     | Not shipped                  |
+| Warning   | Buffered → digest every `DigestFlushMinutes` (default 15 min) or 100 entries | Not shipped |
+| Error     | Immediate send (queue path)                     | Not shipped                  |
+| Critical  | Immediate send (queue path)                     | Immediate send via SMTP      |
+
+Both alerters register as `IAlerter` in DI and are fanned out in parallel by
+`SafetyAlertsWorker` with per-alerter error isolation.
+
+**SafetyAlertsWorker** runs every `SafetyAlerts:IntervalSeconds` (default 60 s)
+and fires:
+
+- **IBKR disconnected > `IbkrDisconnectThresholdSeconds`** (default 30 s)
+  → Critical. Deduped per-outage (re-armed on reconnect).
+- Margin / ingest-error / semaphore-red checks are stubbed — will light up
+  once the Worker API endpoints they poll are live.
+
+### 7.4 Required config keys (.NET side)
+
+```
+Cloudflare:WorkerUrl           — base URL of the Worker (same as OutboxSync)
+Cloudflare:ApiKey              — X-Api-Key shared secret
+Observability:Health:Port      — 5088 supervisor / 5089 options
+Observability:LogShipping:*    — see 7.1
+Smtp:Enabled                   — bool, false by default
+Smtp:Host                      — e.g. smtp.gmail.com
+Smtp:Port                      — 587 (StartTLS) typical
+Smtp:Username / Password       — SMTP auth
+Smtp:From / To                 — envelope
+Smtp:EnableSsl                 — true for Gmail
+SafetyAlerts:Enabled           — bool, true by default
+SafetyAlerts:IntervalSeconds   — 60
+SafetyAlerts:IbkrDisconnectThresholdSeconds — 30
+```
+
+### 7.5 Heartbeat schema additions
+
+Local `service_heartbeats` (migration 004) and Worker D1 `service_heartbeats`
+(migration 0008) both gained:
+
+- `disk_total_gb  REAL NULL` — total disk capacity on the data drive.
+- `network_kbps   REAL NULL` — averaged network throughput (kbit/s) between
+  the current and previous heartbeat. `NULL` on first heartbeat (no baseline).
+
+Populated by `WindowsMachineMetricsCollector` using `DriveInfo.TotalSize`
+and `NetworkInterface.GetIPv4Statistics()` deltas.
+
+---
+
+## 8. TODO
 
 - [ ] Log retention cron (nightly delete > 30 days) — Phase 7.4+
 - [ ] Web Vitals retention cron (weekly delete > 90 days) — Phase 7.4+
 - [ ] Tail Workers for real-time critical log streaming to Telegram
 - [ ] Grafana Cloud integration (if we outgrow CF Analytics native UI)
+- [ ] Wire `SafetyAlertsWorker` margin / ingest / semaphore checks to Worker API
 
 ---
 

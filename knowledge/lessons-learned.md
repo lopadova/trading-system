@@ -3012,3 +3012,102 @@ two-person operation.
 
 **Reference**: `dashboard/src/main.tsx` (Sentry.init block).
 
+## LESSON-190 — Serilog HTTP sink: size+time batch + Warning-only shipping for low-bandwidth log forwarding
+
+**Context**: Phase 7.3 .NET side. We needed to forward logs from both Windows
+services (TradingSupervisorService, OptionsExecutionService) to the Cloudflare
+Worker for centralized search. Naive approaches — one HTTP POST per log line
+or "ship everything" — would either hammer the Worker with hundreds of tiny
+requests per minute or flood D1 with Information/Debug noise from every
+heartbeat cycle.
+
+**Discovery**: Two design knobs multiplied the value of the sink:
+
+1. **Batching by size OR time**: Serilog.Sinks.Http flushes on either 100
+   events OR 5 seconds, whichever first. This caps both worst-case latency
+   (5 s) and worst-case request rate (~1 req/min during quiet periods, bursting
+   to 12 req/min if logs saturate). In-memory queue of 5 MB absorbs transient
+   Worker outages without blocking the host service — the sink silently drops
+   oldest on overflow.
+2. **MinimumLevel = Warning for the HTTP sink specifically**: the local file
+   sink stays at Information+ (full detail retained on the box), but the wire
+   only carries events that actually warrant operator attention. This cut
+   projected D1 ingest cost by ~95% in our dry-run (Information-level logs
+   are ~20× more frequent than Warnings in a healthy system).
+
+The batch formatter reshapes Serilog's default JSON into the Worker's wanted
+shape (`{ batch: [{ts, level, service, message, properties, source_context,
+exception}] }`) — without this custom formatter, the default ArrayBatchFormatter
+emits raw Serilog shape which requires schema translation on the Worker side.
+
+**Impact**: 
+- Log shipping survives Worker downtime (5-minute buffer), never blocks the
+  host service (10 s HTTP timeout with drop-on-overflow).
+- Worker D1 log table ingest rate is predictable and affordable.
+- The file sink remains the source of truth for deep debugging — the HTTP
+  sink is for operational awareness, not archival.
+
+**Reference**: `src/SharedKernel/Observability/ObservabilityConfig.cs`
+(wiring), `LogShippingBatchFormatter.cs` (payload reshape),
+`ApiKeyAuthHttpClient.cs` (X-Api-Key header injection).
+
+## LESSON-191 — Alerter severity routing: Info→local-log, Warning→digest, Error/Critical→immediate, Email=Critical-only
+
+**Context**: Phase 7.3 .NET side. The Trading System already had a single
+`TelegramAlerter` that queued all alerts into a FIFO regardless of importance.
+That design had two failure modes: high-severity events waited behind a queue
+of Info/debug noise, and operators (rightly) stopped checking Telegram after
+a day of "margin at 62%" chatter.
+
+**Discovery**: A four-tier routing matrix with a second, strictly-Critical
+channel produces the right signal-to-noise shape:
+
+| Severity  | Telegram                                | Email (Critical-only)     |
+|-----------|-----------------------------------------|---------------------------|
+| Info      | Logged locally; NOT shipped             | Not shipped               |
+| Warning   | Buffered, flushed every 15 min as digest| Not shipped               |
+| Error     | Immediate send                          | Not shipped               |
+| Critical  | Immediate send                          | Immediate send (SMTP)     |
+
+Rationale for Email as Critical-only:
+- Email is slow (seconds to deliver), unreliable (spam filters), and easy to
+  ignore. Reserving it for "page Lorenzo at 3am" events means seeing an email
+  from the trading system ALWAYS means "read now".
+- Telegram covers Error/Warning well with real-time push; email is the
+  belt-and-suspenders channel when Telegram is itself down (e.g. token
+  revoked, bot rate-limited, Telegram API outage).
+
+Rationale for Info→local-log:
+- Info-level events fire dozens/hour (heartbeat cycles, routine state
+  transitions). Shipping them to an operator channel actively damages
+  operator attention. The local Serilog file sink still captures them for
+  post-incident review.
+
+Rationale for Warning→15-min digest:
+- Warnings fire multiple-per-hour during "noisy but fine" periods (one
+  margin blip every few minutes). Digesting into a "here are all the 47
+  Warning events from the last 15 min" message gives the operator pattern
+  recognition (margin creeping up vs flat) without constant interruption.
+- Buffer is capped at 100 entries — if exceeded, flush immediately. Prevents
+  unbounded memory if an upstream system jams the Warning channel.
+
+The composite pattern (multiple `IAlerter` implementations in `IEnumerable<IAlerter>`,
+each fanned out via `Task.WhenAll` with per-alerter error isolation) lets
+us add new channels (Slack, PagerDuty, SMS) without touching the caller.
+
+**Impact**:
+- Zero interruption for routine Info (previously: one Telegram message per
+  heartbeat = ~1440/day).
+- Operator gets a digestible 15-min summary for Warnings instead of a scroll
+  wall.
+- Critical events reach Lorenzo via TWO channels (Telegram + Email) — robust
+  against Telegram-side outages.
+- EmailAlerter at Critical-only means "email from trading-system" is
+  instantly meaningful, not a folder filtered to /dev/null.
+
+**Reference**: `src/SharedKernel/Observability/IAlerter.cs` (contract),
+`src/TradingSupervisorService/Services/TelegramAlerter.cs` (routing +
+digest timer), `src/SharedKernel/Services/EmailAlerter.cs` (Critical-only
+SMTP), `src/TradingSupervisorService/Workers/SafetyAlertsWorker.cs`
+(fan-out consumer with per-alerter error isolation).
+
