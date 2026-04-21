@@ -8,6 +8,9 @@ import { SettingsPage } from './pages/SettingsPage'
 import { StrategyWizardPage } from './pages/StrategyWizardPage'
 import { StrategyImportPage } from './pages/StrategyImportPage'
 import { StrategyConvertPage } from './pages/StrategyConvertPage'
+import { HealthPage } from './pages/HealthPage'
+import { IVTSPage } from './pages/IVTSPage'
+import { LogsPage } from './pages/LogsPage'
 import { ToastContainer } from './components/ui/Toast'
 
 type Route =
@@ -23,6 +26,21 @@ type Route =
   | '/strategies/import'
   | '/strategies/convert'
   | `/strategies/${string}/edit`
+
+// Map route -> header copy (title + subtitle shown in the chrome Header)
+const headerCopy: Record<string, { title: string; subtitle?: string }> = {
+  '/': { title: 'Overview', subtitle: 'Account performance · live positions · open risk' },
+  '/positions': { title: 'Positions', subtitle: 'Open and closed contract positions' },
+  '/campaigns': { title: 'Campaigns', subtitle: 'Strategy campaigns · running and paused' },
+  '/alerts': { title: 'Alerts', subtitle: 'Active warnings and system events' },
+  '/health': { title: 'System Health', subtitle: 'Workers, queues, and data-feed telemetry' },
+  '/ivts': { title: 'IVTS Monitor', subtitle: 'Implied volatility term structure' },
+  '/logs': { title: 'Logs', subtitle: 'Service and worker log stream' },
+  '/settings': { title: 'Settings', subtitle: 'Account, execution, and integrations' },
+  '/strategies/new': { title: 'Strategy Wizard', subtitle: 'Author a new trading strategy' },
+  '/strategies/import': { title: 'Import Strategy', subtitle: 'Import from SDF JSON' },
+  '/strategies/convert': { title: 'Convert EL', subtitle: 'TradeStation EL → SDF converter' },
+}
 
 function App() {
   const [currentRoute, setCurrentRoute] = useState<Route>('/')
@@ -76,6 +94,12 @@ function App() {
         return <CampaignsPage />
       case '/alerts':
         return <AlertsPage />
+      case '/health':
+        return <HealthPage />
+      case '/ivts':
+        return <IVTSPage />
+      case '/logs':
+        return <LogsPage />
       case '/settings':
         return <SettingsPage />
       case '/strategies/new':
@@ -96,9 +120,14 @@ function App() {
     }
   }
 
+  // Resolve header copy for the current route; fall back to a bare title if unknown.
+  const copy = headerCopy[currentRoute] ?? { title: 'Trading System' }
+
   return (
     <>
-      <Layout>{renderPage()}</Layout>
+      <Layout currentPath={currentRoute} title={copy.title} {...(copy.subtitle ? { subtitle: copy.subtitle } : {})}>
+        {renderPage()}
+      </Layout>
       <ToastContainer />
     </>
   )

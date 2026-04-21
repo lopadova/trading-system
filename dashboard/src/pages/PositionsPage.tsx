@@ -1,156 +1,116 @@
+// PositionsPage — kit Overview-style layout:
+//   Row 0: PositionsBreakdown (two donuts)
+//   Row 1: PositionsKpiStrip (5 StatCards)
+//   Row 2: Filter bar + table/cards area inside a padding-less Card
+// Widgets enter with a staggered fade-in-up mirroring HomePage.
 import { useState } from 'react'
-import { usePositions } from '../hooks/usePositions'
-import { usePositionFilterStore } from '../stores/positionFilterStore'
-import { PositionsSummary } from '../components/positions/PositionsSummary'
-import { PositionFilters } from '../components/positions/PositionFilters'
+import { motion } from 'motion/react'
+import { Card } from '../components/ui/Card'
+import { FilterOverlay } from '../components/ui/FilterOverlay'
+import { Skeleton } from '../components/ui/Skeleton'
+import { PositionsBreakdown } from '../components/positions/PositionsBreakdown'
+import { PositionsKpiStrip } from '../components/positions/PositionsKpiStrip'
+import {
+  PositionsFilterBar,
+  type PositionStatus,
+  type ViewMode,
+} from '../components/positions/PositionsFilterBar'
 import { PositionsTable } from '../components/positions/PositionsTable'
 import { PositionCard } from '../components/positions/PositionCard'
-import { Card, CardContent } from '../components/ui/Card'
-import { LayoutGrid, List, RefreshCw } from 'lucide-react'
-import { cn } from '../utils/cn'
+import { usePositions } from '../hooks/usePositions'
+import type { PositionStatus as ApiPositionStatus } from '../types/position'
 
-type ViewMode = 'table' | 'cards'
+// Staggered fade-in-up — matches HomePage (0.28s, ease [0.4,0,0.2,1])
+function stagger(i: number) {
+  return {
+    initial: { opacity: 0, y: 8 },
+    animate: { opacity: 1, y: 0 },
+    transition: {
+      duration: 0.28,
+      delay: i * 0.04,
+      ease: [0.4, 0, 0.2, 1] as const,
+    },
+  }
+}
+
+// Filter-bar status uses capitalized strings (All/Open/Closed/Pending); the
+// API / Position type uses lowercase. Map "All" → undefined so the hook skips
+// the filter, otherwise lowercase the UI value.
+function toApiStatus(status: PositionStatus): ApiPositionStatus | undefined {
+  if (status === 'All') return undefined
+  return status.toLowerCase() as ApiPositionStatus
+}
 
 export function PositionsPage() {
-  const [viewMode, setViewMode] = useState<ViewMode>('table')
-  const getFilters = usePositionFilterStore((state) => state.getFilters)
+  const [status, setStatus] = useState<PositionStatus>('All')
+  const [typeFilter, setTypeFilter] = useState('All')
+  const [query, setQuery] = useState('')
+  const [view, setView] = useState<ViewMode>('table')
 
-  const { data, isLoading, isError, error, refetch, isFetching } = usePositions(getFilters())
+  const apiStatus = toApiStatus(status)
+  const { data, isLoading, isFetching, refetch } = usePositions(
+    apiStatus ? { status: apiStatus } : undefined
+  )
 
-  // Loading state
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="flex flex-col items-center gap-4">
-            <RefreshCw className="h-8 w-8 animate-spin text-muted" />
-            <p className="text-muted">Loading positions...</p>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  // Error state
-  if (isError) {
-    return (
-      <div className="space-y-6">
-        <Card>
-          <CardContent className="py-12">
-            <div className="text-center">
-              <p className="text-danger text-lg font-semibold mb-2">Failed to load positions</p>
-              <p className="text-muted text-sm mb-4">{String(error)}</p>
-              <button
-                onClick={() => refetch()}
-                className="px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors"
-              >
-                Retry
-              </button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
-  // No data
-  if (!data) {
-    return (
-      <div className="space-y-6">
-        <Card>
-          <CardContent className="py-12">
-            <div className="text-center">
-              <p className="text-muted text-lg">No position data available</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
+  // Apply client-side filters for strategy + symbol search on top of the
+  // server-side status filter
+  const positions = (data?.positions ?? []).filter(p => {
+    const matchesType = typeFilter === 'All' || p.strategy === typeFilter
+    const matchesQuery =
+      query === '' || p.symbol.toLowerCase().includes(query.toLowerCase())
+    return matchesType && matchesQuery
+  })
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold mb-2">Positions</h1>
-          <p className="text-muted">
-            Monitor your open and closed positions with real-time P&L tracking
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => refetch()}
-            disabled={isFetching}
-            className={cn(
-              'p-2 rounded-lg border border-border hover:bg-muted/10 transition-colors',
-              isFetching && 'opacity-50 cursor-not-allowed'
+    <div className="p-8 flex flex-col gap-4">
+      <motion.div {...stagger(0)}>
+        <PositionsBreakdown />
+      </motion.div>
+
+      <motion.div {...stagger(1)}>
+        <PositionsKpiStrip />
+      </motion.div>
+
+      <motion.div {...stagger(2)}>
+        <Card padding={0}>
+          <PositionsFilterBar
+            status={status}
+            setStatus={setStatus}
+            typeFilter={typeFilter}
+            setTypeFilter={setTypeFilter}
+            query={query}
+            setQuery={setQuery}
+            view={view}
+            setView={setView}
+            onRefresh={() => refetch()}
+            isFetching={isFetching}
+          />
+          <div className="relative min-h-[240px]">
+            <FilterOverlay
+              visible={isFetching && (data?.positions.length ?? 0) === 0}
+              label="Loading positions…"
+            />
+            {isLoading ? (
+              <div className="p-5">
+                <Skeleton h={240} />
+              </div>
+            ) : view === 'table' ? (
+              <PositionsTable positions={positions} />
+            ) : (
+              <div className="p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5">
+                {positions.map(p => (
+                  <PositionCard key={p.id} position={p} />
+                ))}
+              </div>
             )}
-            title="Refresh positions"
-          >
-            <RefreshCw className={cn('h-5 w-5', isFetching && 'animate-spin')} />
-          </button>
-          <div className="flex gap-1 border border-border rounded-lg p-1">
-            <button
-              onClick={() => setViewMode('table')}
-              className={cn(
-                'p-2 rounded transition-colors',
-                viewMode === 'table'
-                  ? 'bg-accent text-white'
-                  : 'hover:bg-muted/10'
-              )}
-              title="Table view"
-            >
-              <List className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => setViewMode('cards')}
-              className={cn(
-                'p-2 rounded transition-colors',
-                viewMode === 'cards'
-                  ? 'bg-accent text-white'
-                  : 'hover:bg-muted/10'
-              )}
-              title="Card view"
-            >
-              <LayoutGrid className="h-4 w-4" />
-            </button>
           </div>
-        </div>
-      </div>
-
-      {/* Summary */}
-      <PositionsSummary data={data} />
-
-      {/* Filters */}
-      <PositionFilters />
-
-      {/* Positions Display */}
-      {viewMode === 'table' ? (
-        <Card>
-          <CardContent className="p-0">
-            <PositionsTable positions={data.positions} />
-          </CardContent>
+          <div className="px-4 py-2 border-t border-border text-[11px] text-muted text-center">
+            {data
+              ? `Last updated: ${new Date(data.timestamp).toLocaleString()} · Auto-refresh every 30s`
+              : ''}
+          </div>
         </Card>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {data.positions.length === 0 ? (
-            <div className="col-span-full text-center py-12">
-              <p className="text-muted text-lg">No positions found</p>
-              <p className="text-muted text-sm mt-2">Adjust your filters or wait for new positions</p>
-            </div>
-          ) : (
-            data.positions.map((position) => (
-              <PositionCard key={position.id} position={position} />
-            ))
-          )}
-        </div>
-      )}
-
-      {/* Footer Info */}
-      <div className="text-xs text-muted text-center">
-        Last updated: {new Date(data.timestamp).toLocaleString()} • Auto-refresh every 30 seconds
-      </div>
+      </motion.div>
     </div>
   )
 }

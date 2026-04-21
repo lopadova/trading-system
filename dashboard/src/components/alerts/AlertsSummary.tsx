@@ -42,10 +42,10 @@ export function AlertsSummary({ data }: AlertsSummaryProps) {
                 {summary.bySeverity.critical + summary.bySeverity.error}
               </p>
               <div className="flex gap-2 mt-1">
-                <Badge variant="danger" className="text-xs">
+                <Badge tone="red" className="text-xs">
                   {summary.bySeverity.critical} Critical
                 </Badge>
-                <Badge variant="danger" className="text-xs">
+                <Badge tone="red" className="text-xs">
                   {summary.bySeverity.error} Error
                 </Badge>
               </div>

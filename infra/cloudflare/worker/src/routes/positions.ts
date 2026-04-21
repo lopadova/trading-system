@@ -23,30 +23,37 @@ positions.get('/active', async (c) => {
   const strategyName = c.req.query('strategy_name')
   const limit = parseInt(c.req.query('limit') ?? '100', 10)
 
-  // Build query dynamically based on filters
-  let sql = 'SELECT * FROM active_positions WHERE 1=1'
+  // Build query dynamically based on filters.
+  // LEFT JOIN to campaigns lets the dashboard show the human-readable campaign
+  // name without requiring a separate round-trip. campaigns is optional — if
+  // the row has no matching campaign, `campaign` will be NULL.
+  let sql =
+    'SELECT p.*, c.name AS campaign FROM active_positions p ' +
+    'LEFT JOIN campaigns c ON c.id = p.campaign_id ' +
+    'WHERE 1=1'
   const params: string[] = []
 
   if (campaignId) {
-    sql += ' AND campaign_id = ?'
+    sql += ' AND p.campaign_id = ?'
     params.push(campaignId)
   }
 
   if (symbol) {
-    sql += ' AND symbol = ?'
+    sql += ' AND p.symbol = ?'
     params.push(symbol)
   }
 
   if (strategyName) {
-    sql += ' AND strategy_name = ?'
+    sql += ' AND p.strategy_name = ?'
     params.push(strategyName)
   }
 
-  sql += ' ORDER BY opened_at DESC LIMIT ?'
+  sql += ' ORDER BY p.opened_at DESC LIMIT ?'
   params.push(String(limit))
 
   try {
-    const result = await c.env.DB.prepare(sql).bind(...params).all<ActivePositionRow>()
+    // Each row carries the joined `campaign` string (or null when no FK match).
+    const result = await c.env.DB.prepare(sql).bind(...params).all<ActivePositionRow & { campaign: string | null }>()
 
     return c.json({
       positions: result.results ?? [],
@@ -115,9 +122,14 @@ positions.get('/:position_id', async (c) => {
   }
 
   try {
-    const row = await c.env.DB.prepare('SELECT * FROM active_positions WHERE position_id = ?')
+    const row = await c.env.DB
+      .prepare(
+        'SELECT p.*, c.name AS campaign FROM active_positions p ' +
+        'LEFT JOIN campaigns c ON c.id = p.campaign_id ' +
+        'WHERE p.position_id = ?'
+      )
       .bind(positionId)
-      .first<ActivePositionRow>()
+      .first<ActivePositionRow & { campaign: string | null }>()
 
     if (!row) {
       return c.json({ error: 'not_found', message: 'Position not found' }, 404)

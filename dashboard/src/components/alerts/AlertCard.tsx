@@ -1,6 +1,6 @@
 import { formatDistanceToNow } from 'date-fns'
 import { Card, CardContent, CardHeader } from '../ui/Card'
-import { Badge } from '../ui/Badge'
+import { Badge, type BadgeTone } from '../ui/Badge'
 import type { Alert } from '../../types/alert'
 import {
   AlertCircle,
@@ -22,17 +22,15 @@ interface AlertCardProps {
   onResolve?: (alertId: string, resolved: boolean) => void
 }
 
-// Map severity to badge variant
-function getSeverityVariant(severity: Alert['severity']): 'default' | 'warning' | 'danger' | 'success' {
+function getSeverityTone(severity: Alert['severity']): BadgeTone {
   switch (severity) {
     case 'critical':
-      return 'danger'
     case 'error':
-      return 'danger'
+      return 'red'
     case 'warning':
-      return 'warning'
+      return 'yellow'
     case 'info':
-      return 'default'
+      return 'muted'
   }
 }
 
@@ -104,14 +102,14 @@ export function AlertCard({ alert, onResolve }: AlertCardProps) {
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1 flex-wrap">
-                <Badge variant={getSeverityVariant(alert.severity)}>
+                <Badge tone={getSeverityTone(alert.severity)}>
                   {alert.severity.toUpperCase()}
                 </Badge>
-                <Badge variant="default">
+                <Badge tone="muted">
                   <TypeIcon className="h-3 w-3 mr-1 inline" />
                   {alert.type}
                 </Badge>
-                {isResolved && <Badge variant="success">Resolved</Badge>}
+                {isResolved && <Badge tone="green">Resolved</Badge>}
               </div>
               <h3 className="font-semibold text-foreground mb-1">{alert.title}</h3>
               <p className="text-sm text-muted">{alert.message}</p>

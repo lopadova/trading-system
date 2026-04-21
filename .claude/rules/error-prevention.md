@@ -1,7 +1,7 @@
 # Error Prevention Rules
 > ⚠️ AUTO-GENERATED from knowledge/errors-registry.md
 > Last sync:
-2026-04-17T17:14:54+02:00
+2026-04-21T01:09:00+02:00
 
 **THESE RULES ARE LOADED AUTOMATICALLY IN EVERY SESSION**
 

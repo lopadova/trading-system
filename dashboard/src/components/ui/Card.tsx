@@ -1,48 +1,60 @@
-import type { ReactNode } from 'react'
+import { forwardRef, type HTMLAttributes } from 'react'
 import { cn } from '../../utils/cn'
 
-interface CardProps {
-  children: ReactNode
-  className?: string
+type CardPadding = 0 | 16 | 20 | 24
+
+export interface CardProps extends HTMLAttributes<HTMLDivElement> {
+  padding?: CardPadding
 }
 
-export function Card({ children, className }: CardProps) {
-  return (
+const paddingClass: Record<CardPadding, string> = {
+  0: 'p-0',
+  16: 'p-4',
+  20: 'p-5',
+  24: 'p-6',
+}
+
+export const Card = forwardRef<HTMLDivElement, CardProps>(
+  ({ padding = 20, className, children, ...rest }, ref) => (
     <div
+      ref={ref}
       className={cn(
-        'bg-background border border-border rounded-lg shadow-sm',
-        'transition-shadow hover:shadow-md',
+        'bg-surface border border-border rounded-card',
+        paddingClass[padding],
         className
       )}
+      {...rest}
     >
       {children}
     </div>
   )
-}
+)
+Card.displayName = 'Card'
 
-interface CardHeaderProps {
-  children: ReactNode
-  className?: string
-}
+export const CardContent = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
+  ({ className, children, ...rest }, ref) => (
+    <div ref={ref} className={cn('p-5', className)} {...rest}>
+      {children}
+    </div>
+  )
+)
+CardContent.displayName = 'CardContent'
 
-export function CardHeader({ children, className }: CardHeaderProps) {
-  return <div className={cn('px-6 py-4 border-b border-border', className)}>{children}</div>
-}
+// Backwards-compat legacy subcomponents (used by AlertsPage/CampaignsPage until Phase 2 restyle)
+export const CardHeader = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
+  ({ className, children, ...rest }, ref) => (
+    <div ref={ref} className={cn('px-6 py-4 border-b border-border', className)} {...rest}>
+      {children}
+    </div>
+  )
+)
+CardHeader.displayName = 'CardHeader'
 
-interface CardTitleProps {
-  children: ReactNode
-  className?: string
-}
-
-export function CardTitle({ children, className }: CardTitleProps) {
-  return <h3 className={cn('text-lg font-semibold', className)}>{children}</h3>
-}
-
-interface CardContentProps {
-  children: ReactNode
-  className?: string
-}
-
-export function CardContent({ children, className }: CardContentProps) {
-  return <div className={cn('px-6 py-4', className)}>{children}</div>
-}
+export const CardTitle = forwardRef<HTMLHeadingElement, HTMLAttributes<HTMLHeadingElement>>(
+  ({ className, children, ...rest }, ref) => (
+    <h3 ref={ref} className={cn('text-lg font-semibold', className)} {...rest}>
+      {children}
+    </h3>
+  )
+)
+CardTitle.displayName = 'CardTitle'

@@ -41,7 +41,7 @@ export function CampaignsPage() {
   // Loading state
   if (isLoading) {
     return (
-      <div className="space-y-6">
+      <div className="p-8 flex flex-col gap-5">
         <div className="flex items-center justify-center h-64">
           <div className="flex flex-col items-center gap-4">
             <RefreshCw className="h-8 w-8 animate-spin text-muted" />
@@ -55,15 +55,15 @@ export function CampaignsPage() {
   // Error state
   if (isError) {
     return (
-      <div className="space-y-6">
+      <div className="p-8 flex flex-col gap-5">
         <Card>
           <CardContent className="py-12">
             <div className="text-center">
-              <p className="text-danger text-lg font-semibold mb-2">Failed to load campaigns</p>
+              <p className="text-down text-lg font-semibold mb-2">Failed to load campaigns</p>
               <p className="text-muted text-sm mb-4">{String(error)}</p>
               <button
                 onClick={() => refetch()}
-                className="px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors"
+                className="px-4 py-2 bg-[var(--blue)] text-white rounded-md hover:brightness-110 transition-[filter]"
               >
                 Retry
               </button>
@@ -77,7 +77,7 @@ export function CampaignsPage() {
   // No data state
   if (!data) {
     return (
-      <div className="space-y-6">
+      <div className="p-8 flex flex-col gap-5">
         <Card>
           <CardContent className="py-12">
             <div className="text-center text-muted">
@@ -92,13 +92,13 @@ export function CampaignsPage() {
   // Empty state (no campaigns match filters)
   if (data.campaigns.length === 0) {
     return (
-      <div className="space-y-6">
+      <div className="p-8 flex flex-col gap-5">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">Campaigns</h1>
           <button
             onClick={() => refetch()}
             disabled={isFetching}
-            className="flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-[var(--blue)] text-white rounded-md hover:brightness-110 transition-[filter] disabled:opacity-50"
           >
             <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
             Refresh
@@ -122,7 +122,7 @@ export function CampaignsPage() {
 
   // Main content
   return (
-    <div className="space-y-6">
+    <div className="p-8 flex flex-col gap-5">
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Campaigns</h1>

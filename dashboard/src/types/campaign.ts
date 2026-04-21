@@ -64,3 +64,11 @@ export interface CampaignFilters {
   dateFrom?: string | undefined
   dateTo?: string | undefined
 }
+
+// Worker API: compact summary counts used by the Overview StatCard
+export interface CampaignsSummary {
+  active: number
+  paused: number
+  draft: number
+  detail: string
+}

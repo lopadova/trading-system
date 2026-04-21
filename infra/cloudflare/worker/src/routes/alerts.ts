@@ -6,12 +6,26 @@
 import { Hono } from 'hono'
 import type { Env } from '../types/env'
 import type { AlertHistoryRow } from '../types/database'
+import type { AlertsSummary } from '../types/api'
 import { authMiddleware } from '../middleware/auth'
 
 const alerts = new Hono<{ Bindings: Env }>()
 
-// All routes require authentication
+// All alert routes require authentication — including the dashboard-facing
+// /summary-24h aggregate (consistent auth policy across all endpoints).
 alerts.use('*', authMiddleware)
+
+/**
+ * GET /api/alerts/summary-24h
+ * Dashboard-facing aggregate — counts by severity over the last 24h.
+ *
+ * TODO in a later phase: replace the mock with a real D1 query grouped by
+ * severity over the last 24h.
+ */
+alerts.get('/summary-24h', (c) => {
+  const payload: AlertsSummary = { total: 14, critical: 2, warning: 5, info: 7 }
+  return c.json(payload)
+})
 
 /**
  * GET /api/alerts

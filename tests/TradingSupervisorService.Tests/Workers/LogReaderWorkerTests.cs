@@ -1,6 +1,7 @@
 using Dapper;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using SharedKernel.Data;
 using SharedKernel.Domain;
 using SharedKernel.Tests.Data;
@@ -19,6 +20,7 @@ public sealed class LogReaderWorkerTests : IAsyncDisposable
     private readonly InMemoryConnectionFactory _dbFactory;
     private readonly LogReaderStateRepository _stateRepo;
     private readonly AlertRepository _alertRepo;
+    private readonly Mock<IOutboxRepository> _outboxRepoMock;
     private readonly string _testLogDir;
 
     public LogReaderWorkerTests()
@@ -26,6 +28,7 @@ public sealed class LogReaderWorkerTests : IAsyncDisposable
         _dbFactory = new InMemoryConnectionFactory();
         _stateRepo = new LogReaderStateRepository(_dbFactory, NullLogger<LogReaderStateRepository>.Instance);
         _alertRepo = new AlertRepository(_dbFactory, NullLogger<AlertRepository>.Instance);
+        _outboxRepoMock = new Mock<IOutboxRepository>();
 
         // Create temporary log directory for tests
         _testLogDir = Path.Combine(Path.GetTempPath(), $"logreader-test-{Guid.NewGuid()}");
@@ -62,6 +65,7 @@ public sealed class LogReaderWorkerTests : IAsyncDisposable
             NullLogger<LogReaderWorker>.Instance,
             _stateRepo,
             _alertRepo,
+            _outboxRepoMock.Object,
             config);
 
         // Assert
@@ -88,6 +92,7 @@ public sealed class LogReaderWorkerTests : IAsyncDisposable
             NullLogger<LogReaderWorker>.Instance,
             _stateRepo,
             _alertRepo,
+            _outboxRepoMock.Object,
             config);
 
         // Act - start worker briefly, then stop
@@ -155,6 +160,7 @@ public sealed class LogReaderWorkerTests : IAsyncDisposable
             NullLogger<LogReaderWorker>.Instance,
             _stateRepo,
             _alertRepo,
+            _outboxRepoMock.Object,
             config);
 
         // Act - run worker for multiple cycles to ensure processing
@@ -213,6 +219,7 @@ public sealed class LogReaderWorkerTests : IAsyncDisposable
             NullLogger<LogReaderWorker>.Instance,
             _stateRepo,
             _alertRepo,
+            _outboxRepoMock.Object,
             config);
 
         // Act - run worker for multiple cycles to ensure processing
@@ -254,6 +261,7 @@ public sealed class LogReaderWorkerTests : IAsyncDisposable
             NullLogger<LogReaderWorker>.Instance,
             _stateRepo,
             _alertRepo,
+            _outboxRepoMock.Object,
             config);
 
         // Act

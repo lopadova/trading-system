@@ -43,16 +43,16 @@ export function SettingsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="p-8 flex flex-col gap-5">
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Settings</h1>
+        <h1 className="text-3xl font-bold">Settings</h1>
         <p className="text-muted mt-1">Configure your dashboard preferences and API settings</p>
       </div>
 
       {/* Theme Settings */}
       <Card>
         <div className="p-6 border-b border-border">
-          <h2 className="text-lg font-semibold text-foreground">Appearance</h2>
+          <h2 className="text-lg font-semibold">Appearance</h2>
           <p className="text-sm text-muted mt-1">Customize the look and feel of your dashboard</p>
         </div>
         <div className="p-6 space-y-4">
@@ -74,7 +74,7 @@ export function SettingsPage() {
       {/* API Configuration */}
       <Card>
         <div className="p-6 border-b border-border">
-          <h2 className="text-lg font-semibold text-foreground">API Configuration</h2>
+          <h2 className="text-lg font-semibold">API Configuration</h2>
           <p className="text-sm text-muted mt-1">Configure connection to the Cloudflare Worker API</p>
         </div>
         <div className="p-6 space-y-4">
@@ -105,7 +105,7 @@ export function SettingsPage() {
       {/* Auto-Refresh Settings */}
       <Card>
         <div className="p-6 border-b border-border">
-          <h2 className="text-lg font-semibold text-foreground">Auto-Refresh Intervals</h2>
+          <h2 className="text-lg font-semibold">Auto-Refresh Intervals</h2>
           <p className="text-sm text-muted mt-1">
             Set how often each widget should refresh data (in seconds)
           </p>
@@ -179,7 +179,7 @@ export function SettingsPage() {
       {/* Alert Preferences */}
       <Card>
         <div className="p-6 border-b border-border">
-          <h2 className="text-lg font-semibold text-foreground">Alert Preferences</h2>
+          <h2 className="text-lg font-semibold">Alert Preferences</h2>
           <p className="text-sm text-muted mt-1">Configure how alerts are displayed and notified</p>
         </div>
         <div className="p-6 space-y-4">
@@ -217,7 +217,7 @@ export function SettingsPage() {
       {/* Data Export Options */}
       <Card>
         <div className="p-6 border-b border-border">
-          <h2 className="text-lg font-semibold text-foreground">Data Export</h2>
+          <h2 className="text-lg font-semibold">Data Export</h2>
           <p className="text-sm text-muted mt-1">Configure default export settings</p>
         </div>
         <div className="p-6 space-y-4">
@@ -253,13 +253,13 @@ export function SettingsPage() {
         </Button>
       </div>
 
-      {/* Validation Errors Summary */}
+      {/* Validation Errors Summary — kit tinted danger surface */}
       {validationErrors.length > 0 && (
-        <div className="p-4 bg-danger/10 border border-danger/20 rounded-lg">
-          <h3 className="text-sm font-semibold text-danger mb-2">Validation Errors</h3>
-          <ul className="list-disc list-inside space-y-1">
+        <div className="p-4 bg-[var(--tint-red)] border border-[color:var(--red)]/25 rounded-md">
+          <h3 className="text-sm font-semibold text-down mb-2">Validation Errors</h3>
+          <ul className="list-disc list-inside flex flex-col gap-1">
             {validationErrors.map((error, index) => (
-              <li key={index} className="text-xs text-danger">
+              <li key={index} className="text-xs text-down">
                 {error}
               </li>
             ))}

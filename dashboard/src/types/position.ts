@@ -36,6 +36,9 @@ export interface Position {
   expiration?: string // For options
   right?: 'call' | 'put' // For options
   lastUpdate: string
+  // Worker enrichment — set when the position is part of an active campaign
+  campaign: string | null
+  campaignId: string | null
 }
 
 export interface PositionsResponse {

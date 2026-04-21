@@ -6,7 +6,6 @@
  */
 
 import { CheckCircleIcon, XCircleIcon, ExclamationTriangleIcon } from '@heroicons/react/24/solid'
-import '../../../styles/wizard.css'
 
 // ============================================================================
 // TYPES

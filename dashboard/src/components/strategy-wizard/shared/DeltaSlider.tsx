@@ -10,7 +10,6 @@
  */
 
 import { useState, useEffect, useRef } from 'react'
-import '../../../styles/wizard.css'
 
 // ============================================================================
 // TYPES

@@ -12,7 +12,6 @@
 import { useState, useEffect } from 'react'
 import { ArrowLeftIcon, ArrowRightIcon, RocketLaunchIcon } from '@heroicons/react/24/outline'
 import { useWizardStore } from '../../../stores/wizardStore'
-import '../../../styles/wizard.css'
 
 // ============================================================================
 // TYPES

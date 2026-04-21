@@ -55,3 +55,11 @@ export interface AlertFilters {
   dateFrom?: string | undefined
   dateTo?: string | undefined
 }
+
+// Worker API: aggregated counts for the 24h summary card
+export interface AlertsSummary {
+  total: number
+  critical: number
+  warning: number
+  info: number
+}

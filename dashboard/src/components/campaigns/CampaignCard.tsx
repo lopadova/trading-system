@@ -3,7 +3,7 @@
 
 import type { Campaign } from '../../types/campaign'
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card'
-import { Badge } from '../ui/Badge'
+import { Badge, type BadgeTone } from '../ui/Badge'
 import {
   Calendar,
   DollarSign,
@@ -22,16 +22,15 @@ interface CampaignCardProps {
   onClick?: (id: string) => void
 }
 
-function getStatusBadgeVariant(status: Campaign['status']): 'default' | 'success' | 'warning' | 'danger' {
+function getStatusBadgeTone(status: Campaign['status']): BadgeTone {
   switch (status) {
     case 'active':
-      return 'success'
+      return 'green'
     case 'paused':
-      return 'warning'
-    case 'closed':
-      return 'default'
     case 'pending':
-      return 'warning'
+      return 'yellow'
+    case 'closed':
+      return 'muted'
   }
 }
 
@@ -77,7 +76,7 @@ export function CampaignCard({ campaign, onStatusChange, onClick }: CampaignCard
           <div className="flex-1 min-w-0">
             <CardTitle className="text-base truncate">{campaign.name}</CardTitle>
             <div className="flex items-center gap-2 mt-1">
-              <Badge variant={getStatusBadgeVariant(campaign.status)}>
+              <Badge tone={getStatusBadgeTone(campaign.status)}>
                 <div className="flex items-center gap-1">
                   {getStatusIcon(campaign.status)}
                   <span className="capitalize">{campaign.status}</span>

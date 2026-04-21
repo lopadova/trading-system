@@ -8,7 +8,6 @@
 
 import { CheckIcon, XMarkIcon } from '@heroicons/react/24/solid'
 import { useWizardStore } from '../../stores/wizardStore'
-import '../../styles/wizard.css'
 
 // ============================================================================
 // CONSTANTS

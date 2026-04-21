@@ -20,6 +20,7 @@ public sealed class IvtsMonitorWorker : BackgroundService
     private readonly IIbkrClient _ibkrClient;
     private readonly IIvtsRepository _ivtsRepo;
     private readonly IAlertRepository _alertRepo;
+    private readonly IOutboxRepository _outboxRepo;
     private readonly int _intervalSeconds;
     private readonly string _symbol;
     private readonly double _ivrThreshold;
@@ -42,12 +43,14 @@ public sealed class IvtsMonitorWorker : BackgroundService
         IIbkrClient ibkrClient,
         IIvtsRepository ivtsRepo,
         IAlertRepository alertRepo,
+        IOutboxRepository outboxRepo,
         IConfiguration config)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _ibkrClient = ibkrClient ?? throw new ArgumentNullException(nameof(ibkrClient));
         _ivtsRepo = ivtsRepo ?? throw new ArgumentNullException(nameof(ivtsRepo));
         _alertRepo = alertRepo ?? throw new ArgumentNullException(nameof(alertRepo));
+        _outboxRepo = outboxRepo ?? throw new ArgumentNullException(nameof(outboxRepo));
 
         // Read configuration with safe defaults
         _enabled = config.GetValue<bool>("IvtsMonitor:Enabled", false);
@@ -379,6 +382,41 @@ public sealed class IvtsMonitorWorker : BackgroundService
             };
 
             await _ivtsRepo.InsertAlertAsync(alert, ct);
+
+            // Convert IvtsAlert to AlertRecord for API compatibility (Symbol/SnapshotId not in AlertRecord schema)
+            AlertRecord alertRecord = new()
+            {
+                AlertId = alert.AlertId,
+                AlertType = alert.AlertType,
+                Severity = alert.Severity,
+                Message = alert.Message,
+                DetailsJson = alert.DetailsJson,
+                SourceService = alert.SourceService,
+                CreatedAt = alert.CreatedAt,
+                ResolvedAt = alert.ResolvedAt,
+                ResolvedBy = alert.ResolvedBy
+            };
+
+            // Create outbox entry for remote sync
+            string eventId = Guid.NewGuid().ToString();
+            string payloadJson = JsonSerializer.Serialize(alertRecord, new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            });
+
+            OutboxEntry outboxEntry = new()
+            {
+                EventId = eventId,
+                EventType = "alert",
+                PayloadJson = payloadJson,
+                DedupeKey = $"alert:{alertRecord.AlertType}:{alertRecord.AlertId}",
+                Status = "pending",
+                RetryCount = 0,
+                CreatedAt = DateTime.UtcNow.ToString("O")
+            };
+
+            await _outboxRepo.InsertAsync(outboxEntry, ct);
+
             _logger.LogWarning("IVTS Alert: {Message}", message);
         }
 
@@ -412,6 +450,41 @@ public sealed class IvtsMonitorWorker : BackgroundService
             };
 
             await _ivtsRepo.InsertAlertAsync(alert, ct);
+
+            // Convert IvtsAlert to AlertRecord for API compatibility
+            AlertRecord alertRecord = new()
+            {
+                AlertId = alert.AlertId,
+                AlertType = alert.AlertType,
+                Severity = alert.Severity,
+                Message = alert.Message,
+                DetailsJson = alert.DetailsJson,
+                SourceService = alert.SourceService,
+                CreatedAt = alert.CreatedAt,
+                ResolvedAt = alert.ResolvedAt,
+                ResolvedBy = alert.ResolvedBy
+            };
+
+            // Create outbox entry for remote sync
+            string eventId = Guid.NewGuid().ToString();
+            string payloadJson = JsonSerializer.Serialize(alertRecord, new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            });
+
+            OutboxEntry outboxEntry = new()
+            {
+                EventId = eventId,
+                EventType = "alert",
+                PayloadJson = payloadJson,
+                DedupeKey = $"alert:{alertRecord.AlertType}:{alertRecord.AlertId}",
+                Status = "pending",
+                RetryCount = 0,
+                CreatedAt = DateTime.UtcNow.ToString("O")
+            };
+
+            await _outboxRepo.InsertAsync(outboxEntry, ct);
+
             _logger.LogWarning("IVTS Alert: {Message}", message);
         }
 
@@ -453,6 +526,41 @@ public sealed class IvtsMonitorWorker : BackgroundService
                 };
 
                 await _ivtsRepo.InsertAlertAsync(alert, ct);
+
+                // Convert IvtsAlert to AlertRecord for API compatibility
+                AlertRecord alertRecord = new()
+                {
+                    AlertId = alert.AlertId,
+                    AlertType = alert.AlertType,
+                    Severity = alert.Severity,
+                    Message = alert.Message,
+                    DetailsJson = alert.DetailsJson,
+                    SourceService = alert.SourceService,
+                    CreatedAt = alert.CreatedAt,
+                    ResolvedAt = alert.ResolvedAt,
+                    ResolvedBy = alert.ResolvedBy
+                };
+
+                // Create outbox entry for remote sync
+                string eventId = Guid.NewGuid().ToString();
+                string payloadJson = JsonSerializer.Serialize(alertRecord, new JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                });
+
+                OutboxEntry outboxEntry = new()
+                {
+                    EventId = eventId,
+                    EventType = "alert",
+                    PayloadJson = payloadJson,
+                    DedupeKey = $"alert:{alertRecord.AlertType}:{alertRecord.AlertId}",
+                    Status = "pending",
+                    RetryCount = 0,
+                    CreatedAt = DateTime.UtcNow.ToString("O")
+                };
+
+                await _outboxRepo.InsertAsync(outboxEntry, ct);
+
                 _logger.LogWarning("IVTS Alert: {Message}", message);
             }
         }

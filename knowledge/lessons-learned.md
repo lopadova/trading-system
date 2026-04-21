@@ -2697,3 +2697,27 @@ public Task ConnectAsync(CancellationToken ct = default) => Task.CompletedTask;
 **Reference**: ERR-018, skill-dotnet.md (Build Standards)
 
 ---
+
+## LESSON-181 — Dashboard redesign: CSS vars + Tailwind @theme bridge + semantic tokens
+
+**Contesto**: Dashboard full redesign 2026-04-20, branch `feat/dashboard-redesign` (phases 1-5 complete).
+
+**Scoperta**: Defining every design token as a CSS custom property on `:root`/`:root[data-theme='light']` and exposing a curated subset to Tailwind v4 via the `@theme { --color-...: var(--...) }` bridge yields three wins at once:
+1. Every kit widget consumes semantic utility classes (`bg-surface`, `text-muted`, `border-border`, `text-up`, `text-down`) without hardcoded hex values.
+2. Light/dark theme switching is a single `<html data-theme="...">` attribute toggle — no style prop rebinds, no React re-mount.
+3. Sub-theming (e.g. the amber Strategy Wizard) works by locally re-declaring the CSS vars on a wrapper div — no token fork needed.
+
+**Impatto**: 33 new widgets on feat/dashboard-redesign share one stylesheet source of truth. Palette tweaks touch `index.css` only. The wizard amber accent coexists with the Overview blue accent without conflict.
+
+**Reference**: `dashboard/src/index.css` (tokens + `@theme` block), `docs/superpowers/specs/2026-04-20-dashboard-redesign-design.md` §4.
+
+## LESSON-182 — Anchor gitignore patterns to repo root when the project mixes runtime data with source trees
+
+**Contesto**: Dashboard redesign Phase 5 — discovered `dashboard/src/components/positions/` was entirely untracked in git despite containing source code.
+
+**Scoperta**: A bare `positions/` rule in `.gitignore` intended for `/positions/` (root-level runtime position dumps) silently matched `dashboard/src/components/positions/` too, because gitignore patterns without a leading slash match at every directory level. Same risk applied to `trades/` and `logs/`. Four legacy dashboard source files (`PositionsSummary.tsx`, `PositionFilters.tsx`, `PositionsTable.tsx`, `PositionCard.tsx`) had never been in git.
+
+**Impatto**: Anchored these rules to the repo root (`/positions/`, `/trades/`, `/logs/`) and re-added the untracked source files. Going forward: when a gitignore pattern is meant for a root-level directory only, always lead with a `/` to scope it — otherwise it becomes a landmine for any future source directory that happens to share the name.
+
+**Reference**: `.gitignore` lines 150-154, commit 9c6f974.
+

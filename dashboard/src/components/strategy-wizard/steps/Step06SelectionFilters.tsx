@@ -12,7 +12,6 @@
 import { useWizardStore } from '../../../stores/wizardStore'
 import { FieldWithTooltip } from '../shared/FieldWithTooltip'
 import { Card } from '../../ui/Card'
-import '../../../styles/wizard.css'
 
 // ============================================================================
 // CONSTANTS

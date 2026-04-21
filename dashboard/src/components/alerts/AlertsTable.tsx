@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { formatDistanceToNow } from 'date-fns'
-import { Badge } from '../ui/Badge'
+import { Badge, type BadgeTone } from '../ui/Badge'
 import type { Alert } from '../../types/alert'
 import {
   AlertCircle,
@@ -18,17 +18,15 @@ interface AlertsTableProps {
   onResolve?: (alertId: string, resolved: boolean) => void
 }
 
-// Map severity to badge variant
-function getSeverityVariant(severity: Alert['severity']): 'default' | 'warning' | 'danger' | 'success' {
+function getSeverityTone(severity: Alert['severity']): BadgeTone {
   switch (severity) {
     case 'critical':
-      return 'danger'
     case 'error':
-      return 'danger'
+      return 'red'
     case 'warning':
-      return 'warning'
+      return 'yellow'
     case 'info':
-      return 'default'
+      return 'muted'
   }
 }
 
@@ -125,7 +123,7 @@ export function AlertsTable({ alerts, onResolve }: AlertsTableProps) {
                           alert.severity === 'info' && 'text-accent'
                         )}
                       />
-                      <Badge variant={getSeverityVariant(alert.severity)} className="text-xs">
+                      <Badge tone={getSeverityTone(alert.severity)} className="text-xs">
                         {alert.severity.toUpperCase()}
                       </Badge>
                     </div>
@@ -155,11 +153,11 @@ export function AlertsTable({ alerts, onResolve }: AlertsTableProps) {
                   </td>
                   <td className="p-3">
                     {isResolved ? (
-                      <Badge variant="success" className="text-xs">
+                      <Badge tone="green" className="text-xs">
                         Resolved
                       </Badge>
                     ) : (
-                      <Badge variant="warning" className="text-xs">
+                      <Badge tone="yellow" className="text-xs">
                         Active
                       </Badge>
                     )}

@@ -8,7 +8,7 @@
  */
 
 import type { ConversionIssue } from '../../../hooks/useELConversion'
-import { Badge } from '../../ui/Badge'
+import { Badge, type BadgeTone } from '../../ui/Badge'
 
 interface IssuesListProps {
   issues: ConversionIssue[]
@@ -31,8 +31,8 @@ export function IssuesList({ issues }: IssuesListProps) {
     }
   }
 
-  const getIssueBadgeVariant = (type: ConversionIssue['type']): 'danger' | 'warning' => {
-    return type === 'not_supported' ? 'danger' : 'warning'
+  const getIssueBadgeTone = (type: ConversionIssue['type']): BadgeTone => {
+    return type === 'not_supported' ? 'red' : 'yellow'
   }
 
   return (
@@ -43,7 +43,7 @@ export function IssuesList({ issues }: IssuesListProps) {
             <span className="text-xl">{getIssueIcon(issue.type)}</span>
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1">
-                <Badge variant={getIssueBadgeVariant(issue.type)}>
+                <Badge tone={getIssueBadgeTone(issue.type)}>
                   {getIssueLabel(issue.type)}
                 </Badge>
                 <code className="text-xs text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded">
