@@ -3,6 +3,7 @@ using SharedKernel.Configuration;
 using SharedKernel.Data;
 using SharedKernel.Domain;
 using SharedKernel.Ibkr;
+using SharedKernel.Observability;
 using TradingSupervisorService.Bot;
 using TradingSupervisorService.Collectors;
 using TradingSupervisorService.Configuration;
@@ -73,16 +74,26 @@ try
         {
             options.ServiceName = "TradingSupervisorService";
         })
-        .UseSerilog((context, services, loggerConfig) => loggerConfig
-            .ReadFrom.Services(services)
-            .Enrich.FromLogContext()
-            .Enrich.WithProperty("Service", "TradingSupervisorService")
-            .MinimumLevel.Information()
-            .WriteTo.Console(outputTemplate:
-                "[{Timestamp:HH:mm:ss} {Level:u3}] [{Service}] {Message:lj}{NewLine}{Exception}")
-            .WriteTo.File("logs/supervisor-.log",
-                rollingInterval: RollingInterval.Day,
-                retainedFileCountLimit: 30))
+        .UseSerilog((context, services, loggerConfig) =>
+        {
+            // Resolve log-shipping options once at host build — the sink reads these
+            // values at construction time, so we want the definitive IConfiguration here.
+            HttpSinkOptions sinkOpts = ObservabilityConfig.ReadOptions(context.Configuration, "supervisor");
+
+            loggerConfig
+                .ReadFrom.Services(services)
+                .Enrich.FromLogContext()
+                .Enrich.WithProperty("Service", "TradingSupervisorService")
+                .MinimumLevel.Information()
+                .WriteTo.Console(outputTemplate:
+                    "[{Timestamp:HH:mm:ss} {Level:u3}] [{Service}] {Message:lj}{NewLine}{Exception}")
+                .WriteTo.File("logs/supervisor-.log",
+                    rollingInterval: RollingInterval.Day,
+                    retainedFileCountLimit: 30)
+                // HTTP sink: Warning+ only, batched (100 events or 5s), streams to Worker /api/v1/logs.
+                // Local file sink above keeps the full Information+ history.
+                .AddLogShipping(sinkOpts);
+        })
         .ConfigureServices((context, services) =>
         {
             IConfiguration config = context.Configuration;

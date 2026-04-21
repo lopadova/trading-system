@@ -6,6 +6,7 @@ using Serilog;
 using SharedKernel.Configuration;
 using SharedKernel.Data;
 using SharedKernel.Ibkr;
+using SharedKernel.Observability;
 using SharedKernel.Options;
 using SharedKernel.Strategy;
 using OptionsExecutionService.Campaign;
@@ -76,6 +77,7 @@ try
     });
 
     // Configure Serilog
+    HttpSinkOptions optionsSinkOpts = ObservabilityConfig.ReadOptions(builder.Configuration, "options-execution");
     builder.Services.AddSerilog((services, loggerConfig) => loggerConfig
         .ReadFrom.Services(services)
         .Enrich.FromLogContext()
@@ -89,7 +91,9 @@ try
             rollingInterval: RollingInterval.Day,
             retainedFileCountLimit: 30,
             outputTemplate:
-                "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff} {Level:u3}] [{Service}] {Message:lj}{NewLine}{Exception}"));
+                "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff} {Level:u3}] [{Service}] {Message:lj}{NewLine}{Exception}")
+        // HTTP sink: Warning+ only, batched, streams to Worker /api/v1/logs. File sink keeps full history locally.
+        .AddLogShipping(optionsSinkOpts));
 
     // Register database connection factory
     string dbPath = builder.Configuration["Sqlite:OptionsDbPath"] ?? "data/options-execution.db";
