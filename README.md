@@ -767,16 +767,21 @@ See [Architecture Overview](docs/ARCHITECTURE.md) for detailed design documentat
 
 ```
 trading-system/
-├── docs/                       # Documentation
-│   ├── ARCHITECTURE.md         # System design
+├── docs/                       # Documentation (Obsidian-compatible vault)
+│   ├── INDEX.md                # Wiki entry point (start here)
+│   ├── ARCHITECTURE.md         # System design (deep-dive)
+│   ├── ARCHITECTURE_OVERVIEW.md # System design (quick)
 │   ├── GETTING_STARTED.md      # Installation guide
+│   ├── ONBOARDING.md           # Developer 30-minute quick start
 │   ├── CONFIGURATION.md        # Config reference
 │   ├── STRATEGY_FORMAT.md      # Strategy JSON guide
+│   ├── DEPLOYMENT_GUIDE.md     # Deployment + CI/CD
 │   ├── TROUBLESHOOTING.md      # Common issues
-│   ├── MONITORING.md           # Observability
 │   ├── CONTRIBUTING.md         # Development guide
-│   ├── database-schema.md      # Schema reference
-│   └── telegram-integration.md # Alert setup
+│   ├── BOT_SETUP_GUIDE.md      # Telegram + Discord bot setup
+│   ├── telegram-integration.md # .NET alert pipeline
+│   ├── ops/                    # Phase 7 ops (RUNBOOK, DR, OBSERVABILITY, SLO, GO_LIVE, ...)
+│   └── archive/                # Superseded docs (history preserved)
 ├── src/
 │   ├── SharedKernel/           # Domain types, shared utilities
 │   ├── TradingSupervisorService/  # Health monitoring service

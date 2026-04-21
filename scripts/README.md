@@ -358,9 +358,9 @@ Fix each failure before proceeding with deployment.
 
 ## Documentation
 
-- **Deployment Guide**: `DEPLOYMENT.md` - Complete deployment instructions
+- **Deployment Guide**: `docs/DEPLOYMENT_GUIDE.md` - Complete deployment instructions
 - **Coding Standards**: `CLAUDE.md` - Project guidelines and rules
-- **Database Schema**: `docs/database-schema.md`
+- **Database Schema**: `infra/cloudflare/worker/migrations/*.sql` (source of truth)
 - **Telegram Integration**: `docs/telegram-integration.md`
 - **Knowledge Base**: `knowledge/` - Errors, lessons learned, corrections
 
