@@ -69,12 +69,38 @@ foreach ($rawLine in (Get-Content -LiteralPath $envFile)) {
     }
 
     Write-Host "  PUT  $key"
-    # Pipe the value into wrangler via stdin. We use cmd /c to preserve exact
-    # byte semantics (no trailing newline appended by Write-Output).
-    $value | & bunx wrangler secret put $key --config $wranglerConfig @envFlag
-    if ($LASTEXITCODE -ne 0) {
-        Write-Error "wrangler secret put failed for key '$key' with exit $LASTEXITCODE"
-        exit $LASTEXITCODE
+    # Invoke bunx via the Process API rather than PowerShell's native pipe
+    # operator. The native pipe (`$value | & bunx ...`) terminates the stream
+    # with CRLF on Windows, and wrangler stores the exact bytes it reads —
+    # a trailing newline in the secret breaks downstream HMAC / bearer-auth
+    # comparisons in subtle ways (the value "looks right" in the CF dashboard
+    # but 401s at runtime). The bash script sidesteps this with `printf '%s'`;
+    # the equivalent in PowerShell is manual stdin control via Process.
+    $bunxCmd = Get-Command 'bunx' -ErrorAction SilentlyContinue
+    if (-not $bunxCmd) {
+        Write-Error "bunx not found in PATH. Install Bun (https://bun.sh) before running this script."
+        exit 1
+    }
+    $psi = [System.Diagnostics.ProcessStartInfo]::new()
+    $psi.FileName = $bunxCmd.Source
+    $psi.UseShellExecute = $false
+    $psi.RedirectStandardInput = $true
+    $psi.ArgumentList.Add('wrangler')
+    $psi.ArgumentList.Add('secret')
+    $psi.ArgumentList.Add('put')
+    $psi.ArgumentList.Add($key)
+    $psi.ArgumentList.Add('--config')
+    $psi.ArgumentList.Add($wranglerConfig)
+    foreach ($f in $envFlag) { $psi.ArgumentList.Add($f) }
+
+    $proc = [System.Diagnostics.Process]::Start($psi)
+    # Write exactly the secret bytes — no newline. Close() signals EOF to wrangler.
+    $proc.StandardInput.Write($value)
+    $proc.StandardInput.Close()
+    $proc.WaitForExit()
+    if ($proc.ExitCode -ne 0) {
+        Write-Error "wrangler secret put failed for key '$key' with exit $($proc.ExitCode)"
+        exit $proc.ExitCode
     }
     $pushed++
 }

@@ -5,9 +5,11 @@ using SharedKernel.Configuration;
 // ---------------------------------------------------------------------------
 // EncryptConfigValue CLI
 // ---------------------------------------------------------------------------
-// Small operator helper that reads a secret from stdin (or the first CLI arg),
-// wraps it with Windows DPAPI via EncryptedConfigProvider, and prints the
-// result to stdout in the format used by appsettings.Staging/Production.json:
+// Small operator helper that reads a secret from stdin (piped or interactive
+// prompt — never a positional CLI argument, which would leak the secret to
+// shell history / process listings), wraps it with Windows DPAPI via
+// EncryptedConfigProvider, and prints the result to stdout in the format used
+// by appsettings.Staging/Production.json:
 //
 //   DPAPI:<base64-encoded-blob>
 //
@@ -17,7 +19,10 @@ using SharedKernel.Configuration;
 //   dotnet run --project src/Tools/EncryptConfigValue -- <<< "my-secret-value"
 //   # or:
 //   echo -n "my-secret-value" | dotnet run --project src/Tools/EncryptConfigValue
+//   # or interactively (input is hidden):
+//   dotnet run --project src/Tools/EncryptConfigValue
 //
+// Recognised CLI args are options only: --scope=CurrentUser, -h / --help.
 // Then paste the printed DPAPI:... string into the appropriate appsettings
 // file. See docs/ops/SECRETS.md for the full rotation procedure.
 // ---------------------------------------------------------------------------

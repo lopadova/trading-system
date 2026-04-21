@@ -28,13 +28,20 @@ public static class EncryptedConfigurationExtensions
     {
         ArgumentNullException.ThrowIfNull(builder);
 
-        // Build an intermediate IConfiguration from the sources registered so
-        // far. This snapshot is what our provider walks in Load(). It does NOT
-        // include sources registered AFTER AddEncryptedProvider — which is
-        // exactly the point: env vars added later still win at the root.
-        IConfigurationRoot upstreamSnapshot = new ConfigurationBuilder()
-            .AddConfiguration(builder.Build())
-            .Build();
+        // Build ONE snapshot of the sources registered so far. Our provider
+        // walks this snapshot in Load(). It deliberately does NOT include
+        // sources registered AFTER AddEncryptedProvider (e.g. env vars) —
+        // that ordering is what lets the outer builder still pick up
+        // operator overrides at the root after we run.
+        //
+        // Note: this single .Build() call instantiates the upstream providers
+        // a second time at the outer builder's final .Build() (host startup
+        // rebuilds every source). The alternative — wrapping in a second
+        // ConfigurationBuilder().AddConfiguration(builder.Build()) — doubles
+        // the file watchers / reload tokens without buying anything, so we
+        // keep the simple single-snapshot form. Rebuild cost is paid once at
+        // startup and is negligible for JSON + env-var sources.
+        IConfigurationRoot upstreamSnapshot = builder.Build();
 
         builder.Add(new EncryptedConfigurationSource
         {
