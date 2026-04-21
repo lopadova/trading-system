@@ -3111,3 +3111,143 @@ digest timer), `src/SharedKernel/Services/EmailAlerter.cs` (Critical-only
 SMTP), `src/TradingSupervisorService/Workers/SafetyAlertsWorker.cs`
 (fan-out consumer with per-alerter error isolation).
 
+
+## LESSON-192 — Fail-closed timeout on the order-placement safety gate
+
+**Category**: Safety
+**Discovered**: Phase 7.4 implementation
+**Date**: 2026-04-20
+
+**Context**: The SemaphoreGate's `IsRed()` method is called in the
+synchronous order-placement hot path. It wraps an HTTP call to the
+Cloudflare Worker. Three failure modes needed distinct defaults:
+
+1. HTTP 5xx / network error → **Orange** (fail-cautious). Block new
+   entries but allow exits. Temporary issues shouldn't disable trading.
+2. HTTP 401/403 → **Red** + Critical alert. Security-critical. A broken
+   API key or misconfigured shared secret must stop trading immediately.
+3. HTTP timeout inside the 3-second `IsRed()` sync budget → **true**
+   (fail-closed, interpret as Red).
+
+**Why fail-closed on timeout is non-obvious**: a "can't reach Worker"
+state is operationally indistinguishable from "Worker is hung and
+returning the wrong answer". A hung Worker could return green-from-cache
+ten seconds ago while the market actually went RED and our stale view
+doesn't know. Locking trading on ambiguity is the safe choice — the
+only cost is no new entries for 3 seconds, which is negligible vs. the
+alternative of opening a bad entry during a regime change.
+
+**Discovery**: initial design defaulted timeout → orange (match the
+network-error path). Reviewed with a "what's the worst-case?" drill and
+realized orange still allows exits, which includes closing a winner at
+a bad price during a genuine RED regime. Flipped to fail-closed + red.
+
+**Impact**:
+- Sync `IsRed()` budget is 3s: bounded latency on the happy path
+  (cache hit: <1ms), bounded worst-case on sad path.
+- Async `GetCurrentStatusAsync()` is per-HTTP-request timeout of 2s:
+  the cache fills with a defensive value so a subsequent `IsRed()`
+  hits the cache and returns fast.
+- Cache TTL is 60s: short enough that an operator flipping the semaphore
+  to RED propagates within a minute.
+
+**Reference**: `src/OptionsExecutionService/Services/SemaphoreGate.cs`
+(the fail-closed/fail-cautious matrix), `knowledge/errors-registry.md`
+ERR-xxx if we ever hit a real incident here.
+
+
+## LESSON-193 — IbkrFailureType classification prevents network-noise DoS on the circuit breaker
+
+**Category**: Safety / Resilience
+**Discovered**: Phase 7.4 implementation
+**Date**: 2026-04-20
+
+**Context**: The pre-7.4 circuit breaker counted EVERY "order didn't
+make it to IBKR" event as a failure. That includes:
+
+- TWS restart → 30s of `IsConnected=false` → every order in that window
+  counts as a failure.
+- Transient socket blip → connection drops + immediate reconnect, but
+  any in-flight order fails.
+
+Over a fleet restart or a Windows Defender scan pause, this created
+false-positive breaker trips that required manual reset.
+
+**Design**: classify via `IbkrFailureType`:
+
+- `NetworkError` → does NOT count toward the budget. Transport-level
+  failures are what reconnect/backoff handles; tripping on them creates
+  a DoS loop (breaker opens → trades blocked → no activity → breaker
+  reset cooldown ends → first real attempt hits still-disconnected
+  TWS → breaker trips again).
+- `BrokerReject` → counts. A deliberate rejection from the broker side
+  (insufficient margin, invalid contract, outside RTH) is EXACTLY the
+  class of failure the breaker exists to contain.
+- `Unknown` → counts. Fail-closed on ambiguity so forgetting to classify
+  an error doesn't silently bypass the safety net.
+
+**Impact**:
+- TWS restarts no longer trip the breaker (NetworkError gets recorded
+  for observability but not counted).
+- The breaker now fires on the actual class of failure it was designed
+  for: a misbehaving strategy that's getting rejected repeatedly.
+
+**Reference**: `src/SharedKernel/Safety/IbkrFailureType.cs` (the enum
+and rationale), `src/OptionsExecutionService/Orders/OrderPlacer.cs`
+(RecordFailureAsync + RecordIbkrFailureAsync public hook for external
+callers).
+
+
+## LESSON-194 — Order audit log as single source of truth: blocked orders get rows too
+
+**Category**: Observability / Safety
+**Discovered**: Phase 7.4 implementation
+**Date**: 2026-04-20
+
+**Context**: Before Phase 7.4, "was this order placed?" could only be
+answered from the IBKR-side execution log. But an order BLOCKED at a
+.NET gate (semaphore, pause flag, validator, breaker) never reached
+IBKR, so there was no record of the attempt anywhere except the local
+service log file.
+
+Logs are:
+- not durable (log rotation deletes them),
+- not queryable (grepping for "rejected" across log files is brittle),
+- not correlated (no way to join log lines with positions / strategies).
+
+**Design**: every single order-placement attempt writes exactly ONE row
+to `order_audit_log` (both locally and on the Worker):
+
+| Outcome path                      | `outcome`            | `order_id` |
+|-----------------------------------|----------------------|------------|
+| Gate #1 block (semaphore)         | rejected_semaphore   | null       |
+| Gate #2 block (pnl-paused)        | rejected_pnl_pause   | null       |
+| Gate #3 block (invalid request)   | error                | null       |
+| Gate #4 block (breaker open)      | rejected_breaker     | null       |
+| Gate #5 block (validators)        | rejected_max_*       | null       |
+| Accepted, submitted to IBKR       | placed               | guid       |
+| Broker rejected submission        | rejected_broker      | guid       |
+| Fill confirmed                    | filled               | guid       |
+| Exception during submission       | error                | guid?      |
+
+The audit row captures the semaphore snapshot at decision time, the
+strategy name, the gate's rationale (`override_reason`), and the
+attempted contract — enough to reconstruct the "why" of a block weeks
+later without grepping logs.
+
+**Impact**:
+- Post-incident: `/api/audit/orders?outcome=rejected_semaphore&from=2026-04-20`
+  answers "how many orders did the semaphore block yesterday?" in one
+  curl.
+- Strategy debugging: filter by `strategy_id` to see a strategy's full
+  attempt history, including blocked attempts.
+- Audit row is also the ONLY place where semaphore snapshot + order
+  attempt are co-located — crucial for "did the semaphore flip during
+  this decision?" diagnostics.
+
+**Reference**:
+- `src/SharedKernel/Safety/OrderAuditEntry.cs` (factory helpers per outcome)
+- `infra/cloudflare/worker/migrations/0009_order_audit_log.sql` (schema)
+- `infra/cloudflare/worker/src/routes/audit.ts` (read endpoint)
+- `src/OptionsExecutionService/Services/OutboxOrderAuditSink.cs`
+  (local-first, ship-second idempotent writer)

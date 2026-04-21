@@ -259,6 +259,148 @@ in the Sentry project settings.
 
 ---
 
+## Phase 7.4 — Safety gate playbooks
+
+### Order blocked by SemaphoreGate
+
+**Symptom**: log line `SemaphoreGate blocked order: ...` + Critical alert
+"Order blocked by SemaphoreGate" in Telegram/email.
+
+**What happened**: the Cloudflare Worker's composite risk indicator
+(`GET /api/risk/semaphore`) returned `status=red`, so the .NET-side
+`SemaphoreGate` refused the order before it reached IBKR. An audit row
+with `outcome=rejected_semaphore` was written to `order_audit_log`.
+
+**Investigate in order**:
+
+1. Confirm the Worker state:
+
+   ```bash
+   curl -s -H "X-Api-Key: $CLOUDFLARE_API_KEY" \
+     https://<your-worker>.workers.dev/api/risk/semaphore | jq .
+   ```
+
+   Check the `status` field and the four sub-indicator rows. The
+   `X-Data-Source: fallback-mock` header means D1 has no real data (dev mode);
+   the mock payload returns `orange` so you shouldn't see RED from a fresh
+   install unless real data is flowing.
+
+2. Walk the sub-indicators. If **ivts > 1.15** or **vix_level percentile > 80**,
+   the market is telling you to stop. Accept the block.
+
+3. If the block looks wrong (stale data, bad thresholds), override
+   temporarily: set `Safety:OverrideSemaphore=true` in the service's
+   environment and restart. The service WILL log a Fatal-level multi-line
+   banner AND send a Critical alert so nobody forgets it's on.
+
+4. **Always remove the override** once the incident is resolved. The
+   override persists across restarts.
+
+5. Query the audit table to confirm the block chain:
+
+   ```bash
+   curl -s -H "X-Api-Key: $CLOUDFLARE_API_KEY" \
+     "https://<your-worker>.workers.dev/api/audit/orders?outcome=rejected_semaphore&limit=20" | jq .
+   ```
+
+### Trading paused by DailyPnLWatcher
+
+**Symptom**: log line `DailyPnLWatcher: trading paused` + Critical alert
+"DailyPnLWatcher: trading paused". All subsequent orders are rejected
+with `outcome=rejected_pnl_pause`.
+
+**What happened**: today's equity vs yesterday's close moved more than
+`Safety:MaxDailyDrawdownPct` (default 2%). The watcher flipped
+`safety_flags.trading_paused = '1'` and stopped. There is NO auto-unpause.
+
+**Investigate in order**:
+
+1. Confirm the drawdown is real (not a data spike):
+
+   ```bash
+   curl -s -H "X-Api-Key: $CLOUDFLARE_API_KEY" \
+     https://<your-worker>.workers.dev/api/performance/today | jq .
+   ```
+
+   Look at `accountValue`, `yesterdayClose`, `pnlPct`. A plausible
+   drawdown reads like `pnlPct: -2.31`. A spike looks like
+   `pnlPct: -78.2` — that's almost certainly a bad `account_equity_daily`
+   row from the collector, not a real event.
+
+2. If the drawdown is real: **do nothing with the flag**. Review
+   positions, close risk, and only unpause when you're comfortable.
+
+3. If the drawdown is a data bug: fix the bad row, then unpause:
+
+   ```bash
+   # Locally on the service host:
+   sqlite3 data/options-execution.db "DELETE FROM safety_flags WHERE key='trading_paused';"
+   # Or, if you prefer an UPDATE:
+   sqlite3 data/options-execution.db "UPDATE safety_flags SET value='0' WHERE key='trading_paused';"
+   ```
+
+   The flag-store is strict about "1" meaning set; any other value
+   (including "0") unpauses immediately on the next order.
+
+### Circuit breaker open
+
+**Symptom**: log line `CIRCUIT BREAKER TRIPPED: N failures in M minutes`
++ subsequent orders rejected with `outcome=rejected_breaker`.
+
+**What happened**: `Safety:CircuitBreakerFailureThreshold` broker-class
+failures accumulated within the rolling window. Only `BrokerReject` and
+`Unknown` failures count — `NetworkError` is ignored so transport noise
+doesn't trip it. The breaker auto-resets after
+`Safety:CircuitBreakerCooldownMinutes`.
+
+**Investigate in order**:
+
+1. Query recent broker rejections to identify the pattern:
+
+   ```bash
+   curl -s -H "X-Api-Key: $CLOUDFLARE_API_KEY" \
+     "https://<your-worker>.workers.dev/api/audit/orders?outcome=rejected_broker&limit=20" | jq .
+   ```
+
+   Typical culprits:
+   - insufficient margin → reduce position sizes / deposit funds
+   - invalid contract → strategy has a bug in contract construction
+   - outside RTH → strategy firing during extended hours
+
+2. If the root cause is transient, wait for the cooldown.
+
+3. If the root cause is a fixed bug, re-deploy and the breaker resets
+   automatically on next failed attempt clearing the window.
+
+### Querying the Order Audit log
+
+The Worker exposes a read endpoint. Every order placement — success or
+blocked — has a row.
+
+```bash
+# Last 50 rows (any outcome)
+curl -s -H "X-Api-Key: $CLOUDFLARE_API_KEY" \
+  "https://<your-worker>.workers.dev/api/audit/orders?limit=50" | jq .
+
+# All blocks from a specific day
+curl -s -H "X-Api-Key: $CLOUDFLARE_API_KEY" \
+  "https://<your-worker>.workers.dev/api/audit/orders?from=2026-04-20&outcome=rejected_semaphore" | jq .
+
+# All errors
+curl -s -H "X-Api-Key: $CLOUDFLARE_API_KEY" \
+  "https://<your-worker>.workers.dev/api/audit/orders?outcome=error&limit=100" | jq .
+```
+
+Valid `outcome` values: `placed`, `filled`, `rejected_semaphore`,
+`rejected_pnl_pause`, `rejected_max_size`, `rejected_max_value`,
+`rejected_max_risk`, `rejected_min_balance`, `rejected_breaker`,
+`rejected_broker`, `error`.
+
+The local mirror (`order_audit_log_local` in `options-execution.db`)
+keeps the same rows for offline inspection when the Worker is unreachable.
+
+---
+
 ## Escalation
 
 - **Padosoft on-call**: lorenzo.padovani@padosoft.com (this is a solo-op
