@@ -88,7 +88,12 @@ decrypt.
 
 ```powershell
 # Example: wrapping a Cloudflare API key.
-echo -n "YOUR_CF_API_KEY_HERE" | dotnet run `
+# NOTE: `echo -n` is a bash-ism — PowerShell has no `-n` switch on
+# echo/Write-Output, so copy-pasting `echo -n "..."` here would send the
+# literal `-n <secret>` bytes to the tool. Use the native pipe; the tool
+# trims a single trailing \r\n automatically so the wrapped bytes are
+# exactly the secret.
+'YOUR_CF_API_KEY_HERE' | dotnet run `
   --project src/Tools/EncryptConfigValue `
   --configuration Release
 
@@ -156,7 +161,10 @@ Per secret (repeat for each one that is due):
 3. **Re-wrap for .NET** (if applicable — the `Smtp:Password`,
    `Cloudflare:ApiKey`, etc. live in appsettings):
    ```powershell
-   echo -n "NEW_VALUE" | dotnet run --project src/Tools/EncryptConfigValue
+   # `echo -n` does NOT work in PowerShell — use the native pipe; the
+   # tool strips a single trailing \r\n so the wrapped bytes match the
+   # secret exactly. See the "Wrap a single value" section above.
+   'NEW_VALUE' | dotnet run --project src/Tools/EncryptConfigValue
    # Paste the output into appsettings.Production.json.
    ```
 4. **Push to Cloudflare**:

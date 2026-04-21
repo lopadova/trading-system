@@ -177,9 +177,25 @@ blob you can paste in its place.
 ```powershell
 # On the service host. EncryptConfigValue uses LocalMachine DPAPI scope.
 cd C:\trading-system
-echo -n "live" | dotnet run `
+# IMPORTANT: do NOT copy-paste `echo -n "live"` from a bash snippet —
+# `echo` IS a PowerShell alias for Write-Output but `-n` is NOT a valid
+# PowerShell option, so PowerShell would send the literal "-n live"
+# bytes to EncryptConfigValue and wrap the wrong string.
+#
+# In PowerShell, the native pipe IS safe here: PowerShell appends a
+# trailing line terminator, and EncryptConfigValue explicitly trims a
+# single trailing \r\n / \n in its stdin reader (see
+# src/Tools/EncryptConfigValue/Program.cs). Net effect: the 4 bytes
+# "live" get wrapped, no trailing newline inside the blob.
+'live' | dotnet run `
   --project src/Tools/EncryptConfigValue `
   --configuration Release
+
+# If you prefer a belt-and-braces alternative (no pipe, interactive
+# entry), run the tool without input — it will prompt with a hidden
+# field and accept the secret from the terminal:
+#   dotnet run --project src/Tools/EncryptConfigValue --configuration Release
+# Then type `live` and press Enter.
 
 # Output:
 # DPAPI:AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAA...
@@ -189,7 +205,9 @@ echo -n "live" | dotnet run `
 **Also prepare the rollback value NOW, before touching anything:**
 
 ```powershell
-echo -n "paper" | dotnet run `
+# Same PowerShell idiom — native pipe + trust the tool's newline trim.
+# Never write `echo -n "paper"` here; see the warning above.
+'paper' | dotnet run `
   --project src/Tools/EncryptConfigValue `
   --configuration Release
 

@@ -593,10 +593,18 @@ rollback decision):
 # Snapshot last 200 log lines from both services so you have
 # forensic data AFTER rollback.
 $ts = Get-Date -Format "yyyyMMdd-HHmmss"
+$incidentDirectory = "C:\trading-system\incidents"
+
+# Ensure the incident snapshot directory exists before copying files.
+# -Force makes this idempotent so repeated incidents don't fail here;
+# we do NOT want the 30-second context capture to itself need a
+# runbook recovery step if this is the first go-live incident.
+New-Item -Path $incidentDirectory -ItemType Directory -Force | Out-Null
+
 Copy-Item "C:\trading-system\logs\supervisor-*.log" `
-          "C:\trading-system\incidents\go-live-$ts-supervisor.log" -Force
+          "$incidentDirectory\go-live-$ts-supervisor.log" -Force
 Copy-Item "C:\trading-system\logs\options-*.log" `
-          "C:\trading-system\incidents\go-live-$ts-options.log" -Force
+          "$incidentDirectory\go-live-$ts-options.log" -Force
 ```
 
 ### Execute rollback

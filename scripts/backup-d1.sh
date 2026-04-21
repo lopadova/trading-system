@@ -32,16 +32,28 @@ if [ -z "${db_name}" ]; then
   exit 1
 fi
 
-# Guardrail — only accept the two known database names so a typo cannot
-# silently export the wrong place (or produce an empty export).
-case "${db_name}" in
-  trading-db|trading-db-staging) ;;
-  *)
-    echo "ERROR: unknown database '${db_name}'." >&2
-    echo "  Allowed: trading-db, trading-db-staging" >&2
-    exit 1
-    ;;
-esac
+# Guardrail — parse the allowed DB names from wrangler.toml so this script
+# stays in sync if a future Phase renames or adds a D1 binding. Catches
+# both "typo in the arg" and "wrangler.toml renamed but backup wasn't
+# updated" failure modes before we hit Cloudflare.
+if [ ! -f "${WRANGLER_CONFIG}" ]; then
+  echo "ERROR: wrangler.toml not found at ${WRANGLER_CONFIG}" >&2
+  exit 1
+fi
+allowed_db_names="$(awk '
+  /^[[:space:]]*database_name[[:space:]]*=/ {
+    match($0, /"[^"]*"/); if (RSTART > 0) print substr($0, RSTART+1, RLENGTH-2)
+  }' "${WRANGLER_CONFIG}" | sort -u)"
+if [ -z "${allowed_db_names}" ]; then
+  echo "ERROR: could not parse any database_name from ${WRANGLER_CONFIG}" >&2
+  exit 1
+fi
+if ! printf '%s\n' "${allowed_db_names}" | grep -qx "${db_name}"; then
+  echo "ERROR: unknown database '${db_name}'." >&2
+  echo "  Allowed (parsed from wrangler.toml):" >&2
+  printf '    %s\n' ${allowed_db_names} >&2
+  exit 1
+fi
 
 # Verify wrangler is reachable. Avoids a cryptic failure deep in the pipeline.
 if ! command -v bunx >/dev/null 2>&1; then

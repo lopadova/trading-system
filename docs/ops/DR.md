@@ -136,20 +136,67 @@ bunx wrangler r2 object get trading-system-backups \
   --file=./restore.sql
 
 # 3. Wipe the existing D1 schema (safe because we're restoring).
-bunx wrangler d1 execute trading-db --remote --command="
-  PRAGMA foreign_keys=OFF;
-  SELECT 'DROP TABLE IF EXISTS ' || name || ';' FROM sqlite_master WHERE type='table';
-"
+#    IMPORTANT: a SELECT that GENERATES DROP statements doesn't actually
+#    drop anything — we have to materialise the statements into a script
+#    and execute it. Drop order matters: triggers → views → indexes →
+#    tables (otherwise FK constraints or dependent objects would fail).
+printf 'PRAGMA foreign_keys=OFF;\n' > ./wipe-schema.sql
+bunx wrangler d1 execute trading-db --remote --json --command="
+  SELECT
+    CASE type
+      WHEN 'trigger' THEN 'DROP TRIGGER IF EXISTS \"' || REPLACE(name, '\"', '\"\"') || '\";'
+      WHEN 'view'    THEN 'DROP VIEW IF EXISTS \"'    || REPLACE(name, '\"', '\"\"') || '\";'
+      WHEN 'index'   THEN 'DROP INDEX IF EXISTS \"'   || REPLACE(name, '\"', '\"\"') || '\";'
+      WHEN 'table'   THEN 'DROP TABLE IF EXISTS \"'   || REPLACE(name, '\"', '\"\"') || '\";'
+    END AS stmt
+  FROM sqlite_master
+  WHERE type IN ('table','view','trigger','index')
+    AND name NOT LIKE 'sqlite_%'
+  ORDER BY CASE type
+    WHEN 'trigger' THEN 1
+    WHEN 'view'    THEN 2
+    WHEN 'index'   THEN 3
+    WHEN 'table'   THEN 4
+  END, name;
+" | jq -r '.[0].results[].stmt' >> ./wipe-schema.sql
+bunx wrangler d1 execute trading-db --remote --file=./wipe-schema.sql
 
 # 4. Apply the restore SQL.
 #    Wrangler does not accept multi-statement SQL from a file directly via
 #    --command; use the --file flag added in wrangler 3.60+.
 bunx wrangler d1 execute trading-db --remote --file=./restore.sql
 
-# 5. Verify row counts match expectations (compare to the source export
-#    by grepping "INSERT INTO" counts — rough but sufficient).
-bunx wrangler d1 execute trading-db --remote \
-  --command="SELECT name, (SELECT COUNT(*) FROM sqlite_master WHERE tbl_name=m.name) FROM sqlite_master m WHERE type='table' ORDER BY name;"
+# 5. Validate the restore with REAL per-table row counts.
+#    The "SELECT COUNT(*) FROM sqlite_master WHERE tbl_name=m.name" trick
+#    returns metadata counts (typically 1 per table), NOT row counts — a
+#    broken restore would look fine. Build expected counts from the same
+#    restore.sql in a LOCAL sqlite, then diff against what we just wrote
+#    to remote D1. An empty diff == bit-exact restore.
+rm -f ./restore-verify.sqlite ./expected-counts.txt ./actual-counts.txt
+sqlite3 ./restore-verify.sqlite < ./restore.sql
+#    5a. Expected counts (local): what the restore.sql claims to produce.
+while IFS= read -r TABLE_NAME; do
+  printf '%s\t' "${TABLE_NAME}" >> ./expected-counts.txt
+  sqlite3 ./restore-verify.sqlite \
+    "SELECT COUNT(*) FROM \"${TABLE_NAME}\";" >> ./expected-counts.txt
+done < <(
+  sqlite3 ./restore-verify.sqlite \
+    "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name;"
+)
+#    5b. Actual counts (remote): what's actually in D1 now.
+while IFS= read -r TABLE_NAME; do
+  printf '%s\t' "${TABLE_NAME}" >> ./actual-counts.txt
+  bunx wrangler d1 execute trading-db --remote --json \
+    --command="SELECT COUNT(*) AS c FROM \"${TABLE_NAME}\";" \
+    | jq -r '.[0].results[0].c' >> ./actual-counts.txt
+done < <(
+  bunx wrangler d1 execute trading-db --remote --json \
+    --command="SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name;" \
+    | jq -r '.[0].results[].name'
+)
+#    5c. The diff MUST be empty. Any line = broken restore.
+diff -u ./expected-counts.txt ./actual-counts.txt
+rm -f ./restore-verify.sqlite ./expected-counts.txt ./actual-counts.txt ./wipe-schema.sql
 
 # 6. Re-enable ingest.
 bunx wrangler kv:key delete --binding=KV "WORKER_PAUSED" --remote
@@ -358,13 +405,24 @@ way to know the backups work is to exercise the restore path.
 
 **Drill procedure** (~90 minutes, staging environment):
 
-1. **Snapshot current staging D1** row counts by table:
+1. **Snapshot current staging D1** REAL row counts by table.
+   IMPORTANT: the obvious-looking
+   `(SELECT COUNT(*) FROM sqlite_master WHERE tbl_name=m.name)` returns
+   **metadata** counts (≈1 per table), NOT actual row counts — the
+   drill diff would be meaningless. Emit one `COUNT(*)` per table
+   instead:
    ```bash
-   bunx wrangler d1 execute trading-db-staging --remote --command="
-     SELECT name AS table_name,
-            (SELECT COUNT(*) FROM sqlite_master WHERE tbl_name=m.name) AS rows
-     FROM sqlite_master m WHERE type='table' ORDER BY name;
-   " > before.txt
+   rm -f before.txt
+   while IFS= read -r TABLE_NAME; do
+     printf '%s\t' "${TABLE_NAME}" >> before.txt
+     bunx wrangler d1 execute trading-db-staging --remote --json \
+       --command="SELECT COUNT(*) AS c FROM \"${TABLE_NAME}\";" \
+       | jq -r '.[0].results[0].c' >> before.txt
+   done < <(
+     bunx wrangler d1 execute trading-db-staging --remote --json \
+       --command="SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name;" \
+       | jq -r '.[0].results[].name'
+   )
    ```
 
 2. **Run the daily backup script** against staging:
@@ -386,16 +444,25 @@ way to know the backups work is to exercise the restore path.
      --file=backups/d1/trading-db-staging_*.sql
    ```
 
-5. **Re-count** and diff:
+5. **Re-count** the restored DB the same way (real per-table
+   `COUNT(*)`, not sqlite_master metadata) and diff:
    ```bash
-   bunx wrangler d1 execute trading-db-staging --remote --command="
-     SELECT name AS table_name,
-            (SELECT COUNT(*) FROM sqlite_master WHERE tbl_name=m.name) AS rows
-     FROM sqlite_master m WHERE type='table' ORDER BY name;
-   " > after.txt
-   diff before.txt after.txt
+   rm -f after.txt
+   while IFS= read -r TABLE_NAME; do
+     printf '%s\t' "${TABLE_NAME}" >> after.txt
+     bunx wrangler d1 execute trading-db-staging --remote --json \
+       --command="SELECT COUNT(*) AS c FROM \"${TABLE_NAME}\";" \
+       | jq -r '.[0].results[0].c' >> after.txt
+   done < <(
+     bunx wrangler d1 execute trading-db-staging --remote --json \
+       --command="SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name;" \
+       | jq -r '.[0].results[].name'
+   )
+   diff -u before.txt after.txt
    ```
-   Expected: zero diff. Any difference = your backup missed data.
+   Expected: zero diff (and a non-empty before.txt — an all-zero
+   diff with empty files is a bug, not a pass). Any difference = your
+   backup missed data.
 
 6. **Log the drill** in `docs/ops/dr-drills/YYYY-QX.md` — template:
 

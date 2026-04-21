@@ -117,50 +117,74 @@ to the daily rounds.
 ### 2.3 At least one forced RED-regime test
 
 Sometime during the 14 days (recommended: day 3 or 4, once you trust
-the morning round), force the SemaphoreGate to RED to verify the
-gate actually stops orders. Do NOT rely on waiting for a natural
-RED — you need deterministic evidence the gate works.
+the morning round), force the SemaphoreGate to reject orders to
+verify the gate actually stops orders. Do NOT rely on waiting for a
+natural RED — you need deterministic evidence the gate works.
+
+**Note**: a dedicated `Safety__ForceSemaphoreStatus` env var does
+NOT exist at the time of Phase 7.7 validation. If a helper flag is
+introduced later (Phase 8+), it should be documented alongside its
+implementation and logging behavior. For THIS validation run use
+one of the two currently-supported paths below — pick either, and
+record which one you used in the day-log.
+
+**Option A — flip the durable `trading_paused` safety flag** (easiest,
+exercises the same refusal code path `OrderPlacer` checks before
+reaching the semaphore). Audit outcome will be
+`rejected_pnl_pause` instead of `rejected_semaphore`, which is still
+valid evidence the gate pipeline refuses orders:
 
 ```powershell
-# On the service host, set the test-only override flag.
-[Environment]::SetEnvironmentVariable(
-  "Safety__ForceSemaphoreStatus", "red",
-  "Machine")
-Restart-Service OptionsExecutionService
+# On the service host (PowerShell):
+sqlite3 "C:\trading-system\data\options-execution.db" `
+  "INSERT OR REPLACE INTO safety_flags (key, value) VALUES ('trading_paused', '1');"
+# No service restart needed — the flag is read per-order.
 ```
 
-Then:
+**Option B — force a RED semaphore by seeding VIX/VIX3M values in
+D1** so the IVTS indicator crosses the 1.15 threshold. Staging only —
+do NOT do this on production D1:
 
-- Manually submit one order via the test-order utility:
-  ```powershell
-  cd C:\trading-system
-  dotnet run --project src/OptionsExecutionService `
-    -- order-test --symbol=SPX --strategy=spx-weekly-iron-condor
-  ```
-- Expected: the order is refused. Logs show `SemaphoreGate blocked order`
-  and a row appears in `order_audit_log` with
-  `outcome=rejected_semaphore`.
+```bash
+# IVTS = VIX / VIX3M. Forcing VIX=25, VIX3M=20 => IVTS=1.25 > 1.15 => RED.
+bunx wrangler d1 execute trading-db-staging --remote \
+  --command="INSERT OR REPLACE INTO vix_term_structure (date, vix, vix3m) \
+             VALUES (date('now'), 25.0, 20.0);"
+# Restart OptionsExecutionService so the 60s SemaphoreGate cache invalidates
+# on the next tick (or wait ~60s for the TTL to expire).
+```
 
-Now immediately unset the force flag:
+Then for either option, submit one test order:
 
 ```powershell
-[Environment]::SetEnvironmentVariable(
-  "Safety__ForceSemaphoreStatus", $null,
-  "Machine")
-Restart-Service OptionsExecutionService
+cd C:\trading-system
+dotnet run --project src/OptionsExecutionService `
+  -- order-test --symbol=SPX --strategy=spx-weekly-iron-condor
 ```
 
-Document both the blocked order and the unset in the day-log. This
-is direct evidence the safety-gate works end-to-end, which the
-Completion Report will cite.
+Expected: the order is refused, logs show `OrderPlacer blocked order`
+(Option A) or `SemaphoreGate blocked order` (Option B), and a row
+appears in `order_audit_log` with `outcome=rejected_pnl_pause`
+(Option A) or `outcome=rejected_semaphore` (Option B).
 
-**Note**: the `Safety__ForceSemaphoreStatus` env var is a Phase 7.7
-addition specifically for this test. It MUST log a Fatal banner
-when set (mirroring `Safety:OverrideSemaphore` behavior) so it
-can't be left on by accident. If this flag doesn't exist yet at the
-time of the validation, achieve the same effect by temporarily
-setting `Safety:ForceReject=true` or by manipulating `safety_flags`
-directly — document whichever approach you use.
+**Undo immediately** — the whole point of the test is that the block
+is temporary:
+
+```powershell
+# Option A undo:
+sqlite3 "C:\trading-system\data\options-execution.db" `
+  "DELETE FROM safety_flags WHERE key='trading_paused';"
+```
+
+```bash
+# Option B undo — replace with a current realistic VIX pair, or just drop:
+bunx wrangler d1 execute trading-db-staging --remote \
+  --command="DELETE FROM vix_term_structure WHERE date = date('now');"
+```
+
+Document the blocked order + the undo in the day-log. This is
+direct evidence the safety-gate pipeline refuses orders when told
+to, which the Completion Report will cite.
 
 ### 2.4 Day 14
 

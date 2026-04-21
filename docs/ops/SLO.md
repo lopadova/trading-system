@@ -70,17 +70,25 @@ per rolling month of unavailability before the SLO is breached.
   (so a blank shell = failure). UptimeRobot computes rolling
   availability and emails when < 99% over 24h.
 
-**Operator query** (Worker side, Cloudflare Analytics SQL API):
+**Operator query** (Worker side, Cloudflare built-in HTTP request
+analytics). The Worker's custom `trading_system_metrics` dataset does
+NOT emit per-request `status_code` samples — `recordMetric()` only fires
+for domain-specific events (auth failures, ingest outcomes). Use
+Cloudflare's built-in `http_requests` dataset for availability instead:
 
 ```sql
 SELECT
   SUM(CASE WHEN status_code >= 500 THEN 1 ELSE 0 END) AS failures,
   COUNT(*) AS total,
   1.0 - (SUM(CASE WHEN status_code >= 500 THEN 1 ELSE 0 END) * 1.0 / COUNT(*)) AS availability
-FROM trading_system_metrics
+FROM http_requests
 WHERE timestamp > NOW() - INTERVAL '30' DAY
-  AND blob1 = 'request';
+  AND host = 'trading-bot.padosoft.workers.dev';
 ```
+
+If a custom per-request metric (incl. status_code as a tag) is ever
+added to `trading_system_metrics`, update both sides together and
+migrate the query.
 
 Expected: `availability >= 0.99`. A result `< 0.99` means the budget
 is fully consumed for the rolling window.
@@ -92,8 +100,11 @@ is fully consumed for the rolling window.
 - **Critical (75% burn)**: budget consumption reaches 5h 29m in
   rolling 7-day → Telegram `critical`, operator reviews within 1h.
 - **Breach (100% burn)**: 7h 18m consumed in rolling 30-day →
-  operator MUST open a retrospective issue (template:
-  `.github/ISSUE_TEMPLATE/slo-breach.md`, created in Phase 7.7).
+  operator MUST open a retrospective GitHub issue for the breach
+  and include: SLO name, time window, minutes consumed, root cause,
+  remediation status. A dedicated issue template under
+  `.github/ISSUE_TEMPLATE/slo-breach.md` is a future enhancement —
+  until then use a free-form issue with the `slo-breach` label.
 
 **On-call action on alert**:
 
@@ -234,7 +245,12 @@ scheduled workflow is the canonical alerting path.
 
 **On-call action on alert**:
 
-1. Which table? Consult the freshness endpoint.
+1. Which table? There is no `/api/admin/freshness` endpoint yet
+   (Phase 8+ wish — see the Measurement section above). Consult the
+   **actual signal sources**: (a) the last run output of
+   `scripts/verify-data-freshness.sh --env production`, or (b) the
+   `Data Freshness Check` workflow run in GitHub Actions — the
+   `freshness-report.txt` artifact names the stale table(s).
 2. Map table → producer:
    - `market_quotes_daily`, `vix_term_structure` →
      `TradingSupervisorService.MarketDataCollector`.
@@ -265,20 +281,26 @@ Outbox and retries. A budget breach means the retry loop itself
 is unhealthy, not that individual events fail.
 
 **Measurement**: Cloudflare Analytics dataset `trading_system_metrics`.
-Every ingest POST emits one `ingest.event_type` sample and either
-`ingest.accepted` or `ingest.rejected`.
+Every ingest POST emits exactly one `ingest.event_type` sample with a
+`status` tag (`accepted`, `rejected_validation`, or
+`rejected_unknown_type`) and a `type` tag (the event type). The
+`recordMetric()` helper (`infra/cloudflare/worker/src/lib/metrics.ts`)
+sorts tag keys alphabetically before emission, so within the
+`ingest.event_type` metric: `blob1 = 'ingest.event_type'` (name),
+`blob2 = status value`, `blob3 = type value`.
 
 **Operator query**:
 
 ```sql
 SELECT
-  SUM(CASE WHEN blob1 = 'ingest.accepted' THEN 1 ELSE 0 END) AS accepted,
-  SUM(CASE WHEN blob1 = 'ingest.rejected' THEN 1 ELSE 0 END) AS rejected,
-  1.0 - (SUM(CASE WHEN blob1 = 'ingest.rejected' THEN 1 ELSE 0 END) * 1.0
+  SUM(CASE WHEN blob2 = 'accepted' THEN 1 ELSE 0 END) AS accepted,
+  SUM(CASE WHEN blob2 LIKE 'rejected%' THEN 1 ELSE 0 END) AS rejected,
+  1.0 - (SUM(CASE WHEN blob2 LIKE 'rejected%' THEN 1 ELSE 0 END) * 1.0
          / COUNT(*)) AS success_rate
 FROM trading_system_metrics
 WHERE timestamp > NOW() - INTERVAL '30' DAY
-  AND blob1 IN ('ingest.accepted', 'ingest.rejected');
+  AND blob1 = 'ingest.event_type'
+  AND (blob2 = 'accepted' OR blob2 LIKE 'rejected%');
 ```
 
 Expected: `success_rate >= 0.995`.
