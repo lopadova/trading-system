@@ -55,10 +55,10 @@ export function ImportDropzone({
       // Read file content
       const content = await file.text()
 
-      // Try to parse JSON first
+      // Try to parse JSON first (we only care if it throws, not the error object)
       try {
         JSON.parse(content)
-      } catch (parseError) {
+      } catch {
         throw new Error('File JSON non valido')
       }
 

@@ -11,7 +11,7 @@
  * - Response data structure and types
  */
 
-import { describe, it, expect, beforeAll } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import ky, { HTTPError } from 'ky'
 
 // Test configuration

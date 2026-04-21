@@ -143,7 +143,7 @@ describe('Integration Tests: Zustand Store Persistence', () => {
         if (stored) {
           parsed = JSON.parse(stored)
         }
-      } catch (error) {
+      } catch {
         // Fallback to default state
         parsed = { state: { theme: 'system' }, version: 0 }
       }
@@ -261,7 +261,7 @@ describe('Integration Tests: Zustand Store Persistence', () => {
       let didThrow = false
       try {
         window.localStorage.getItem('trading-ui')
-      } catch (error) {
+      } catch {
         didThrow = true
       }
 
@@ -277,7 +277,7 @@ describe('Integration Tests: Zustand Store Persistence', () => {
       // Simulate rapid theme changes
       const themes: Array<'dark' | 'light' | 'system'> = ['dark', 'light', 'system', 'dark', 'light']
 
-      themes.forEach((theme, index) => {
+      themes.forEach((theme, _index) => {
         const state = {
           state: { theme },
           version: 0,

@@ -7,7 +7,6 @@ import { describe, it, expect } from 'vitest'
 import {
   generateStrategyId,
   generateTimestamp,
-  generateInitialVersion,
   createInitialChangelog,
   createDefaultStrategy,
   createDefaultLeg,
@@ -276,7 +275,11 @@ describe('sdf-defaults', () => {
   })
 
   it('EDGE: incrementVersion handles invalid level gracefully', () => {
-    const result = incrementVersion('1.2.3', 'invalid' as any)
+    // Deliberately pass an out-of-union string to verify runtime fallback.
+    // Cast through `unknown` to a typed Parameters tuple so we avoid `any`
+    // while still forcing TypeScript to accept the invalid value for the test.
+    const invalidLevel = 'invalid' as unknown as Parameters<typeof incrementVersion>[1]
+    const result = incrementVersion('1.2.3', invalidLevel)
     expect(result).toBe('1.2.3') // Returns unchanged
   })
 })

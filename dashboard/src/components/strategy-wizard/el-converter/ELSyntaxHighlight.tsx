@@ -128,7 +128,7 @@ function tokenizeEasyLanguage(code: string): Token[] {
       }
 
       // Operator: + - * / = < > ( ) [ ] { } , ;
-      if (/[+\-*\/=<>()[\]{},;]/.test(char)) {
+      if (/[+\-*/=<>()[\]{},;]/.test(char)) {
         tokens.push({ type: 'operator', value: char })
         j++
         continue

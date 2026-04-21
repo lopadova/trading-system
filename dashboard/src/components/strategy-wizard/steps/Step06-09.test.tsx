@@ -10,12 +10,24 @@
 
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import type { MouseEventHandler, ReactNode } from 'react'
 import { useWizardStore } from '../../../stores/wizardStore'
 import { Step06SelectionFilters } from './Step06SelectionFilters'
 import { Step07ExitRules } from './Step07ExitRules'
 import { Step08ExecutionRules } from './Step08ExecutionRules'
 import { Step09Monitoring } from './Step09Monitoring'
 import type { StrategyDraft } from '../../../types/sdf-v1'
+
+// Prop types for minimal UI component mocks
+type MockButtonProps = {
+  children?: ReactNode
+  onClick?: MouseEventHandler<HTMLButtonElement>
+  className?: string
+}
+type MockCardProps = {
+  children?: ReactNode
+  className?: string
+}
 
 // ============================================================================
 // MOCKS
@@ -28,7 +40,7 @@ vi.mock('../../../stores/wizardStore', () => ({
 
 // Mock UI components
 vi.mock('../../ui/Button', () => ({
-  Button: ({ children, onClick, className }: any) => (
+  Button: ({ children, onClick, className }: MockButtonProps) => (
     <button onClick={onClick} className={className}>
       {children}
     </button>
@@ -36,7 +48,7 @@ vi.mock('../../ui/Button', () => ({
 }))
 
 vi.mock('../../ui/Card', () => ({
-  Card: ({ children, className }: any) => <div className={className}>{children}</div>,
+  Card: ({ children, className }: MockCardProps) => <div className={className}>{children}</div>,
 }))
 
 // Mock icons
@@ -160,10 +172,13 @@ function createMockDraft(): StrategyDraft {
 
 function setupMockStore(draft: StrategyDraft) {
   const setField = vi.fn()
-  ;(useWizardStore as any).mockReturnValue({
+  // vi.mocked() gives us the typed Mock view of the hook so we can call
+  // mockReturnValue without casting to `any`. The partial store shape is
+  // sufficient for these tests (Step06-09 only consume draft + setField).
+  vi.mocked(useWizardStore).mockReturnValue({
     draft,
     setField,
-  })
+  } as unknown as ReturnType<typeof useWizardStore>)
   return { setField }
 }
 

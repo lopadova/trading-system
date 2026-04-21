@@ -8,7 +8,6 @@ import {
   type StrategyDefinition,
   type StrategyLeg,
   type HardStopCondition,
-  type DeepPartial,
   type StrategyDraft,
   isStrategyDefinition,
   isStrategyLeg,

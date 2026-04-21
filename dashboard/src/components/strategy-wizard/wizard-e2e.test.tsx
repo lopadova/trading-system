@@ -436,9 +436,11 @@ describe('E2E-W-03: EL conversion flow', () => {
   })
 
   it('should handle missing API key error', async () => {
-    // Temporarily remove API key
+    // Temporarily remove API key. import.meta.env is typed as readonly by Vite,
+    // but at runtime it is a mutable object — we cast via `unknown` to a
+    // string-indexed record so we can `delete` without reaching for `any`.
     const originalKey = import.meta.env.VITE_API_KEY
-    delete (import.meta.env as any).VITE_API_KEY
+    delete (import.meta.env as unknown as Record<string, string | undefined>).VITE_API_KEY
 
     useWizardStore.getState().setElCode('some code')
 
