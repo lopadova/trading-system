@@ -2943,3 +2943,72 @@ Date formatting: use a static `['Jan','Feb',...]` array rather than `toLocaleStr
 **Impatto**: Algorithm runs in O(N) with no allocations beyond the episode array; handles 10Y of daily data (~2520 rows) in sub-millisecond.
 
 **Reference**: `computeWorst()` in `infra/cloudflare/worker/src/routes/drawdowns.ts`.
+
+## LESSON-188 — Worker ingest pattern for high-volume write-only telemetry: batch + UPSERT + fire-and-forget metric
+
+**Context**: Phase 7.3 observability — centralized log ingest (`/api/v1/logs`)
+receives potentially thousands of entries per minute from .NET Serilog sinks,
+the Worker itself, and the Dashboard. We needed a shape that scaled under
+load, was idempotent on retry, and did not let observability signals (like
+Analytics Engine metrics) block the response path.
+
+**Discovery**: Three-pronged pattern:
+
+1. **Batch envelope**: `{ batch: LogEntry[] }` with Zod `.min(1).max(500)`.
+   Clients can send up to 500 entries per POST, amortizing auth + TLS +
+   JSON-parse cost over many rows. Hard cap at 500 prevents runaway payloads
+   from exhausting Worker CPU budget.
+2. **Natural-key UPSERT**: `PRIMARY KEY (service, ts, sequence)` where
+   `sequence` is the entry's index inside the batch. The SAME batch posted
+   twice (retry after a transient 5xx) lands on the same PKs and
+   `INSERT OR REPLACE` dedupes — zero duplicate rows even under aggressive
+   client retry. No need for an external idempotency key or a Redis-like
+   dedup store.
+3. **Fire-and-forget metric**: `recordMetric(c.env, 'logs.batch', {...})`
+   emits to Analytics Engine. Wrapped in try/catch; a failing metric write
+   logs once and NEVER rethrows. The Env type declares `METRICS?` as
+   optional so local `wrangler dev` without the binding still runs — which
+   is critical for keeping the test surface simple.
+
+**Impact**: Same pattern now applies to any future write-only telemetry
+endpoint (audit logs, command records, etc.). Key design invariant: if your
+ingest handler has no SELECT-before-INSERT, and the PK is something the
+client naturally computes (timestamp + sequence + scope), you get
+idempotency for free with zero extra infrastructure.
+
+**Reference**:
+- `infra/cloudflare/worker/src/routes/logs.ts`
+- `infra/cloudflare/worker/src/lib/metrics.ts`
+- `infra/cloudflare/worker/migrations/0008_service_logs.sql`
+
+## LESSON-189 — Sentry replaysSessionSampleRate=0 for MVP: bandwidth cost vs debugging value
+
+**Context**: Phase 7.3 dashboard observability. We added `@sentry/react`
+for automatic error + breadcrumb capture, plus browser tracing at 10%.
+Sentry offers session replays — literal DOM-mutation recordings playable
+in the Sentry UI — with two knobs: `replaysSessionSampleRate` (record every
+Nth session regardless of errors) and `replaysOnErrorSampleRate` (record
+only when an error fires, 30s backfill).
+
+**Discovery**: We set session replay to **0** and on-error replay to **0.5**.
+Rationale:
+
+- Session replay records 50-100 KB/min per active user. For a solo-dev
+  dashboard with one operator, this is pure overhead — there's no usage
+  pattern we'd discover from a random session that we couldn't see by
+  sitting at the dashboard ourselves.
+- On-error replay is different: when something breaks, having a 30-second
+  DOM rewind with clicks + network activity is gold. 50% sample is enough
+  to catch most issues without swamping the Sentry quota (free tier: 50
+  replays/month on the individual plan).
+- The trade-off flips if we later open the dashboard to multiple users:
+  session replay becomes a usability-research tool. Revisit after the
+  14-day paper-trading window in Phase 7.7.
+
+**Impact**: ~90% reduction in Sentry replay bandwidth vs the "just enable
+it" default many teams hit when first wiring Sentry. Cost: we lose
+visibility into "happy path" sessions, which we didn't need anyway for a
+two-person operation.
+
+**Reference**: `dashboard/src/main.tsx` (Sentry.init block).
+
