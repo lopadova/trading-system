@@ -52,8 +52,8 @@ vi.mock('../../../stores/wizardStore', () => ({
 }))
 
 // Mock useELConversion hook
-let mockConvertFn = vi.fn()
-let mockResetFn = vi.fn()
+const mockConvertFn = vi.fn()
+const mockResetFn = vi.fn()
 let mockConversionState: {
   isLoading: boolean
   result: ConversionResult | null
