@@ -30,16 +30,17 @@ Everything else goes under `docs/`:
 **Never** create session reports / status reports / final reports at
 the repo root. Phase 7.x accumulated 17+ such files before the PR #13
 cleanup; don't regress. If a session summary is genuinely useful,
-put it under `docs/archive/dev-sessions/YYYY-MM-DD-<topic>/` — otherwise
+put it under `docs/archive/dev-sessions/<topic>/` per RULE 7 — otherwise
 skip it (conversation context + `git log` are the primary history).
 
-### RULE 1: Frontmatter is mandatory on every `.md` under `docs/**`
+### RULE 1: Frontmatter is mandatory on all `.md` files except the exclusions below
 
 Exceptions (NO frontmatter): `.claude/`, `docs/archive/**`, `CLAUDE.md`,
 GitHub Issue Templates, files inside `node_modules/`.
 
-Every other `.md` (including `README.md` at repo root — minimal form)
-MUST start with:
+Any other `.md` file (including `README.md` at repo root in its
+minimal form AND component READMEs under `dashboard/`, `scripts/`,
+`tests/`, `infra/cloudflare/worker/` etc.) MUST start with:
 
 ```yaml
 ---

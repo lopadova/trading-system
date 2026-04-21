@@ -34,13 +34,17 @@ You're about to create / edit a markdown doc. Ask in order:
    → docs/<NAME>.md
 
 4. Is this a DR drill report?
-   → docs/ops/dr-drills/YYYY-QX.md
+   → docs/ops/dr-drill-YYYY-QX.md (flat path, no sub-folder — the
+     folder would be overkill for ~4 files/year. If you end up with
+     >10 drills, we'll promote to a folder later.)
 
 5. Is this a session/status/final report for work just done?
    → Usually the answer is "don't write it at all".
      The PR description + git log + knowledge/lessons-learned.md
      already cover it. If it's genuinely useful:
-   → docs/archive/dev-sessions/YYYY-MM-DD-<topic>/
+   → docs/archive/dev-sessions/<topic>/ (no date prefix — the git
+     history of the commit that added it is the date; matches the
+     structure PR #13 established under docs/archive/dev-sessions/)
 
 6. Is this a README for a subfolder (dashboard/, scripts/, tests/)?
    → KEEP IT there, but add frontmatter per section 3.
@@ -91,20 +95,28 @@ Closed vocabulary:
 - **Activity** (pick 0-1): `deployment` · `observability` · `safety` · `release` · `incident-response`
 - **Lifecycle** (pick 0-1): `knowledge-base` · `runbook` · `workflow`
 
-Common combinations:
+Common combinations (each row picks **exactly one domain** + optional
+layer/activity/lifecycle):
 
-| Doc type | Suggested tags |
-|----------|----------------|
-| Runbook playbook | `["ops", "runbook", "incident-response"]` |
-| SLO definition | `["ops", "observability"]` |
-| Release procedure | `["ops", "release", "deployment"]` |
-| Architecture doc | `["architecture", "reference"]` |
-| Onboarding guide | `["onboarding", "dev"]` |
-| Worker API reference | `["reference", "worker"]` |
-| Testing strategy | `["testing", "dev"]` |
-| Secret rotation | `["ops", "security"]` |
+| Doc type | Suggested tags | Breakdown |
+|----------|----------------|-----------|
+| Runbook playbook | `["ops", "runbook", "incident-response"]` | domain=ops + lifecycle=runbook + activity=incident-response |
+| SLO definition | `["ops", "observability"]` | domain=ops + activity=observability |
+| Release procedure | `["ops", "release"]` | domain=ops + activity=release (not "deployment" too — pick one) |
+| Architecture doc | `["architecture"]` | domain only |
+| Onboarding guide | `["onboarding"]` | domain only |
+| Worker API reference | `["reference", "worker"]` | domain=reference + layer=worker |
+| Testing strategy | `["testing", "workflow"]` | domain=testing + lifecycle=workflow |
+| Secret rotation | `["security", "runbook"]` | domain=security + lifecycle=runbook |
+| .NET service deep-dive | `["reference", "dotnet"]` | domain=reference + layer=dotnet |
+| Dev workflow (feature cycle) | `["dev", "workflow"]` | domain=dev + lifecycle=workflow |
 
-If none of the combinations fits: pick the closest, don't invent a
+**Rule**: one and only one domain tag per doc. If a doc legitimately
+spans two domains (e.g. "security onboarding"), pick the primary and
+mention the other inline in the body — tag bloat makes graph view
+useless.
+
+If none of the rows above fits: pick the closest, don't invent a
 new tag. If a genuinely new tag is needed, extend the vocabulary in
 `.claude/rules/documentation.md` AND retag existing docs that match
 (same branch / same PR).
