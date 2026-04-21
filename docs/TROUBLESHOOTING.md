@@ -336,7 +336,7 @@ TWS workstation logs are in a **proprietary binary format** (`.ibgzenc`). You mu
    - Add localhost port to exclusions (check antivirus documentation)
    - Temporarily disable antivirus to test (re-enable after test)
    
-   **Note**: See `WINDOWS_DEFENDER_UNLOCK.md` for detailed antivirus troubleshooting
+   **Note**: See `docs/ops/WINDOWS_DEFENDER.md` for detailed antivirus troubleshooting
 
 ---
 

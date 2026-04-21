@@ -79,15 +79,18 @@ trading-system/
 │   ├── agents/                 # Task-specific prompts
 │   └── skills/                 # Reusable skill files
 ├── docs/                       # Documentation
-│   ├── ARCHITECTURE.md
+│   ├── INDEX.md                # Wiki entry point
+│   ├── ARCHITECTURE.md / ARCHITECTURE_OVERVIEW.md
 │   ├── GETTING_STARTED.md
-│   ├── CONFIGURATION.md
+│   ├── ONBOARDING.md
+│   ├── CONFIGURATION.md / CONFIGURATION-CHECKLIST.md
 │   ├── STRATEGY_FORMAT.md
 │   ├── TROUBLESHOOTING.md
 │   ├── CONTRIBUTING.md         # This file
-│   ├── MONITORING.md
-│   ├── database-schema.md
-│   └── telegram-integration.md
+│   ├── telegram-integration.md
+│   ├── BOT_SETUP_GUIDE.md
+│   ├── ops/                    # Phase 7 operational docs (runbook, DR, observability...)
+│   └── archive/                # Superseded docs (history preserved)
 ├── knowledge/                  # Self-improvement system
 │   ├── errors-registry.md      # Known errors and fixes
 │   ├── lessons-learned.md      # Patterns and discoveries
@@ -773,7 +776,7 @@ Skill files in `.claude/skills/` can be updated.
 2. **Add to migrations class**: `XXXMigrations.All` property
 3. **Create repository**: Implement I/O operations
 4. **Test**: Unit tests with in-memory database
-5. **Document**: `docs/database-schema.md`
+5. **Document**: Update the relevant migration file in `infra/cloudflare/worker/migrations/` (source of truth for schema). For SQLite (`supervisor.db`, `options.db`) document in the relevant `src/*/Migrations/` C# files.
 
 ---
 

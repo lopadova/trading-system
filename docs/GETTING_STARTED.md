@@ -683,7 +683,7 @@ Then:
 
 ### 3. Deploy Cloudflare Worker (Optional)
 
-See [Deployment Guide](./DEPLOYMENT.md) for:
+See [Deployment Guide](./DEPLOYMENT_GUIDE.md) for:
 - Creating D1 database
 - Deploying Worker
 - Configuring Worker URL in services

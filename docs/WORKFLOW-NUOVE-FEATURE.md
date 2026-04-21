@@ -555,7 +555,7 @@ Severity: CRITICAL   ← Aggiungi questa riga
 │    git commit -m "feat: ..."                               │
 │                                                             │
 │ 6. DEPLOY                                                   │
-│    (see DEPLOYMENT.md)                                      │
+│    (see docs/DEPLOYMENT_GUIDE.md)                           │
 └─────────────────────────────────────────────────────────────┘
 ```
 

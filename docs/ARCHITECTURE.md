@@ -455,7 +455,7 @@ await ValidateConfigAsync(cancellationToken);
 
 ## Database Schema
 
-See [Database Schema Reference](./database-schema.md) for complete schema documentation.
+See `infra/cloudflare/worker/migrations/*.sql` for the authoritative D1 / SQLite schema (source of truth).
 
 Both services use SQLite with:
 - WAL mode (concurrent readers + 1 writer)
@@ -649,9 +649,8 @@ Static Hosting (Cloudflare Pages or S3)
 - [Getting Started Guide](./GETTING_STARTED.md)
 - [Configuration Reference](./CONFIGURATION.md)
 - [Strategy Format](./STRATEGY_FORMAT.md)
-- [Database Schema](./database-schema.md)
 - [Telegram Integration](./telegram-integration.md)
-- [Deployment Guide](./DEPLOYMENT.md)
+- [Deployment Guide](./DEPLOYMENT_GUIDE.md)
 - [Contributing Guide](./CONTRIBUTING.md)
 
 ---
