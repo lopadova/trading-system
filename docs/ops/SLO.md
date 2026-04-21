@@ -200,30 +200,27 @@ hours may be stale. Market day = 390 minutes; 1% = ~4 minutes
 of stale data per day before the SLO is consumed.
 
 **Measurement**: the existing `scripts/verify-data-freshness.sh`
-(and its PowerShell twin) is the reference implementation. The
-`.github/workflows/data-freshness.yml` runs every 15 minutes
-during market hours and emits Telegram `warn` on any stale table.
+(and its PowerShell twin `scripts/Verify-DataFreshness.ps1`) is the
+reference implementation. The `.github/workflows/data-freshness.yml`
+runs it every 15 minutes during market hours and emits Telegram
+`warn` on any stale table.
 
-**Operator query** (D1, via Worker admin endpoint):
+**Operator query** (run locally against the live Worker):
 
 ```bash
-curl -s -H "X-Api-Key: $CLOUDFLARE_API_KEY" \
-  "https://trading-bot.padosoft.workers.dev/api/admin/freshness" | jq .
+./scripts/verify-data-freshness.sh --env production
+# PowerShell equivalent:
+.\scripts\Verify-DataFreshness.ps1 -Environment production
 ```
 
-Expected output:
+Expected exit code: `0`. The script prints a per-table summary table
+with age and a fresh/stale verdict for each. A non-zero exit code
+means at least one table is stale and the script lists which.
 
-```json
-{
-  "market_quotes_daily":  { "age_seconds": 47,  "status": "fresh" },
-  "vix_term_structure":   { "age_seconds": 62,  "status": "fresh" },
-  "position_greeks":      { "age_seconds": 91,  "status": "fresh" },
-  "account_equity_daily": { "age_seconds": 180, "status": "fresh" },
-  "benchmark_series":     { "age_seconds": 58,  "status": "fresh" }
-}
-```
-
-Any `age_seconds > 300` during market hours = stale.
+Note: a direct HTTP endpoint (e.g. `/api/admin/freshness`) returning
+a JSON blob equivalent to the script's output is a Phase 8+ wish —
+until then, the script is the canonical measurement path, and the
+scheduled workflow is the canonical alerting path.
 
 **Alerting thresholds**:
 
