@@ -180,3 +180,85 @@ export interface CampaignsSummary {
   draft: number
   detail: string
 }
+
+// ============================================================================
+// Phase 7.1 — Ingest payload shapes
+// ============================================================================
+// These mirror the Zod schemas in src/routes/ingest.ts and are used both as
+// contract documentation for the .NET supervisor side AND as the input shape
+// for dashboard-facing queries in Phase 7.2. Each type corresponds to a new
+// table introduced in migration 0007_market_data.sql.
+
+/**
+ * Daily account equity snapshot (drives performance + drawdown charts).
+ * Primary key: date (one row per calendar day).
+ */
+export interface AccountEquityPayload {
+  date: string              // ISO date (YYYY-MM-DD)
+  account_value: number
+  cash: number
+  buying_power: number
+  margin_used: number
+  margin_used_pct: number
+}
+
+/**
+ * Generic daily OHLCV per symbol (SPX, VIX, SPY, SWDA, etc.).
+ * Primary key: (symbol, date).
+ */
+export interface MarketQuotePayload {
+  symbol: string
+  date: string              // ISO date (YYYY-MM-DD)
+  open?: number | null
+  high?: number | null
+  low?: number | null
+  close: number
+  volume?: number | null
+}
+
+/**
+ * VIX curve snapshot for a given date. The ingest handler also denormalizes
+ * each non-null leg into market_quotes_daily so the chart endpoints have a
+ * single source of truth.
+ * Primary key: date.
+ */
+export interface VixSnapshotPayload {
+  date: string              // ISO date (YYYY-MM-DD)
+  vix?: number | null
+  vix1d?: number | null
+  vix3m?: number | null
+  vix6m?: number | null
+}
+
+/**
+ * Pre-normalized benchmark close (base-100 from normalize_base_date).
+ * Primary key: (symbol, date).
+ */
+export interface BenchmarkClosePayload {
+  symbol: string
+  date: string              // ISO date (YYYY-MM-DD)
+  close: number
+  close_normalized?: number | null
+}
+
+/**
+ * Per-position Greeks snapshot (rolling time-series).
+ * Primary key: (position_id, snapshot_ts).
+ */
+export interface PositionGreeksPayload {
+  position_id: string
+  snapshot_ts: string       // ISO 8601 timestamp
+  delta?: number | null
+  gamma?: number | null
+  theta?: number | null
+  vega?: number | null
+  iv?: number | null
+  underlying_price?: number | null
+}
+
+export type MarketDataEventType =
+  | 'account_equity'
+  | 'market_quote'
+  | 'vix_snapshot'
+  | 'benchmark_close'
+  | 'position_greeks'

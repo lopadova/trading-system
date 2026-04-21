@@ -431,6 +431,199 @@ public sealed class GreeksMonitorWorkerTests
             Times.Exactly(4));
     }
 
+    // =========================================================================
+    // Phase 7.1 live-tick Greeks scenarios
+    // =========================================================================
+
+    [Fact]
+    [Trait("TestId", "TEST-19-11")]
+    public async Task LiveTicks_WhenEnabledAndConnected_SubscribesToEachOpenPosition()
+    {
+        Dictionary<string, string?> cfg = BuildLiveTickConfig(intervalSeconds: 1);
+        IConfiguration config = new ConfigurationBuilder().AddInMemoryCollection(cfg).Build();
+
+        Mock<IPositionsRepository> positionsRepoMock = new();
+        Mock<IAlertRepository> alertRepoMock = new();
+        Mock<IOutboxRepository> outboxRepoMock = new();
+        Mock<Microsoft.Extensions.Logging.ILogger<GreeksMonitorWorker>> loggerMock = new();
+        Mock<SharedKernel.Ibkr.IIbkrClient> ibkrMock = new();
+        ibkrMock.SetupGet(c => c.IsConnected).Returns(true);
+
+        TradingSupervisorService.Ibkr.TwsCallbackHandler handler = new(
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<TradingSupervisorService.Ibkr.TwsCallbackHandler>.Instance,
+            _ => { });
+
+        // Use in-memory db for the position_greeks_cache table
+        SharedKernel.Tests.Data.InMemoryConnectionFactory dbFactory = new();
+        SharedKernel.Data.MigrationRunner runner = new(
+            dbFactory, Microsoft.Extensions.Logging.Abstractions.NullLogger<SharedKernel.Data.MigrationRunner>.Instance);
+        await runner.RunAsync(TradingSupervisorService.Migrations.SupervisorMigrations.All, CancellationToken.None);
+
+        ActivePositionRecord p = new()
+        {
+            PositionId = "p1",
+            CampaignId = "c1",
+            Symbol = "SPY",
+            ContractSymbol = "SPY 240620C500",
+            StrategyName = "T",
+            Quantity = 1,
+            Delta = 0.1,
+            Gamma = 0.01,
+            Theta = -5.0,
+            Vega = 10.0,
+            UnderlyingPrice = 500.0,
+            GreeksUpdatedAt = DateTime.UtcNow.ToString("O")
+        };
+        positionsRepoMock
+            .Setup(r => r.GetActivePositionsWithGreeksAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<ActivePositionRecord> { p });
+
+        GreeksMonitorWorker worker = new(
+            loggerMock.Object,
+            positionsRepoMock.Object,
+            alertRepoMock.Object,
+            outboxRepoMock.Object,
+            config,
+            ibkrClient: ibkrMock.Object,
+            callbackHandler: handler,
+            dbFactory: dbFactory);
+
+        using CancellationTokenSource cts = new();
+        await worker.StartAsync(cts.Token);
+        await Task.Delay(400);  // let one cycle run
+        await worker.StopAsync(CancellationToken.None);
+
+        // Must have called RequestMarketData with genericTickList="106,100" for the open position
+        ibkrMock.Verify(
+            c => c.RequestMarketData(
+                It.IsAny<int>(),
+                It.Is<string>(s => s == "SPY"),
+                It.Is<string>(s => s == "OPT"),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.Is<string>(s => s == "106,100"),
+                It.IsAny<bool>()),
+            Times.AtLeastOnce);
+
+        await dbFactory.DisposeAsync();
+    }
+
+    [Fact]
+    [Trait("TestId", "TEST-19-12")]
+    public async Task LiveTicks_OnTickOptionComputation_QueuesPositionGreeksOutboxEvent()
+    {
+        // Default thresholds are safe here (0.70 delta etc.) — the test position has
+        // Delta=0.1 so no alert is raised; we only want to observe the live-tick
+        // persistence path.
+        Dictionary<string, string?> cfg = BuildLiveTickConfig(intervalSeconds: 1);
+        IConfiguration config = new ConfigurationBuilder().AddInMemoryCollection(cfg).Build();
+
+        Mock<IPositionsRepository> positionsRepoMock = new();
+        Mock<IAlertRepository> alertRepoMock = new();
+        Mock<IOutboxRepository> outboxRepoMock = new();
+        Mock<Microsoft.Extensions.Logging.ILogger<GreeksMonitorWorker>> loggerMock = new();
+        Mock<SharedKernel.Ibkr.IIbkrClient> ibkrMock = new();
+        ibkrMock.SetupGet(c => c.IsConnected).Returns(true);
+
+        TradingSupervisorService.Ibkr.TwsCallbackHandler handler = new(
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<TradingSupervisorService.Ibkr.TwsCallbackHandler>.Instance,
+            _ => { });
+
+        SharedKernel.Tests.Data.InMemoryConnectionFactory dbFactory = new();
+        SharedKernel.Data.MigrationRunner runner = new(
+            dbFactory, Microsoft.Extensions.Logging.Abstractions.NullLogger<SharedKernel.Data.MigrationRunner>.Instance);
+        await runner.RunAsync(TradingSupervisorService.Migrations.SupervisorMigrations.All, CancellationToken.None);
+
+        // Use the REAL OutboxRepository backed by the in-memory db so we can observe rows via SQL
+        TradingSupervisorService.Repositories.OutboxRepository realOutbox = new(
+            dbFactory,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<TradingSupervisorService.Repositories.OutboxRepository>.Instance);
+
+        ActivePositionRecord p = new()
+        {
+            PositionId = "p42",
+            CampaignId = "c1",
+            Symbol = "SPY",
+            ContractSymbol = "SPY 240620C500",
+            StrategyName = "T",
+            Quantity = 1,
+            Delta = 0.1,
+            Gamma = 0.01,
+            Theta = -5.0,
+            Vega = 10.0,
+            UnderlyingPrice = 500.0,
+            GreeksUpdatedAt = DateTime.UtcNow.ToString("O")
+        };
+        positionsRepoMock
+            .Setup(r => r.GetActivePositionsWithGreeksAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<ActivePositionRecord> { p });
+
+        // Capture the reqId assigned to our position via the IBKR mock callback
+        int capturedReqId = -1;
+        ibkrMock
+            .Setup(c => c.RequestMarketData(
+                It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>()))
+            .Callback<int, string, string, string, string, string, bool>(
+                (reqId, _, _, _, _, _, _) => capturedReqId = reqId);
+
+        GreeksMonitorWorker worker = new(
+            loggerMock.Object,
+            positionsRepoMock.Object,
+            alertRepoMock.Object,
+            realOutbox,
+            config,
+            ibkrClient: ibkrMock.Object,
+            callbackHandler: handler,
+            dbFactory: dbFactory);
+
+        using CancellationTokenSource cts = new();
+        await worker.StartAsync(cts.Token);
+        await Task.Delay(400);
+
+        Assert.NotEqual(-1, capturedReqId);
+
+        // Simulate a tickOptionComputation with fresh Greeks
+        handler.tickOptionComputation(
+            tickerId: capturedReqId,
+            field: 13,                 // model option computation
+            tickAttrib: 0,
+            impliedVolatility: 0.22,
+            delta: 0.55,
+            optPrice: 4.10,
+            pvDividend: 0.0,
+            gamma: 0.012,
+            vega: 18.0,
+            theta: -6.5,
+            undPrice: 501.23);
+
+        // Allow the fire-and-forget persist task to run
+        await Task.Delay(400);
+
+        await worker.StopAsync(CancellationToken.None);
+
+        // Assert: position_greeks event queued in sync_outbox
+        await using Microsoft.Data.Sqlite.SqliteConnection conn = await dbFactory.OpenAsync(CancellationToken.None);
+        int count = await Dapper.SqlMapper.ExecuteScalarAsync<int>(
+            conn,
+            new Dapper.CommandDefinition(
+                "SELECT COUNT(*) FROM sync_outbox WHERE event_type = @t",
+                new { t = OutboxEventTypes.PositionGreeks }));
+
+        Assert.True(count >= 1, "position_greeks event should be queued after tickOptionComputation");
+
+        // Assert: position_greeks_cache row inserted
+        int cacheCount = await Dapper.SqlMapper.ExecuteScalarAsync<int>(
+            conn,
+            new Dapper.CommandDefinition(
+                "SELECT COUNT(*) FROM position_greeks_cache WHERE position_id = @pid",
+                new { pid = "p42" }));
+
+        Assert.True(cacheCount >= 1, "position_greeks_cache row should be inserted after tickOptionComputation");
+
+        await dbFactory.DisposeAsync();
+    }
+
     // Helper method to build IConfiguration for testing
     private static IConfiguration BuildConfiguration(
         bool enabled = true,
@@ -449,11 +642,31 @@ public sealed class GreeksMonitorWorkerTests
             { "GreeksMonitor:DeltaThreshold", deltaThreshold.ToString(System.Globalization.CultureInfo.InvariantCulture) },
             { "GreeksMonitor:GammaThreshold", gammaThreshold.ToString(System.Globalization.CultureInfo.InvariantCulture) },
             { "GreeksMonitor:ThetaThreshold", thetaThreshold.ToString(System.Globalization.CultureInfo.InvariantCulture) },
-            { "GreeksMonitor:VegaThreshold", vegaThreshold.ToString(System.Globalization.CultureInfo.InvariantCulture) }
+            { "GreeksMonitor:VegaThreshold", vegaThreshold.ToString(System.Globalization.CultureInfo.InvariantCulture) },
+            { "GreeksMonitor:LiveTicksEnabled", "false" }
         };
 
         return new ConfigurationBuilder()
             .AddInMemoryCollection(inMemorySettings)
             .Build();
+    }
+
+    private static Dictionary<string, string?> BuildLiveTickConfig(
+        int intervalSeconds = 1,
+        double deltaThreshold = 0.70,
+        double gammaThreshold = 0.05,
+        double thetaThreshold = 50.0,
+        double vegaThreshold = 100.0)
+    {
+        return new()
+        {
+            { "GreeksMonitor:Enabled", "true" },
+            { "GreeksMonitor:IntervalSeconds", intervalSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture) },
+            { "GreeksMonitor:DeltaThreshold", deltaThreshold.ToString(System.Globalization.CultureInfo.InvariantCulture) },
+            { "GreeksMonitor:GammaThreshold", gammaThreshold.ToString(System.Globalization.CultureInfo.InvariantCulture) },
+            { "GreeksMonitor:ThetaThreshold", thetaThreshold.ToString(System.Globalization.CultureInfo.InvariantCulture) },
+            { "GreeksMonitor:VegaThreshold", vegaThreshold.ToString(System.Globalization.CultureInfo.InvariantCulture) },
+            { "GreeksMonitor:LiveTicksEnabled", "true" }
+        };
     }
 }

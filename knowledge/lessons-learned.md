@@ -2721,3 +2721,109 @@ public Task ConnectAsync(CancellationToken ct = default) => Task.CompletedTask;
 
 **Reference**: `.gitignore` lines 150-154, commit 9c6f974.
 
+## LESSON-183 — Phase 7.1 market-data ingest: natural PKs + UPSERT make Outbox retries safe
+
+**Contesto**: Phase 7.1 (feat/phase7.1-market-data-ingestion) introduced 5 new D1 tables for market-data ingestion from IBKR via the .NET Outbox pipeline: `account_equity_daily`, `market_quotes_daily`, `vix_term_structure`, `benchmark_series`, `position_greeks`.
+
+**Scoperta**: The Outbox to Worker pipeline is **at-least-once**: if the Worker ingest route returns a 5xx or the HTTP call times out, the supervisor will retry the same event later. We cannot rely on the `event_id` envelope alone for idempotency on the Worker side because different event types hit different tables, and there's no single "events" log on D1 (by design — D1 storage is expensive). The solution is to choose **natural primary keys** on each destination table that capture the real business identity of the row:
+
+| Table | Primary key | Rationale |
+|-------|-------------|-----------|
+| `account_equity_daily` | `date` | One row per calendar day — latest snapshot wins |
+| `market_quotes_daily` | `(symbol, date)` | One OHLCV bar per symbol per day |
+| `vix_term_structure` | `date` | One VIX curve per day |
+| `benchmark_series` | `(symbol, date)` | Pre-normalized close per symbol per day |
+| `position_greeks` | `(position_id, snapshot_ts)` | Distinct snapshots preserved |
+
+Then every handler uses `INSERT OR REPLACE INTO ...`, which SQLite resolves as "if a row exists for this PK, overwrite it; otherwise insert". A retried event replays the same payload → same PK → idempotent no-op.
+
+**Applicazione**:
+- The choice of PK is a **contract with the producer**. Document it (see `docs/ops/MARKET_DATA_PIPELINE.md`) so the .NET collectors know what granularity to emit (e.g. "one `account_equity` per day — don't emit hourly").
+- When a leg is semantically part of a bigger row (VIX/VIX1D/VIX3M/VIX6M all part of a daily curve), the `vix_snapshot` handler denormalizes the curve row AND mirrors each leg into `market_quotes_daily` so downstream chart endpoints have one source of truth across symbols. Both writes remain idempotent thanks to their respective composite PKs.
+- Zod validates the payload shape BEFORE any D1 write. Malformed → 400 with a flattened `[{path, message}]` issue list; the supervisor logs the rejection and moves on (a schema-incompatible event should never block the queue).
+
+**Impatto**: Zero duplicate-row bugs when the Worker returns 502 during a deploy window and the supervisor retries every pending Outbox entry. Makes the Worker side "dumb" — it doesn't need an event-log table, it doesn't need to deduplicate by `event_id`, it just upserts.
+
+**Reference**: `infra/cloudflare/worker/migrations/0007_market_data.sql`, `infra/cloudflare/worker/src/routes/ingest.ts`, `infra/cloudflare/worker/test/ingest.test.ts` (the idempotency test per event type is the regression gate).
+
+---
+
+## LESSON-130: Subscribe to IBKR ticks via event-hooks on the callback handler — not by reaching into MarketDataService
+
+**Categoria**: IBKR Integration / Supervisor Workers
+**Scoperto in**: Phase 7.1 — MarketDataCollector + live-Greeks wiring
+**Data**: 2026-04-20
+
+**Contesto**: Phase 7.1 adds two new collectors (`MarketDataCollector`, live-tick path in `GreeksMonitorWorker`) that need to react to IBKR tick callbacks. `MarketDataService` already owns a tick cache keyed by reqId, but (1) it's not registered as a singleton in the host, (2) it's tuned for option snapshot semantics (bid/ask/mid/greeks for a single contract), and (3) making it a shared "bus" would couple every collector to its ConcurrentDictionary layout.
+
+**Pattern adottato**: `TwsCallbackHandler` exposes a thin set of public events — one per IBKR callback of interest — and each collector subscribes/unsubscribes during `ExecuteAsync`:
+
+```csharp
+// TwsCallbackHandler
+public event EventHandler<(int ReqId, int Field, double Price)>? TickPriceReceived;
+public event EventHandler<(int ReqId, int Field, decimal Size)>? TickSizeReceived;
+public event EventHandler<(int ReqId, string Account, string Tag, string Value, string Currency)>? AccountSummaryReceived;
+public event EventHandler<(int ReqId, int Field, double Iv, double Delta, double Gamma, double Vega, double Theta, double UndPrice)>? TickOptionComputationReceived;
+
+public override void tickPrice(int tickerId, int field, double price, TickAttrib attribs)
+{
+    _marketDataService?.OnTickPrice(tickerId, field, price); // existing MDS path (unchanged)
+    try { TickPriceReceived?.Invoke(this, (tickerId, field, price)); }
+    catch (Exception ex) { _logger.LogError(ex, "TickPriceReceived subscriber threw"); }
+}
+
+// MarketDataCollector
+protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+{
+    _callbackHandler.TickPriceReceived += OnTickPrice;
+    try { /* main loop */ }
+    finally { _callbackHandler.TickPriceReceived -= OnTickPrice; }
+}
+```
+
+Two rules we learned the hard way:
+
+1. **Always wrap the `.Invoke` in try/catch**. The IBKR reader thread raises the event; if any subscriber throws, the whole TWS connection thread dies and the socket closes. The cost is cheap (`try { Invoke } catch { Log }`) and the upside is durability.
+2. **Each collector owns a disjoint `reqId` range** so the event-hook can filter quickly (`if (!_myReqIds.Contains(e.ReqId)) return;`). IvtsMonitor uses 5001-5004; MarketDataCollector uses 6001-6100; GreeksMonitor uses 7000+. A central registry would be overkill for three workers.
+
+**Alternatives considered**:
+- **Make MarketDataService the shared bus**: entangles MDS's option-centric snapshot model with index-quote collection. Rejected.
+- **One global callback router with topic strings**: over-engineered for 3 consumers; event-hooks give the same fan-out with compile-time safety.
+- **Collectors polling MDS snapshots**: would miss transient ticks between poll intervals and couple the emission cadence to MDS internals.
+
+**Applicazione**:
+- Any new IBKR-tick-dependent worker should subscribe on `TwsCallbackHandler` events in `ExecuteAsync` and unsubscribe in the `finally` block.
+- If a callback has no event hook yet, add one by editing `TwsCallbackHandler` — keep the existing `MarketDataService` forwarding intact for backwards compatibility.
+- Callback methods inside `TwsCallbackHandler` MUST remain fast and MUST NOT do I/O — do any persistence asynchronously inside the collector (`_ = PersistAsync(...)` fire-and-forget pattern, with its own try/catch).
+
+**Reference**: `src/TradingSupervisorService/Ibkr/TwsCallbackHandler.cs`, `src/TradingSupervisorService/Workers/MarketDataCollector.cs`, `src/TradingSupervisorService/Workers/GreeksMonitorWorker.cs` (`OnTickOptionComputation` + `PersistAndQueueGreeksAsync`).
+
+---
+
+## LESSON-131: Schedule daily external fetches at 22:30 UTC (post-close, pre-EU-open) to maximize data availability
+
+**Categoria**: External Data Sources / Scheduling
+**Scoperto in**: Phase 7.1 — BenchmarkCollector
+**Data**: 2026-04-20
+
+**Contesto**: `BenchmarkCollector` pulls S&P 500 and SWDA closes from public sources (Stooq primary, Yahoo fallback). The target is one fetch per UTC calendar day. Picking the right hour matters — too early and the close isn't posted yet (Stooq lags 30-60 min after the US close); too late and we miss the chance to backfill before the European session opens and clobbers the widget.
+
+**Pattern adottato**: fire the fetch once per UTC day at **22:30 UTC** (configurable via `BenchmarkCollector:DailyRunTimeUtc`). Rationale:
+
+- US equities close at **21:00 UTC** (standard EDT) or 20:00 UTC (DST). Stooq generally posts the EOD row 10-30 min later.
+- 22:30 UTC is far enough after the close to trust the data, but still well before the European session opens at **07:00 UTC** the next day. If anything fails, the operator has ~8 hours of overnight to triage before any dashboard consumer wakes up.
+- Stooq CSV is always a full historical series, so a late run just re-inserts old rows with `INSERT OR IGNORE` on the dedupe key — no data loss if we miss the window.
+
+**Anti-patterns we rejected**:
+- **On-the-minute at 21:30 UTC**: too aggressive, sometimes Stooq hasn't rebuilt the EOD file yet; the fallback to Yahoo would fire spuriously.
+- **At market open (14:30 UTC)**: yesterday's close is available, but the operator can't react to gaps during the pre-open window if there was an issue overnight.
+- **Cron-style nightly (00:00 UTC)**: operationally OK, but puts the refresh *after* EU markets have already seen a gap in the overlay.
+
+**Implementation notes**:
+- The worker wakes every `CheckIntervalMinutes` (default 30) and checks `DateTime.UtcNow.TimeOfDay >= _dailyRunTimeUtc && _lastRunDateUtc != today`. This is cheap and robust to clock drift.
+- Dedupe is double-layered: (a) `_lastRunDateUtc` in-memory prevents double-runs within a process-day; (b) `benchmark_fetch_log.last_fetched_date` in SQLite prevents replays across restarts; (c) Outbox dedupe key `benchmark_close:{symbol}:{date}` prevents downstream duplicates even if both layers fail.
+
+**Applicazione**: Reuse the same 22:30-UTC window for any other daily-batch data source that shares US-hours trading and EU-hours operators — e.g. a future interest-rate or sector-performance collector.
+
+**Reference**: `src/TradingSupervisorService/Workers/BenchmarkCollector.cs` (`ShouldRunNow()`), `src/TradingSupervisorService/appsettings.json` (`BenchmarkCollector:DailyRunTimeUtc`).
+
