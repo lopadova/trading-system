@@ -1,7 +1,7 @@
 ---
 title: "Load Testing — Trading System"
 tags: ["ops", "testing", "reference"]
-aliases: ["Load Testing"]
+aliases: ["LOAD_TESTING", "Load Testing"]
 status: current
 audience: ["developer"]
 phase: "phase-7.6"

@@ -1,7 +1,7 @@
 ---
 title: "Go-live Runbook"
 tags: ["ops", "runbook", "deployment", "safety"]
-aliases: ["Go Live", "Paper to Live"]
+aliases: ["GO_LIVE", "Go Live", "Paper to Live"]
 status: current
 audience: ["operator"]
 phase: "phase-7.7"

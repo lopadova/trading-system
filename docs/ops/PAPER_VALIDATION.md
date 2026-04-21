@@ -1,7 +1,7 @@
 ---
 title: "14-day Paper Validation"
 tags: ["ops", "runbook", "safety", "testing"]
-aliases: ["Paper Validation", "Paper Run"]
+aliases: ["PAPER_VALIDATION", "Paper Validation", "Paper Run"]
 status: current
 audience: ["operator"]
 phase: "phase-7.7"

@@ -1,7 +1,7 @@
 ---
 title: "Daily Operations Checklist"
 tags: ["ops", "runbook"]
-aliases: ["Daily Ops"]
+aliases: ["DAILY_OPS", "Daily Ops"]
 status: current
 audience: ["operator"]
 phase: "phase-7"

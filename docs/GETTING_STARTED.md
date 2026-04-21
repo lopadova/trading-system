@@ -705,7 +705,7 @@ See [Deployment Guide](./DEPLOYMENT_GUIDE.md) for:
 
 ### 4. Set Up Dashboard (Optional)
 
-See [Dashboard Guide](./DASHBOARD_GUIDE.md) for:
+See [Dashboard README](../dashboard/README.md) for:
 - Building React app
 - Deploying to Cloudflare Pages
 - Configuring API endpoint

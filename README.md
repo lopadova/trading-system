@@ -66,7 +66,7 @@ Production-ready automated trading system for options strategies via Interactive
 - **[Getting Started](docs/GETTING_STARTED.md)** - Developer environment setup (IDE, build, antivirus — see also [Windows Defender ops guide](docs/ops/WINDOWS_DEFENDER.md))
 - **[Onboarding](docs/ONBOARDING.md)** - Developer quick start
 - **[Contributing Guide](docs/CONTRIBUTING.md)** - How to extend the system
-- **[Dashboard Guide](docs/DASHBOARD_GUIDE.md)** - React dashboard development
+- **[Dashboard README](dashboard/README.md)** - React dashboard development
 - **[Workflow Nuove Feature](docs/WORKFLOW-NUOVE-FEATURE.md)** - Complete workflow for new features
 - **[Quick Start Nuova Feature](docs/QUICK-START-NUOVA-FEATURE.md)** - Quick reference for developers
 - **[FAQ Workflow](docs/FAQ-WORKFLOW.md)** - Frequently asked questions

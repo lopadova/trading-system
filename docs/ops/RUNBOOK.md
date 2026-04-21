@@ -1,7 +1,7 @@
 ---
 title: "Runbook — Common Failure Playbooks"
 tags: ["ops", "runbook", "incident-response"]
-aliases: ["Runbook", "Playbooks"]
+aliases: ["RUNBOOK", "Runbook", "Playbooks"]
 status: current
 audience: ["operator"]
 phase: "phase-7"

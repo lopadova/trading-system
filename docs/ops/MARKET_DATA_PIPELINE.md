@@ -1,7 +1,7 @@
 ---
 title: "Market Data Pipeline (Phase 7.1)"
 tags: ["ops", "architecture", "ibkr"]
-aliases: ["Market Data Pipeline"]
+aliases: ["MARKET_DATA_PIPELINE", "Market Data Pipeline"]
 status: current
 audience: ["developer", "operator"]
 phase: "phase-7.1"

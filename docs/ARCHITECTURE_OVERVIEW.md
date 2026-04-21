@@ -653,8 +653,7 @@ SELECT * FROM bot_whitelist WHERE user_id = ? AND platform = ?;
 ## References
 
 - [Deployment Guide](DEPLOYMENT_GUIDE.md)
-- [API Documentation](API_DOCUMENTATION.md) (future)
-- [SDF Specification](../knowledge/SDF_SPECIFICATION.md)
+- [Strategy File Format (SDF)](STRATEGY_FORMAT.md)
 - [Error Registry](../knowledge/errors-registry.md)
 - [Lessons Learned](../knowledge/lessons-learned.md)
 

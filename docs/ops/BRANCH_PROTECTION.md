@@ -1,7 +1,7 @@
 ---
 title: "Branch Protection Settings"
 tags: ["ops", "dev", "release"]
-aliases: ["Branch Protection"]
+aliases: ["BRANCH_PROTECTION", "Branch Protection"]
 status: current
 audience: ["operator", "developer"]
 phase: "phase-7.7"

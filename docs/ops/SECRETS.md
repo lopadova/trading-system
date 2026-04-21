@@ -1,7 +1,7 @@
 ---
 title: "Secrets Management"
 tags: ["ops", "security", "runbook"]
-aliases: ["Secrets", "Secret Rotation"]
+aliases: ["SECRETS", "Secrets", "Secret Rotation"]
 status: current
 audience: ["operator"]
 phase: "phase-7.5"

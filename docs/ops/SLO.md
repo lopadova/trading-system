@@ -1,7 +1,7 @@
 ---
 title: "Service Level Objectives (SLO)"
 tags: ["ops", "observability", "reference"]
-aliases: ["SLO", "SLIs"]
+aliases: ["SLO", "SLIs", "Service Level Objectives"]
 status: current
 audience: ["operator"]
 phase: "phase-7.7"

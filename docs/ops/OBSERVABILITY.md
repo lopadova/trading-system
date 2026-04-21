@@ -1,7 +1,7 @@
 ---
 title: "Observability (Phase 7.3)"
 tags: ["ops", "observability", "reference"]
-aliases: ["Observability", "Monitoring", "Logging"]
+aliases: ["OBSERVABILITY", "Observability", "Monitoring", "Logging"]
 status: current
 audience: ["operator", "developer"]
 phase: "phase-7.3"

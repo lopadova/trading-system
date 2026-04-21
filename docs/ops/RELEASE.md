@@ -1,7 +1,7 @@
 ---
 title: "Release Procedure"
 tags: ["ops", "deployment", "release"]
-aliases: ["Release", "Release Process"]
+aliases: ["RELEASE", "Release", "Release Process"]
 status: current
 audience: ["operator", "developer"]
 phase: "phase-7"

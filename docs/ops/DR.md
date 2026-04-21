@@ -1,7 +1,7 @@
 ---
 title: "Disaster Recovery (DR)"
 tags: ["ops", "runbook", "incident-response", "safety"]
-aliases: ["DR", "Disaster Recovery"]
+aliases: ["DR", "Disaster Recovery", "Disaster Recovery (DR)"]
 status: current
 audience: ["operator"]
 phase: "phase-7"
