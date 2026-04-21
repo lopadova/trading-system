@@ -405,3 +405,78 @@ All numeric strings that ship into Outbox payloads use
 — see knowledge/errors-registry.md ERR-015). Dedupe keys, timestamps and CSV
 parsing are invariant too, so the collectors are safe on Italian / any non-US
 locale Windows hosts.
+
+---
+
+## 9. Consuming the data — Phase 7.2 aggregate endpoints
+
+Phase 7.2 replaced every hardcoded-mock aggregate route in
+`infra/cloudflare/worker/src/routes/` with real D1 queries. This section
+documents each endpoint, the D1 query it now runs, and the fallback
+behavior when the underlying tables are empty.
+
+### 9.1 Endpoint → SQL map
+
+| Endpoint | Table(s) | One-line SQL |
+|---|---|---|
+| `GET /api/performance/summary` | `account_equity_daily` | `SELECT date, account_value FROM account_equity_daily ORDER BY date ASC` (then compute M/YTD/2Y/5Y/10Y + annualized in JS) |
+| `GET /api/performance/series` | `account_equity_daily`, `benchmark_series` | Same equity query cropped per range + `SELECT symbol, date, close, close_normalized FROM benchmark_series WHERE symbol IN ('SPX','SWDA') AND date BETWEEN ? AND ?` |
+| `GET /api/drawdowns` | `account_equity_daily`, `market_quotes_daily` | Window function: `MAX(account_value) OVER (ORDER BY date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)` → `(account_value - peak) / peak * 100`. Same shape against `market_quotes_daily` for SPX. |
+| `GET /api/monthly-returns` | `account_equity_daily` | CTE with `ROW_NUMBER() OVER (PARTITION BY strftime('%Y-%m', date) ORDER BY date ASC/DESC)` to pair first and last monthly values, then monthly return = `(last - first) / first * 100` |
+| `GET /api/risk/metrics` | `vix_term_structure`, `position_greeks`, `account_equity_daily`, `market_quotes_daily` | Latest VIX curve row + `SUM(delta/theta/vega)` over latest `position_greeks` snapshot per position + latest account_equity row + SPX 1Y percentile |
+| `GET /api/risk/semaphore` | `market_quotes_daily` (SPX), `vix_term_structure` | SPX close vs `AVG(close)` over last 200; VIX current percentile in 1Y series; rolling-yield mean over 30d and its percentile; IVTS = VIX / VIX3M |
+| `GET /api/system/metrics` | `service_heartbeats` | `SELECT last_seen_at, cpu_percent, ram_percent, disk_free_gb FROM service_heartbeats ORDER BY last_seen_at DESC LIMIT 20` (reversed to chronological) |
+| `GET /api/breakdown` | `active_positions` | `SELECT strategy_name, SUM(ABS(quantity * COALESCE(current_price, entry_price))) AS value FROM active_positions GROUP BY strategy_name ORDER BY value DESC` |
+| `GET /api/activity/recent` | `alert_history`, `execution_log` | `UNION ALL` of the two sources with unified columns, ordered by `ts DESC LIMIT ?limit=` |
+| `GET /api/campaigns/summary` | `campaigns` | `SELECT state, COUNT(*) FROM campaigns GROUP BY state` |
+| `GET /api/positions/active` | `active_positions`, `campaigns`, `position_greeks` | Base query + LEFT JOIN to `campaigns.name` and to `position_greeks` on `(position_id, MAX(snapshot_ts))` CTE for latest greeks |
+
+### 9.2 Fallback behavior
+
+When a source table is empty (fresh install, no collectors running yet) or a
+query throws, the route returns the pre-Phase-7.2 deterministic mock payload
+AND sets the response header `X-Data-Source: fallback-mock`. The dashboard
+can inspect this header to surface a "using demo data" indicator in a later
+milestone.
+
+Exception: `GET /api/campaigns/summary` treats an empty `campaigns` table as
+a legitimate production state (zero campaigns on a fresh install) and
+returns `{active: 0, paused: 0, draft: 0, detail: 'no campaigns'}` WITHOUT
+the fallback-mock header. Only DB errors trigger fallback on that route.
+
+### 9.3 Testing endpoints against local D1
+
+```bash
+# 1. Apply migrations (creates the 5 Phase 7.1 tables + anything from 0001-0006)
+cd infra/cloudflare/worker
+bunx wrangler d1 migrations apply trading-db --local
+
+# 2. Seed a few rows
+bunx wrangler d1 execute trading-db --local --command \
+  "INSERT OR REPLACE INTO account_equity_daily (date, account_value, cash, buying_power, margin_used, margin_used_pct) VALUES ('2026-04-20', 150000, 60000, 250000, 20000, 13.33)"
+
+bunx wrangler d1 execute trading-db --local --command \
+  "INSERT OR REPLACE INTO vix_term_structure (date, vix, vix1d, vix3m) VALUES ('2026-04-20', 15.2, 14.1, 17.9)"
+
+# 3. Start the dev server
+bun run dev
+
+# 4. Hit the aggregate endpoints with your API_KEY
+curl -H "X-Api-Key: $API_KEY" http://127.0.0.1:8787/api/performance/summary?asset=all
+curl -H "X-Api-Key: $API_KEY" http://127.0.0.1:8787/api/risk/metrics
+curl -H "X-Api-Key: $API_KEY" http://127.0.0.1:8787/api/risk/semaphore
+curl -H "X-Api-Key: $API_KEY" http://127.0.0.1:8787/api/drawdowns?asset=all&range=1Y
+```
+
+When the tables are empty the same curl calls return the mock payload plus
+an `X-Data-Source: fallback-mock` response header — a handy way to detect
+"no collectors running" without reading the D1 tables directly.
+
+### 9.4 Asset-bucket decomposition (TODO Phase 7.x)
+
+Performance and drawdowns currently scale the "all" bucket values by a
+deterministic per-asset factor to keep visible differentiation between the
+systematic/options/other buckets. Real per-asset decomposition requires an
+equity-by-strategy time series which is not yet emitted by any collector.
+See the `TODO(Phase 7.x)` markers in `performance.ts`, `drawdowns.ts`,
+`monthly-returns.ts` and the `STRATEGY_TO_ASSET` heuristic in `breakdown.ts`.
