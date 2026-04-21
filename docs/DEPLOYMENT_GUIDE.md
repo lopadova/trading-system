@@ -566,6 +566,13 @@ Expected:
 
 ## CI/CD Pipeline
 
+> **Post Phase 7.7 deploy model**: staging is auto-deployed on every
+> merge/push to `main`; **production deploys only when a `vX.Y.Z`
+> semver tag is pushed to `main`**. See
+> [`docs/ops/RELEASE.md`](./ops/RELEASE.md) for the release-cut
+> procedure. `workflow_dispatch` remains available as an emergency
+> override but is NOT the normal path.
+
 ### GitHub Actions Workflows
 
 #### 1. `.github/workflows/dotnet-build-test.yml`
@@ -574,7 +581,11 @@ Expected:
 
 **Jobs**:
 1. `build-and-test`: Build solution, run tests
-2. `publish-services`: Create Windows Service artifacts (on `main` only)
+2. `publish-services`: Create Windows Service artifacts (on `main` only).
+   Artifacts are unversioned "latest" — the operator pulls whichever
+   artifact matches the release they want to install, manually
+   (via `install-supervisor.ps1` / `install-options-engine.ps1`).
+   Windows Services are NOT auto-deployed.
 
 **Artifacts**:
 - `build-artifacts`: Build output (7 days retention)
@@ -582,36 +593,86 @@ Expected:
 
 #### 2. `.github/workflows/cloudflare-deploy.yml`
 
-**Triggers**: 
-- Push to `main` (paths: `infra/cloudflare/worker/**`, `dashboard/**`)
-- Manual trigger (`workflow_dispatch`)
+**Triggers**:
+- Push/merge to `main` → tests + staging deploy (auto).
+- Push a `v*.*.*` tag (e.g. `v1.0.0`, `v1.2.3-rc1`) → tests + production deploy.
+- `workflow_dispatch` → emergency-only manual production deploy.
+- Pull request to `main` → tests only.
 
 **Jobs**:
 1. `test-worker`: Build and test Worker
 2. `test-dashboard`: Build and test Dashboard
-3. `deploy-worker`: Deploy Worker to Cloudflare (on `main` only)
-4. `deploy-dashboard`: Deploy Dashboard to Cloudflare Pages (on `main` only)
+3. `deploy-worker` — production deploy (tag push or manual only).
+   Guarded by the `production` GitHub Environment (reviewer required).
+4. `deploy-worker-staging` — staging auto-deploy on push to `main`.
+5. `deploy-dashboard` — production Pages deploy (same gating as Worker).
+6. `deploy-dashboard-staging` — staging Pages auto-deploy on push to `main`.
 
-**Required Secrets**:
-- `CLOUDFLARE_API_TOKEN`: Cloudflare API token with Workers and Pages permissions
+**Required Secrets** — see [`docs/ops/SECRETS.md`](./ops/SECRETS.md)
+§ GitHub Actions secrets for the full reference:
+
+- `CLOUDFLARE_API_TOKEN`: Cloudflare API token (Workers + D1 + Pages + Analytics:Read)
 - `CLOUDFLARE_ACCOUNT_ID`: Your Cloudflare account ID
+- `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID`: for
+  `.github/workflows/data-freshness.yml` failure alerts
+
+#### 3. `.github/workflows/ci.yml`
+
+Mirror of `cloudflare-deploy.yml` + `dotnet-build-test.yml` in a single
+top-level pipeline. Same tag-based prod / push-based staging triggers.
 
 ### Setup GitHub Secrets
 
-1. Go to repository Settings → Secrets and variables → Actions
-2. Add secrets:
+1. Go to repository **Settings → Secrets and variables → Actions**.
+2. Add (at the **repository** level — or scoped to the GitHub
+   Environments `production` / `staging` if you want token isolation):
 
 ```
-CLOUDFLARE_API_TOKEN=<your-token>
-CLOUDFLARE_ACCOUNT_ID=<your-account-id>
+CLOUDFLARE_API_TOKEN  = <your-token>
+CLOUDFLARE_ACCOUNT_ID = <your-account-id>
+TELEGRAM_BOT_TOKEN    = <your-bot-token>
+TELEGRAM_CHAT_ID      = <your-chat-id>
 ```
 
-Get tokens from: https://dash.cloudflare.com/profile/api-tokens
+**Creating the Cloudflare API token**: dashboard → My Profile →
+**API Tokens** → **Create Token** → start from the "Edit Cloudflare
+Workers" template, then ADD these permissions:
 
-Required permissions:
-- Workers Scripts:Edit
-- Workers KV Storage:Edit
-- Pages:Edit
+- Account → **Workers Scripts:Edit**
+- Account → **Workers KV Storage:Edit**
+- Account → **D1:Edit**
+- Account → **Cloudflare Pages:Edit**
+- Account → **Account Analytics:Read**
+
+Missing any one of these → the deploy fails mid-run. Don't skip the
+token scope checklist; fixing it mid-deploy is painful because the
+prod environment gate is already in a pending state.
+
+**Symptom of a missing token**:
+```
+In a non-interactive environment, it's necessary to set a
+CLOUDFLARE_API_TOKEN environment variable for wrangler to work.
+Please go to https://developers.cloudflare.com/fundamentals/api/
+get-started/create-token/ for instructions on how to create an api
+token, and assign its value to CLOUDFLARE_API_TOKEN.
+```
+
+This is a misconfigured / unscoped token or a missing repo secret,
+not a code problem. Check GitHub → Settings → Secrets → Actions and
+re-verify the token has the permissions listed above.
+
+### Cutting a release (production deploy)
+
+```bash
+# On main, on the commit you want to ship. Must be an annotated tag.
+git checkout main && git pull --ff-only origin main
+git tag -a v1.2.3 -m "Release 1.2.3: <one-line summary>"
+git push origin v1.2.3
+```
+
+Then in GitHub → Actions → approve the `production` environment gate.
+Full procedure + pre-release checklist:
+[`docs/ops/RELEASE.md`](./ops/RELEASE.md).
 
 ---
 

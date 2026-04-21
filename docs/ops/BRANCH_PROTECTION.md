@@ -173,13 +173,22 @@ Configure:
 - **Required reviewers**: `lopadova` (Lorenzo). With 1 reviewer
   required, production deploys wait for manual approval in the
   Actions UI — even if Lorenzo is the one who pushed the
-  workflow_dispatch. The extra click is deliberate: it's the
-  second chance to cancel a bad deploy.
+  workflow_dispatch OR the release tag. The extra click is
+  deliberate: it's the second chance to cancel a bad deploy.
 - **Wait timer**: 0 minutes. (The reviewer gate is the throttle.)
-- **Deployment branches**: `Selected branches` →
-  `main` only. No ad-hoc branches deploying to prod.
+- **Deployment branches and tags**: `Selected branches and tags`.
+  Add TWO rules:
+  - **Branch**: `main` — for `workflow_dispatch` emergency runs.
+  - **Tag**: `v*.*.*` — the normal release path (see
+    `docs/ops/RELEASE.md`).
+  Without the tag rule the tag push will START the workflow but the
+  `production` environment gate will REJECT the deploy ref and fail
+  the job. This is the single most common gotcha when setting this
+  up — verify both rules are listed before cutting the first tag.
 - **Environment secrets**: `CLOUDFLARE_API_TOKEN`,
-  `CLOUDFLARE_ACCOUNT_ID` (if used by the dashboard deploy step).
+  `CLOUDFLARE_ACCOUNT_ID` (if used by the dashboard deploy step),
+  `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`. Full reference in
+  `docs/ops/SECRETS.md` § GitHub Actions secrets.
 
 ### 4.2 `staging` environment
 

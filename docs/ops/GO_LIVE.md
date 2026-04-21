@@ -136,6 +136,22 @@ In TWS: Account → verify:
 
 ## 2. Go-live procedure
 
+Phase 7.7 also introduced the tag-based deploy model
+(`docs/ops/RELEASE.md`). A typical go-live cut is two steps:
+
+1. **Ship the code**: `git tag -a vX.Y.Z -m "..."` + `git push origin vX.Y.Z`
+   on `main`, approve the `production` environment gate in Actions, wait
+   for Cloudflare Worker + Pages to deploy. This affects the
+   dashboard + Worker only — the service host does NOT auto-update.
+2. **Flip the services**: the sub-sections below (2.1–2.9). This is the
+   DPAPI-wrapped `TradingMode=paper → live` change on the Windows
+   service host.
+
+Do these in order. Cloudflare deploys FIRST so the dashboard + Worker
+are already on the release code when the services start calling live
+endpoints. If step 1 fails, STOP — do not flip the services against
+stale backend code.
+
 ### 2.1 Pre-flip announcement
 
 Post in the `trading-system-critical` Telegram channel:
@@ -513,6 +529,8 @@ Operations transition from "first-live vigilance" to "steady state":
 
 ## 7. Related docs
 
+- `docs/ops/RELEASE.md` — the tag-based deploy procedure (§ 2 step 1
+  above). Run THIS before flipping services.
 - `docs/ops/PAPER_VALIDATION.md` — the 14-day validation this
   procedure requires as a precondition.
 - `docs/ops/DAILY_OPS.md` — the checklist that replaces this
@@ -521,5 +539,6 @@ Operations transition from "first-live vigilance" to "steady state":
   block verifies.
 - `docs/ops/RUNBOOK.md` — Playbook 9 covers first-24h live
   incidents and routes back to § 4 (rollback) here.
-- `docs/ops/SECRETS.md` — DPAPI wrapping details referenced in § 2.3.
+- `docs/ops/SECRETS.md` — DPAPI wrapping details referenced in § 2.3;
+  also the GitHub Actions secrets section needed by the tag deploy.
 - `docs/ops/SLO.md` — budget accounting for the post-live reports.

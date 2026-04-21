@@ -1,12 +1,24 @@
 name: Cloudflare Worker & Dashboard Deploy
 
+# Deploy model (post Phase 7.7):
+#   - Push / merge to main → auto-deploy to STAGING.
+#   - Git tag matching v*.*.* (e.g. v1.2.3, v1.2.3-rc1) → auto-deploy to
+#     PRODUCTION. See docs/ops/RELEASE.md for the tag-cutting procedure.
+#   - workflow_dispatch → emergency-only manual override for production
+#     (e.g. the tag workflow itself is broken). NOT the normal path.
+#
+# `paths:` only filters branch-push events; tag-push events ignore it, so
+# any `v*.*.*` tag triggers the workflow regardless of touched files.
 on:
   push:
     branches: [ main ]
-    paths:
-      - 'infra/cloudflare/worker/**'
-      - 'dashboard/**'
-      - '.github/workflows/cloudflare-deploy.yml'
+    # No `paths:` filter here on purpose: per GitHub's rules, `paths`
+    # combines with BOTH `branches` AND `tags` as AND, so a release tag
+    # cut on a docs-only commit would fail to trigger the prod deploy.
+    # The test jobs finish in ~3 min so running them on every main push
+    # (even docs-only) is an acceptable price for tag-deploy reliability.
+    tags:
+      - 'v*.*.*'
   workflow_dispatch:
 
 env:
@@ -84,18 +96,23 @@ jobs:
         path: dashboard/dist/
         retention-days: 7
 
-  # Re-enabled in Phase 7.7.
+  # Production deploy — triggered by pushing a v*.*.* tag to main.
   #
-  # Production deploys now require a manual workflow_dispatch — the GitHub
-  # `environment: production` protection (branch-rule set up per
-  # docs/ops/BRANCH_PROTECTION.md § 4) adds a reviewer-required step so
-  # an automated push cannot ship prod without a human in the loop.
-  # Staging gets its own auto-deploy path in deploy-worker-staging below.
+  # Re-enabled in Phase 7.7. The tag-based trigger means a production
+  # deploy is always tied to a deliberate release cut (see
+  # docs/ops/RELEASE.md). workflow_dispatch remains as an emergency-only
+  # override for when the tag workflow itself is broken. The GitHub
+  # `environment: production` binding still applies its reviewer-required
+  # protection rule on top (per docs/ops/BRANCH_PROTECTION.md § 4).
   deploy-worker:
     name: Deploy Worker to Cloudflare (production)
     runs-on: ubuntu-latest
     needs: [test-worker, test-dashboard]
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    # Runs on: (a) v*.*.* tag push, or (b) manual workflow_dispatch.
+    # Never on a plain branch push — staging is the target for that.
+    if: >
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) ||
+      github.event_name == 'workflow_dispatch'
     environment:
       name: production
       url: https://trading-bot.padosoft.workers.dev
@@ -153,12 +170,15 @@ jobs:
         CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       run: npx wrangler deploy --env staging
 
-  # Re-enabled in Phase 7.7. Production-only; manual trigger.
+  # Production deploy — mirrors deploy-worker's trigger rules. Runs on
+  # v*.*.* tag pushes and on emergency workflow_dispatch. See RELEASE.md.
   deploy-dashboard:
     name: Deploy Dashboard to Cloudflare Pages (production)
     runs-on: ubuntu-latest
     needs: [test-worker, test-dashboard]
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    if: >
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) ||
+      github.event_name == 'workflow_dispatch'
     environment:
       name: production
       url: https://trading-dashboard.pages.dev
