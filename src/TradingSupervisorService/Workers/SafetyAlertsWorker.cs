@@ -13,17 +13,23 @@ namespace TradingSupervisorService.Workers;
 /// <see cref="IAlerter"/> implementations (Telegram immediately for Critical, Email for Critical,
 /// Telegram digest for Warning). See docs/ops/OBSERVABILITY.md for the severity matrix.
 /// <para>
-/// Checks performed each cycle:
+/// Checks CURRENTLY performed each cycle:
 /// </para>
 /// <list type="bullet">
 ///   <item><description>IBKR disconnected for &gt; <c>IbkrDisconnectThresholdSeconds</c> → Critical.</description></item>
-///   <item><description>Margin &gt; <c>MarginThresholdPercent</c> → Warning (digested).</description></item>
 /// </list>
 /// <para>
-/// Ingest error-rate and semaphore-red duration checks are skeletal here (no data source yet
-/// on the .NET side — those metrics live in the Worker). Hooks are in place so the other
-/// subagent's Worker endpoints can be wired in without touching this file's structure.
+/// Planned (not yet wired — hooks exist, data source pending):
 /// </para>
+/// <list type="bullet">
+///   <item><description>Margin &gt; <c>MarginThresholdPercent</c> → Warning (digested). Pending the Worker
+///     <c>/api/risk/metrics</c> consumer being integrated here; the config key
+///     <c>MarginThresholdPercent</c> is read but currently unused.</description></item>
+///   <item><description>Ingest error-rate &gt; 5% over 5 min → Warning (digested). Pending the Worker
+///     <c>/api/observability/ingest-errors</c> summary endpoint (not yet built).</description></item>
+///   <item><description>Semaphore stuck RED for &gt; 6 h → Critical. Pending a persistent
+///     timeline of <c>/api/risk/semaphore</c> observations.</description></item>
+/// </list>
 /// <para>
 /// Each alerter is invoked via <c>Task.WhenAll</c> and errors are swallowed individually —
 /// a Telegram outage must not break Email delivery and vice versa.

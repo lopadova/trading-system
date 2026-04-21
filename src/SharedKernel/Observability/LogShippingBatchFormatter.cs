@@ -68,7 +68,10 @@ public sealed class LogShippingBatchFormatter : IBatchFormatter
         // but TextWriter output locks us into string-based rendering. Simplicity wins here.
         output.Write("{\"batch\":[");
 
-        bool first = true;
+        // Write commas AFTER a successful reshape rather than before the next one,
+        // so a mid-batch drop never leaves a trailing comma in the emitted array
+        // (which the Worker's Zod validator would reject).
+        bool anyEmitted = false;
         foreach (string logEventJson in logEvents)
         {
             if (string.IsNullOrWhiteSpace(logEventJson))
@@ -76,16 +79,22 @@ public sealed class LogShippingBatchFormatter : IBatchFormatter
                 continue;
             }
 
-            if (!first)
+            // Reshape the Serilog JSON line into our Worker schema. On parse
+            // failure we skip the event entirely — emitting `null` would inject
+            // `null` into the `batch` array and the Worker's Zod schema rejects
+            // the whole batch.
+            string? reshaped = ReshapeEvent(logEventJson, _serviceName);
+            if (reshaped == null)
+            {
+                continue;
+            }
+
+            if (anyEmitted)
             {
                 output.Write(',');
             }
-            first = false;
-
-            // Reshape the Serilog JSON line into our Worker schema.
-            // We parse defensively — any malformed event is dropped, not allowed to crash the sink.
-            string reshaped = ReshapeEvent(logEventJson, _serviceName);
             output.Write(reshaped);
+            anyEmitted = true;
         }
 
         output.Write("]}");
@@ -93,10 +102,11 @@ public sealed class LogShippingBatchFormatter : IBatchFormatter
 
     /// <summary>
     /// Parses a single Serilog JSON line (NormalRenderedTextFormatter shape) and re-emits
-    /// it in the Worker's expected schema. On any error, returns "null" (valid JSON) so the
-    /// batch envelope stays well-formed and the bad event is silently dropped.
+    /// it in the Worker's expected schema. Returns null on parse / reshape failure so the
+    /// caller skips the malformed event entirely (inserting `null` into the batch would
+    /// fail the Worker's Zod validation and reject the WHOLE batch).
     /// </summary>
-    private static string ReshapeEvent(string logEventJson, string serviceName)
+    private static string? ReshapeEvent(string logEventJson, string serviceName)
     {
         try
         {
@@ -111,9 +121,32 @@ public sealed class LogShippingBatchFormatter : IBatchFormatter
                 ? (tsEl.GetString() ?? DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture))
                 : DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture);
 
-            string level = root.TryGetProperty("Level", out JsonElement lvlEl) && lvlEl.ValueKind == JsonValueKind.String
-                ? (lvlEl.GetString() ?? "information").ToLowerInvariant()
+            // Serilog LogEventLevel: Verbose | Debug | Information | Warning | Error | Fatal
+            // Worker /api/v1/logs Zod enum: trace | debug | info | warn | error | critical
+            // Map between the two. Unknown levels → skip (return null from caller).
+            string serilogLevel = root.TryGetProperty("Level", out JsonElement lvlEl) && lvlEl.ValueKind == JsonValueKind.String
+                ? (lvlEl.GetString() ?? "Information").ToLowerInvariant()
                 : "information";
+
+            string? level = serilogLevel switch
+            {
+                "verbose" => "trace",
+                "debug" => "debug",
+                "information" => "info",
+                "warning" => "warn",
+                "error" => "error",
+                "fatal" => "critical",
+                // Already-worker levels pass through (keeps us forward-compatible
+                // if a caller uses the worker vocabulary directly):
+                "trace" or "info" or "warn" or "critical" => serilogLevel,
+                _ => null,
+            };
+            if (level == null)
+            {
+                // Unknown level → skip this event rather than send a payload
+                // the Worker will 400 for the entire batch.
+                return null;
+            }
 
             string message = root.TryGetProperty("RenderedMessage", out JsonElement msgEl) && msgEl.ValueKind == JsonValueKind.String
                 ? (msgEl.GetString() ?? string.Empty)
@@ -207,8 +240,11 @@ public sealed class LogShippingBatchFormatter : IBatchFormatter
         }
         catch
         {
-            // Any parse error → drop the event; return valid JSON so the batch stays well-formed.
-            return "null";
+            // Any parse error → drop the event entirely. The caller skips
+            // null returns so the batch stays well-formed (no `null` element
+            // in the array → Worker's Zod validator accepts the remaining
+            // entries instead of rejecting the whole batch).
+            return null;
         }
     }
 

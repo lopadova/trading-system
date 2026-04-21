@@ -102,6 +102,15 @@ public static class ObservabilityConfig
             return loggerConfig;
         }
 
+        // Also skip if the API key is blank: the Worker's /api/v1/logs requires
+        // X-Api-Key and would 401 every batch, then retry/queue/drop. Better to
+        // be explicit about "not configured → not shipping" than to generate
+        // auth-failure noise on the Worker side and broken retries on ours.
+        if (string.IsNullOrWhiteSpace(options.ApiKey))
+        {
+            return loggerConfig;
+        }
+
         // Build the full endpoint URL; the Worker expects POST /api/v1/logs.
         string endpoint = $"{options.WorkerUrl.TrimEnd('/')}/api/v1/logs";
 

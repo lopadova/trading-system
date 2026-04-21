@@ -104,37 +104,42 @@ logs.post('/', async (c) => {
   try {
     // UPSERT each entry. Sequence is the index in the batch, so retrying the
     // exact same batch reuses the same PK and INSERT OR REPLACE dedupes.
+    //
+    // Prepare the statement ONCE outside the loop + dispatch all binds as a
+    // single D1 batch — preparing per-row cost ~O(N) parser hits and is the
+    // hot path when shipping 500-entry batches from the .NET services.
     const sql = `
       INSERT OR REPLACE INTO service_logs
         (service, ts, sequence, level, message, properties,
          source_context, exception_type, exception_message, exception_stack)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
+    const stmt = c.env.DB.prepare(sql)
 
-    let accepted = 0
-    for (let i = 0; i < entries.length; i++) {
-      const entry = entries[i] as LogEntry
-      const properties = entry.properties
-        ? JSON.stringify(entry.properties)
-        : null
+    const binds = entries.map((raw, i) => {
+      const entry = raw as LogEntry
+      const properties = entry.properties ? JSON.stringify(entry.properties) : null
       const exception = entry.exception ?? null
+      return stmt.bind(
+        entry.service,
+        entry.ts,
+        i,
+        entry.level,
+        entry.message,
+        properties,
+        entry.source_context ?? null,
+        exception?.type ?? null,
+        exception?.message ?? null,
+        exception?.stackTrace ?? null,
+      )
+    })
 
-      await c.env.DB.prepare(sql)
-        .bind(
-          entry.service,
-          entry.ts,
-          i,
-          entry.level,
-          entry.message,
-          properties,
-          entry.source_context ?? null,
-          exception?.type ?? null,
-          exception?.message ?? null,
-          exception?.stackTrace ?? null
-        )
-        .run()
-      accepted++
+    // D1.batch runs all statements atomically in a single RPC — far cheaper
+    // than N sequential prepare+run round-trips.
+    if (binds.length > 0) {
+      await c.env.DB.batch(binds)
     }
+    const accepted = binds.length
 
     // Counter tagged by service + level. We increment once per batch (not per
     // row) to keep the cardinality bounded; downstream `accepted` is in the

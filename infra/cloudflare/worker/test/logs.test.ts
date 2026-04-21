@@ -31,17 +31,21 @@ class FakeD1 {
   log: StmtLog[] = []
 
   prepare(sql: string) {
+    // Mirror the real D1 API: bind() returns a NEW prepared statement with
+    // its own params, not a mutation of the original. This lets callers do
+    // `const stmt = db.prepare(sql); entries.map(e => stmt.bind(...))` and
+    // get N distinct bound statements (as needed for D1.batch).
     // eslint-disable-next-line @typescript-eslint/no-this-alias
     const db = this
-    return {
-      _params: [] as unknown[],
-      bind(...params: unknown[]) {
-        this._params = params
-        return this
+    const makeStatement = (params: unknown[]) => ({
+      __sql: sql,
+      _params: params,
+      bind(...next: unknown[]) {
+        return makeStatement(next)
       },
       async run() {
-        db.log.push({ sql, params: this._params })
-        db.applyStatement(sql, this._params)
+        db.log.push({ sql, params })
+        db.applyStatement(sql, params)
         return { success: true, meta: { duration: 0 } }
       },
       async first() {
@@ -50,7 +54,26 @@ class FakeD1 {
       async all() {
         return { results: [], success: true }
       }
+    })
+    return makeStatement([])
+  }
+
+  // D1Database.batch signature: takes an array of prepared-bound statements
+  // and runs them as one RPC. Our fake just replays each via applyStatement
+  // so the downstream row assertions keep working unchanged.
+  async batch(stmts: Array<{ _params?: unknown[]; sql?: string }>) {
+    const out: Array<{ success: boolean; meta: { duration: number } }> = []
+    for (const stmt of stmts) {
+      // The prepare() returns an object that stores `_params` on bind() but
+      // does NOT expose the sql on the bound-statement shape. We sniff by
+      // reading the closure-captured sql via the wrapper below.
+      const sql = (stmt as unknown as { __sql?: string }).__sql ?? ''
+      const params = stmt._params ?? []
+      this.log.push({ sql, params })
+      this.applyStatement(sql, params)
+      out.push({ success: true, meta: { duration: 0 } })
     }
+    return out
   }
 
   applyStatement(sql: string, params: unknown[]) {

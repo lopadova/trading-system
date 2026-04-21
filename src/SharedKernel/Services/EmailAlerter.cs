@@ -195,8 +195,10 @@ public sealed class EmailAlerter : IAlerter
             return;
         }
 
-        // Build a single email whose body lists all entries.
-        string subject = string.Format(CultureInfo.InvariantCulture, "[Trading-System] Critical digest ({0} items)", entries.Count);
+        // Build a single email whose body lists all entries. `SendMailInternalAsync`
+        // centralizes the "[Trading-System]" prefix, so pass the raw subject here
+        // (prefixing twice would yield "[Trading-System] [Trading-System] …").
+        string subject = string.Format(CultureInfo.InvariantCulture, "Critical digest ({0} items)", entries.Count);
         System.Text.StringBuilder body = new();
         body.AppendLine(string.Format(CultureInfo.InvariantCulture, "Critical alert digest — {0} items", entries.Count));
         body.AppendLine();
