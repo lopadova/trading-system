@@ -13,6 +13,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import type { HTMLAttributes, ReactNode } from 'react'
 import { StepIndicator } from './StepIndicator'
 import { DeltaSlider } from './shared/DeltaSlider'
 import { ImportDropzone } from './shared/ImportDropzone'
@@ -20,6 +21,11 @@ import { FieldWithTooltip } from './shared/FieldWithTooltip'
 import { ValidationBadge } from './shared/ValidationBadge'
 import { NavigationButtons } from './shared/NavigationButtons'
 import { useWizardStore } from '../../stores/wizardStore'
+import type { StrategyDraft } from '../../types/sdf-v1'
+
+// Prop types for motion/react mocks — accept any DOM div props plus children
+type MotionDivProps = HTMLAttributes<HTMLDivElement> & { children?: ReactNode }
+type AnimatePresenceProps = { children?: ReactNode }
 
 // ============================================================================
 // MOCKS
@@ -28,9 +34,9 @@ import { useWizardStore } from '../../stores/wizardStore'
 // Mock motion/react to avoid animation issues in tests
 vi.mock('motion/react', () => ({
   motion: {
-    div: ({ children, ...props }: any) => <div {...props}>{children}</div>,
+    div: ({ children, ...props }: MotionDivProps) => <div {...props}>{children}</div>,
   },
-  AnimatePresence: ({ children }: any) => <>{children}</>,
+  AnimatePresence: ({ children }: AnimatePresenceProps) => <>{children}</>,
 }))
 
 // Helper to reset wizard store before each test
@@ -40,7 +46,7 @@ beforeEach(() => {
     totalSteps: 10,
     visitedSteps: [1],
     stepErrors: {},
-    draft: {} as any,
+    draft: {} as StrategyDraft,
     mode: 'new',
     originalJson: null,
     globalErrors: [],

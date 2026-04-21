@@ -16,6 +16,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import type { HTMLAttributes, ReactNode } from 'react'
 import { ELCodeEditor } from './ELCodeEditor'
 import { ELSyntaxHighlight } from './ELSyntaxHighlight'
 import { ELConverterPanel } from './ELConverterPanel'
@@ -29,12 +30,16 @@ import type { ConversionResult, ConversionIssue } from '../../../hooks/useELConv
 // MOCKS
 // ============================================================================
 
+// Prop types for motion/react mocks — accept any DOM div props plus children
+type MotionDivProps = HTMLAttributes<HTMLDivElement> & { children?: ReactNode }
+type AnimatePresenceProps = { children?: ReactNode }
+
 // Mock motion/react to avoid animation issues in tests
 vi.mock('motion/react', () => ({
   motion: {
-    div: ({ children, ...props }: any) => <div {...props}>{children}</div>
+    div: ({ children, ...props }: MotionDivProps) => <div {...props}>{children}</div>
   },
-  AnimatePresence: ({ children }: any) => <>{children}</>
+  AnimatePresence: ({ children }: AnimatePresenceProps) => <>{children}</>
 }))
 
 // Mock react-router navigation
