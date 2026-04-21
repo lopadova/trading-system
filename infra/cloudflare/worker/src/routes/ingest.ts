@@ -33,7 +33,7 @@ const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected ISO date YYYY-
 // Optional nullable number helper (payloads may omit or explicitly null)
 const optionalNumber = z.number().nullable().optional()
 
-const AccountEquityPayloadSchema = z.object({
+export const AccountEquityPayloadSchema = z.object({
   date: isoDate,
   account_value: z.number(),
   cash: z.number(),
@@ -42,7 +42,7 @@ const AccountEquityPayloadSchema = z.object({
   margin_used_pct: z.number()
 })
 
-const MarketQuotePayloadSchema = z.object({
+export const MarketQuotePayloadSchema = z.object({
   symbol: z.string().min(1).max(32),
   date: isoDate,
   open: optionalNumber,
@@ -52,7 +52,7 @@ const MarketQuotePayloadSchema = z.object({
   volume: z.number().int().nullable().optional()
 })
 
-const VixSnapshotPayloadSchema = z.object({
+export const VixSnapshotPayloadSchema = z.object({
   date: isoDate,
   vix: optionalNumber,
   vix1d: optionalNumber,
@@ -60,14 +60,14 @@ const VixSnapshotPayloadSchema = z.object({
   vix6m: optionalNumber
 })
 
-const BenchmarkClosePayloadSchema = z.object({
+export const BenchmarkClosePayloadSchema = z.object({
   symbol: z.string().min(1).max(32),
   date: isoDate,
   close: z.number(),
   close_normalized: optionalNumber
 })
 
-const PositionGreeksPayloadSchema = z.object({
+export const PositionGreeksPayloadSchema = z.object({
   position_id: z.string().min(1),
   snapshot_ts: z.string().min(1),  // ISO 8601 timestamp (not just date)
   delta: optionalNumber,
@@ -81,7 +81,7 @@ const PositionGreeksPayloadSchema = z.object({
 // Phase 7.3 — browser Web Vitals emitted by the dashboard web-vitals reporter.
 // Kept lenient: clients can send the raw payload produced by the web-vitals
 // library (name, value, id, navigationType, rating) without preprocessing.
-const WebVitalsPayloadSchema = z.object({
+export const WebVitalsPayloadSchema = z.object({
   session_id: z.string().min(1),
   name: z.enum(['CLS', 'INP', 'LCP', 'FCP', 'TTFB']),
   value: z.number(),
@@ -95,7 +95,7 @@ const WebVitalsPayloadSchema = z.object({
 // (placed / filled / rejected_* / error). Matches the OrderAuditEntry contract
 // in src/SharedKernel/Safety/OrderAuditEntry.cs. audit_id is the PK for
 // idempotent replays.
-const ALLOWED_AUDIT_OUTCOMES = [
+export const ALLOWED_AUDIT_OUTCOMES = [
   'placed',
   'filled',
   'rejected_semaphore',
@@ -109,7 +109,7 @@ const ALLOWED_AUDIT_OUTCOMES = [
   'error'
 ] as const
 
-const OrderAuditPayloadSchema = z.object({
+export const OrderAuditPayloadSchema = z.object({
   audit_id: z.string().min(1).max(128),
   order_id: z.string().min(1).max(128).nullable().optional(),
   ts: z.string().min(1),                                // ISO-8601 timestamp
