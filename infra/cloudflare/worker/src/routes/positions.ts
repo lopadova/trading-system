@@ -27,9 +27,25 @@ positions.get('/active', async (c) => {
   // LEFT JOIN to campaigns lets the dashboard show the human-readable campaign
   // name without requiring a separate round-trip. campaigns is optional — if
   // the row has no matching campaign, `campaign` will be NULL.
+  //
+  // Phase 7.2: also LEFT JOIN the latest row of `position_greeks` per position
+  // so the Active Positions table can render fresh delta/theta without a
+  // separate round-trip. The CTE `latest_greeks` finds MAX(snapshot_ts) per
+  // position_id (natural key for "latest snapshot"), then we join back to
+  // `position_greeks` on (position_id, snapshot_ts) to pull the greek values.
   let sql =
-    'SELECT p.*, c.name AS campaign FROM active_positions p ' +
+    'WITH latest_greeks AS (' +
+    '  SELECT position_id, MAX(snapshot_ts) AS max_ts ' +
+    '  FROM position_greeks GROUP BY position_id' +
+    ') ' +
+    'SELECT p.*, c.name AS campaign, ' +
+    '       g.delta AS delta, g.gamma AS gamma, g.theta AS theta, ' +
+    '       g.vega AS vega, g.iv AS iv ' +
+    'FROM active_positions p ' +
     'LEFT JOIN campaigns c ON c.id = p.campaign_id ' +
+    'LEFT JOIN latest_greeks lg ON lg.position_id = p.position_id ' +
+    'LEFT JOIN position_greeks g ON g.position_id = p.position_id ' +
+    '  AND g.snapshot_ts = lg.max_ts ' +
     'WHERE 1=1'
   const params: string[] = []
 
@@ -52,8 +68,19 @@ positions.get('/active', async (c) => {
   params.push(String(limit))
 
   try {
-    // Each row carries the joined `campaign` string (or null when no FK match).
-    const result = await c.env.DB.prepare(sql).bind(...params).all<ActivePositionRow & { campaign: string | null }>()
+    // Each row carries the joined `campaign` string (or null when no FK match)
+    // plus the 5 greek fields (delta/gamma/theta/vega/iv) — all nullable when
+    // the position has no snapshot yet in `position_greeks`.
+    const result = await c.env.DB.prepare(sql).bind(...params).all<
+      ActivePositionRow & {
+        campaign: string | null
+        delta: number | null
+        gamma: number | null
+        theta: number | null
+        vega: number | null
+        iv: number | null
+      }
+    >()
 
     return c.json({
       positions: result.results ?? [],
@@ -122,14 +149,35 @@ positions.get('/:position_id', async (c) => {
   }
 
   try {
+    // Phase 7.2: include latest greeks via the same latest_greeks CTE used by
+    // /active so detail views and table views stay in sync.
     const row = await c.env.DB
       .prepare(
-        'SELECT p.*, c.name AS campaign FROM active_positions p ' +
+        'WITH latest_greeks AS (' +
+        '  SELECT position_id, MAX(snapshot_ts) AS max_ts ' +
+        '  FROM position_greeks GROUP BY position_id' +
+        ') ' +
+        'SELECT p.*, c.name AS campaign, ' +
+        '       g.delta AS delta, g.gamma AS gamma, g.theta AS theta, ' +
+        '       g.vega AS vega, g.iv AS iv ' +
+        'FROM active_positions p ' +
         'LEFT JOIN campaigns c ON c.id = p.campaign_id ' +
+        'LEFT JOIN latest_greeks lg ON lg.position_id = p.position_id ' +
+        'LEFT JOIN position_greeks g ON g.position_id = p.position_id ' +
+        '  AND g.snapshot_ts = lg.max_ts ' +
         'WHERE p.position_id = ?'
       )
       .bind(positionId)
-      .first<ActivePositionRow & { campaign: string | null }>()
+      .first<
+        ActivePositionRow & {
+          campaign: string | null
+          delta: number | null
+          gamma: number | null
+          theta: number | null
+          vega: number | null
+          iv: number | null
+        }
+      >()
 
     if (!row) {
       return c.json({ error: 'not_found', message: 'Position not found' }, 404)
