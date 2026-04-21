@@ -27,9 +27,29 @@ positions.get('/active', async (c) => {
   // LEFT JOIN to campaigns lets the dashboard show the human-readable campaign
   // name without requiring a separate round-trip. campaigns is optional — if
   // the row has no matching campaign, `campaign` will be NULL.
+  //
+  // Phase 7.2: also LEFT JOIN the latest row of `position_greeks` per position
+  // so the Active Positions table can render fresh delta/theta without a
+  // separate round-trip. The CTE `latest_greeks` is SCOPED to active positions
+  // (inner-joined to `active_positions`) so the cost scales with open-book
+  // size rather than total greek history — without this scope it would
+  // degenerate into a full-table scan of position_greeks per request as the
+  // snapshot history grows.
   let sql =
-    'SELECT p.*, c.name AS campaign FROM active_positions p ' +
+    'WITH latest_greeks AS (' +
+    '  SELECT pg.position_id, MAX(pg.snapshot_ts) AS max_ts ' +
+    '  FROM position_greeks pg ' +
+    '  INNER JOIN active_positions ap ON ap.position_id = pg.position_id ' +
+    '  GROUP BY pg.position_id' +
+    ') ' +
+    'SELECT p.*, c.name AS campaign, ' +
+    '       g.delta AS delta, g.gamma AS gamma, g.theta AS theta, ' +
+    '       g.vega AS vega, g.iv AS iv ' +
+    'FROM active_positions p ' +
     'LEFT JOIN campaigns c ON c.id = p.campaign_id ' +
+    'LEFT JOIN latest_greeks lg ON lg.position_id = p.position_id ' +
+    'LEFT JOIN position_greeks g ON g.position_id = p.position_id ' +
+    '  AND g.snapshot_ts = lg.max_ts ' +
     'WHERE 1=1'
   const params: string[] = []
 
@@ -52,8 +72,19 @@ positions.get('/active', async (c) => {
   params.push(String(limit))
 
   try {
-    // Each row carries the joined `campaign` string (or null when no FK match).
-    const result = await c.env.DB.prepare(sql).bind(...params).all<ActivePositionRow & { campaign: string | null }>()
+    // Each row carries the joined `campaign` string (or null when no FK match)
+    // plus the 5 greek fields (delta/gamma/theta/vega/iv) — all nullable when
+    // the position has no snapshot yet in `position_greeks`.
+    const result = await c.env.DB.prepare(sql).bind(...params).all<
+      ActivePositionRow & {
+        campaign: string | null
+        delta: number | null
+        gamma: number | null
+        theta: number | null
+        vega: number | null
+        iv: number | null
+      }
+    >()
 
     return c.json({
       positions: result.results ?? [],
@@ -122,14 +153,36 @@ positions.get('/:position_id', async (c) => {
   }
 
   try {
+    // Phase 7.2: include latest greeks via the same latest_greeks CTE used by
+    // /active (scoped to the specific positionId we're fetching, so the CTE
+    // work stays O(1) per detail request regardless of total greek history).
     const row = await c.env.DB
       .prepare(
-        'SELECT p.*, c.name AS campaign FROM active_positions p ' +
+        'WITH latest_greeks AS (' +
+        '  SELECT position_id, MAX(snapshot_ts) AS max_ts ' +
+        '  FROM position_greeks WHERE position_id = ? GROUP BY position_id' +
+        ') ' +
+        'SELECT p.*, c.name AS campaign, ' +
+        '       g.delta AS delta, g.gamma AS gamma, g.theta AS theta, ' +
+        '       g.vega AS vega, g.iv AS iv ' +
+        'FROM active_positions p ' +
         'LEFT JOIN campaigns c ON c.id = p.campaign_id ' +
+        'LEFT JOIN latest_greeks lg ON lg.position_id = p.position_id ' +
+        'LEFT JOIN position_greeks g ON g.position_id = p.position_id ' +
+        '  AND g.snapshot_ts = lg.max_ts ' +
         'WHERE p.position_id = ?'
       )
-      .bind(positionId)
-      .first<ActivePositionRow & { campaign: string | null }>()
+      .bind(positionId, positionId)
+      .first<
+        ActivePositionRow & {
+          campaign: string | null
+          delta: number | null
+          gamma: number | null
+          theta: number | null
+          vega: number | null
+          iv: number | null
+        }
+      >()
 
     if (!row) {
       return c.json({ error: 'not_found', message: 'Position not found' }, 404)

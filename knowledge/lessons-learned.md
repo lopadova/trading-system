@@ -2845,3 +2845,101 @@ Two rules we learned the hard way:
 **Impatto**: Dashboard now fails CI on new ESLint debt instead of silently accumulating as warnings. 5 rules are back to `error`: `no-unused-vars`, `no-explicit-any`, `no-empty-object-type`, `no-useless-escape`, `prefer-const`. Only one targeted `eslint-disable` remains (the vitest module-augmentation interfaces, inherently required by the library).
 
 **Reference**: PR chore/lint-cleanup (based on feat/ci-fixes-and-phase7-plan), commits 0de9ff0 / 6ccea88 / 26dd431 / b5296cb.
+
+---
+
+## LESSON-185 — Running-peak drawdown in one SQL statement via window functions
+
+**Contesto**: Phase 7.2 (`feat/phase7.2-d1-aggregate-queries`). The drawdowns endpoint needed to return an "underwater curve" (percent drawdown vs running-peak) directly from D1. Previous mock-based implementation computed the curve in JavaScript from a hardcoded array.
+
+**Scoperta**: SQLite supports `MAX(col) OVER (ORDER BY ts ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)` which gives the running peak up to each row. Combined with a simple arithmetic expression this replaces the entire JS reduce loop:
+
+```sql
+WITH running AS (
+  SELECT date, account_value,
+         MAX(account_value) OVER (ORDER BY date
+           ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS peak
+  FROM account_equity_daily
+  WHERE date >= date('now', '-252 days')
+)
+SELECT date,
+       CASE WHEN peak > 0 THEN (account_value - peak) * 100.0 / peak ELSE 0 END AS drawdown_pct
+FROM running ORDER BY date ASC
+```
+
+Benefits:
+
+- **One round-trip** instead of "SELECT full series then compute in JS".
+- **Range-cropped before compute** — SQLite reads only the rows in the date window, so a 6M request doesn't pay for 10Y of rows.
+- **Same shape** works for any symbol: swap `account_equity_daily` → `market_quotes_daily WHERE symbol='SPX'` to get the S&P 500 overlay without new code.
+
+**Impatto**: The entire Phase 7.2 drawdowns route is ~100 lines; the JS side just formats the already-computed series and groups consecutive negative-dd runs into episodes.
+
+**Reference**: `infra/cloudflare/worker/src/routes/drawdowns.ts`, Phase 7.2 commit `feat(worker): wire drawdowns route to D1 with SQL window functions`.
+
+---
+
+## LESSON-186 — `X-Data-Source: fallback-mock` response header as an observability escape hatch
+
+**Contesto**: Phase 7.2. Replacing hardcoded mocks with real D1 queries risks breaking the dashboard on a fresh install where no collectors have run yet and every source table is empty. The naive choices are (a) return a 500 or empty payload (breaks the UI), (b) return the mock silently (hides the "no data yet" state), or (c) add a separate `/status` probe (more frontend work).
+
+**Scoperta**: A middle path: when a route's source tables are empty OR the query throws, return the pre-Phase-7.2 mock payload as before, but ALSO set the response header `X-Data-Source: fallback-mock`. The dashboard continues to render something meaningful on day-1, AND a future milestone can add `fetch(...).then(r => r.headers.get('X-Data-Source'))` to surface a "demo data" banner without any backend change.
+
+Usage pattern (same in every Phase 7.2 route):
+
+```ts
+try {
+  const rows = await db.prepare(...).all()
+  if (rows.results?.length === 0) {
+    c.header('X-Data-Source', 'fallback-mock')
+    return c.json(fallbackPayload())
+  }
+  return c.json(computeFromRows(rows.results))
+} catch (error) {
+  console.error('route failed:', error)
+  c.header('X-Data-Source', 'fallback-mock')
+  return c.json(fallbackPayload())
+}
+```
+
+Deliberate asymmetry: `campaigns/summary` treats an empty `campaigns` table as a legitimate production state (zero campaigns is valid) and does NOT set the header — only DB errors trigger fallback there. Document this per-route so the dashboard side can tune its banner logic accordingly.
+
+**Impatto**: Zero frontend changes required for Phase 7.2; new "demo data" indicator is a future frontend-only task.
+
+**Reference**: 9 routes in `infra/cloudflare/worker/src/routes/` (performance / drawdowns / monthly-returns / risk / system-metrics / breakdown / activity / campaigns-summary / positions).
+
+---
+
+## LESSON-187 — Group consecutive drawdown rows into episodes, then rank by depth
+
+**Contesto**: Phase 7.2 drawdowns endpoint needed to return the "worst 4 drawdowns" list (depth, start/end dates, duration in months). The pre-Phase-7.2 mock had these hardcoded; the real SQL gives a daily drawdown_pct series instead.
+
+**Scoperta**: Given a per-day drawdown_pct series (already negative or zero), episodes can be extracted with a single linear scan that tracks `epStart` / `epEnd` / `epDepth` and emits an episode each time the drawdown returns to zero:
+
+```ts
+for (const row of rows) {
+  if (row.drawdown_pct < 0) {
+    if (epStart === null) epStart = row.date
+    if (row.drawdown_pct < epDepth) epDepth = row.drawdown_pct
+    epEnd = row.date
+  } else if (epStart !== null) {
+    episodes.push({
+      depthPct: epDepth,
+      start: epStart,
+      end: epEnd!,
+      months: monthsBetween(epStart, epEnd!),
+    })
+    epStart = null
+    epEnd = null
+    epDepth = 0
+  }
+}
+```
+
+Then `episodes.sort((a,b) => a.depthPct - b.depthPct).slice(0, N)` gives top-N by absolute depth (most-negative first). Gotcha: don't forget to close an episode still-open at the end of the series, otherwise an ongoing drawdown is silently dropped.
+
+Date formatting: use a static `['Jan','Feb',...]` array rather than `toLocaleString('en-US', {month: 'short'})` to avoid the culture-dependent output that bit us in ERR-015. Worker isolates don't always have the US-English ICU data loaded.
+
+**Impatto**: Algorithm runs in O(N) with no allocations beyond the episode array; handles 10Y of daily data (~2520 rows) in sub-millisecond.
+
+**Reference**: `computeWorst()` in `infra/cloudflare/worker/src/routes/drawdowns.ts`.
