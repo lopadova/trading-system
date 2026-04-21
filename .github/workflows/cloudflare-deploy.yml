@@ -9,6 +9,9 @@ on:
       - '.github/workflows/cloudflare-deploy.yml'
   workflow_dispatch:
 
+env:
+  NODE_VERSION: '20.x'
+
 jobs:
   test-worker:
     name: Test Cloudflare Worker
@@ -18,6 +21,13 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Setup Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: npm
+        cache-dependency-path: infra/cloudflare/worker/package-lock.json
+
     - name: Setup Bun
       uses: oven-sh/setup-bun@v2
       with:
@@ -25,11 +35,9 @@ jobs:
 
     - name: Install dependencies
       working-directory: infra/cloudflare/worker
-      # Use npm instead of bun in CI: `bun install` has recurring tarball
-      # extraction failures for @img/sharp-libvips-linux-x64 (transitive
-      # optional dep of wrangler/miniflare). npm handles optional-dep
-      # fallback more gracefully than bun as of this writing.
-      run: npm install --no-audit --no-fund
+      # Use npm ci (deterministic, lockfile-enforced). bun install has
+      # recurring tarball extraction failures for @img/sharp-libvips-linux-x64.
+      run: npm ci --no-audit --no-fund
 
     - name: Run tests
       working-directory: infra/cloudflare/worker
@@ -47,14 +55,16 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Setup Bun
-      uses: oven-sh/setup-bun@v2
+    - name: Setup Node
+      uses: actions/setup-node@v4
       with:
-        bun-version: latest
+        node-version: ${{ env.NODE_VERSION }}
+        cache: npm
+        cache-dependency-path: dashboard/package-lock.json
 
     - name: Install dependencies
       working-directory: dashboard
-      run: npm install --no-audit --no-fund
+      run: npm ci --no-audit --no-fund
 
     - name: Run tests
       working-directory: dashboard
@@ -75,6 +85,8 @@ jobs:
         retention-days: 7
 
   # ⚠ DISABLED until Phase 7 production-readiness (per Lorenzo).
+  # Install strategy mirrors the test jobs (npm ci + Node setup), so
+  # re-enabling = just removing `if: false &&`.
   deploy-worker:
     name: Deploy Worker to Cloudflare
     runs-on: ubuntu-latest
@@ -88,20 +100,22 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Setup Bun
-      uses: oven-sh/setup-bun@v2
+    - name: Setup Node
+      uses: actions/setup-node@v4
       with:
-        bun-version: latest
+        node-version: ${{ env.NODE_VERSION }}
+        cache: npm
+        cache-dependency-path: infra/cloudflare/worker/package-lock.json
 
     - name: Install dependencies
       working-directory: infra/cloudflare/worker
-      run: bun install
+      run: npm ci --no-audit --no-fund
 
     - name: Deploy to Cloudflare Workers
       working-directory: infra/cloudflare/worker
       env:
         CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      run: bunx wrangler deploy
+      run: npx wrangler deploy
 
   # ⚠ DISABLED until Phase 7 production-readiness (per Lorenzo).
   deploy-dashboard:
@@ -117,18 +131,20 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Setup Bun
-      uses: oven-sh/setup-bun@v2
+    - name: Setup Node
+      uses: actions/setup-node@v4
       with:
-        bun-version: latest
+        node-version: ${{ env.NODE_VERSION }}
+        cache: npm
+        cache-dependency-path: dashboard/package-lock.json
 
     - name: Install dependencies
       working-directory: dashboard
-      run: bun install
+      run: npm ci --no-audit --no-fund
 
     - name: Build dashboard
       working-directory: dashboard
-      run: bun run build
+      run: npm run build
 
     - name: Deploy to Cloudflare Pages
       uses: cloudflare/pages-action@v1

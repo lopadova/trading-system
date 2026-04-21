@@ -27,13 +27,34 @@
     <PackageReference Include="Telegram.Bot" Version="19.0.0" />
   </ItemGroup>
 
-  <ItemGroup>
+  <!--
+    IBKR TWS API wiring:
+    - Local dev (Windows with TWS installed): use the real CSharpAPI.dll so
+      runtime behaviour matches production.
+    - CI / clean checkout (no TWS): fall back to the in-repo IBApi.Stub project
+      which provides the same public API surface for compile-time.
+    Toggle is by file-existence of the real DLL; no manual flag needed.
+  -->
+  <PropertyGroup>
+    <IbkrRealDllPath>C:\TWS API\source\CSharpClient\client\bin\Release\net8.0\CSharpAPI.dll</IbkrRealDllPath>
+    <UseRealIbkrDll Condition="Exists('$(IbkrRealDllPath)')">true</UseRealIbkrDll>
+    <UseRealIbkrDll Condition="'$(UseRealIbkrDll)' == ''">false</UseRealIbkrDll>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(UseRealIbkrDll)' == 'true'">
     <!-- CRITICAL: Official IBKR TWS API library (CSharpAPI.dll) -->
-    <!-- MUST install TWS API from: https://www.interactivebrokers.com/en/trading/tws-api-install.php -->
+    <!-- Install from: https://www.interactivebrokers.com/en/trading/tws-api-install.php -->
     <Reference Include="IBApi">
-      <HintPath>C:\TWS API\source\CSharpClient\client\bin\Release\net8.0\CSharpAPI.dll</HintPath>
+      <HintPath>$(IbkrRealDllPath)</HintPath>
       <Private>true</Private>
     </Reference>
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(UseRealIbkrDll)' == 'false'">
+    <!-- CI / no-TWS fallback: compile against the stub project so the build
+         succeeds without the real Interactive Brokers DLL. Runtime must still
+         have the real DLL when a live IBKR connection is exercised. -->
+    <ProjectReference Include="..\IBApi.Stub\IBApi.Stub.csproj" />
   </ItemGroup>
 
   <ItemGroup>
