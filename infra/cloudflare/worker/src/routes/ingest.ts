@@ -415,13 +415,13 @@ async function handleVixSnapshot(
   const mirrorSql = `
     INSERT OR REPLACE INTO market_quotes_daily
       (symbol, date, open, high, low, close, volume)
-    VALUES (?, ?, NULL, NULL, NULL, ?, NULL)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
   `
 
   for (const leg of legs) {
     if (leg.close === null || leg.close === undefined) continue
     await db.prepare(mirrorSql)
-      .bind(leg.symbol, payload.date, leg.close)
+      .bind(leg.symbol, payload.date, null, null, null, leg.close, null)
       .run()
   }
 
