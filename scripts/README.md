@@ -372,7 +372,10 @@ Fix each failure before proceeding with deployment.
 
 - **Deployment Guide**: `docs/DEPLOYMENT_GUIDE.md` - Complete deployment instructions
 - **Coding Standards**: `CLAUDE.md` - Project guidelines and rules
-- **Database Schema**: `infra/cloudflare/worker/migrations/*.sql` (source of truth)
+- **Database Schemas** (source of truth, split by component):
+  - Cloudflare Worker / D1: `infra/cloudflare/worker/migrations/*.sql`
+  - TradingSupervisorService (SQLite): `src/TradingSupervisorService/Migrations/`
+  - OptionsExecutionService (SQLite): `src/OptionsExecutionService/Migrations/`
 - **Telegram Integration**: `docs/telegram-integration.md`
 - **Knowledge Base**: `knowledge/` - Errors, lessons learned, corrections
 

@@ -74,7 +74,7 @@ Production-ready automated trading system for options strategies via Interactive
 ### Knowledge Base
 - **[Errors Registry](knowledge/errors-registry.md)** - Documented errors with root causes and fixes
 - **[Lessons Learned](knowledge/lessons-learned.md)** - Lessons from development
-- **[Skills](\.claude\skills\)** - Coding patterns (.NET, Testing, SQLite, IBKR, Cloudflare)
+- **[Skills](.claude/skills/)** - Coding patterns (.NET, Testing, SQLite, IBKR, Cloudflare)
 
 ### CI/CD
 - **[GitHub Actions](.github/workflows/)** - Automated build, test, and deployment

@@ -10,7 +10,7 @@ last-reviewed: "2026-04-21"
 
 Opened in Obsidian? Right-click the `docs/` folder → "Open as vault". All cross-document references use Obsidian wiki-link syntax (`[[Target]]`); the canonical names match the `title:` / `aliases:` fields in each note's frontmatter.
 
-Repo root README: [[Trading System|Repository Overview]].
+Repo root README: [Repository Overview](../README.md) — lives outside the `docs/` vault, so a relative Markdown link instead of a wiki-link (Obsidian vaults don't resolve `[[...]]` across their root folder).
 
 ---
 
