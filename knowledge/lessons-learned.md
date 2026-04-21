@@ -3374,3 +3374,146 @@ fatigue trap.
 
 **Reference**: `docs/ops/SECRETS.md` § Rotation,
 `.github/ISSUE_TEMPLATE/secret-rotation.md`.
+
+## LESSON-198 — Chaos tests with virtual clocks: deterministic resilience
+
+**Categoria**: Testing / Resilience
+**Task**: Phase 7.6 (IBKR-disconnect chaos test)
+**Data**: 2026-04-21
+
+**Context**: Writing `tests/OptionsExecutionService.Tests/IbkrResilience_IT.cs`
+to assert OrderPlacer tolerates IBKR disconnects. Naïve implementation
+used `Thread.Sleep(30000)` to simulate the down window, which pushed test
+runtime from ~50 ms to 30+ seconds and made the test a timing-flake magnet.
+
+**Discovery**: A chaos test does NOT need to burn real wall-clock time to
+exercise the system-under-test's handling of elapsed-time events. A purely
+notional `VirtualClock` (just a `TimeSpan` counter we advance in the test
+loop) combined with a driver that flips the fake's connection state based
+on the notional clock produces:
+
+- Deterministic behaviour (no race with real-wall-clock timers).
+- ~50ms total runtime for 3 simulated minutes of scenario.
+- Zero flake — the state transitions happen when we tell them to, not
+  when the OS decides to schedule our thread.
+
+The key insight is that the system-under-test (OrderPlacer) doesn't know
+or care what real time it is. It only cares about the state of its
+dependencies at the moment it observes them. So a "virtual clock" is
+nothing more than a shared variable that deterministically drives the
+fake's state changes — no `TimeProvider` plumbing required for this
+narrow use case.
+
+**Discovery #2** (the deeper one): the chaos test caught a real
+invariant we would otherwise have only asserted informally. The contract
+"no duplicate broker submissions after a reconnect" is easy to assume
+and hard to verify from logs alone. The test makes it mechanically
+checkable: count the set of `(ibkrOrderId, contractSymbol)` pairs in
+`PlacedOrders` and compare to the count of `AuditOutcome.Placed` rows.
+If ever those diverge, idempotency is broken — and we'd find out now,
+not after a prod incident.
+
+**Impact**: Chaos tests can be fast, deterministic, and first-class
+citizens of the test suite. The next chaos scenario (SMTP flapping?
+Telegram rate-limiting?) gets the same pattern: inject state via a fake,
+drive time via a counter, assert on state machine invariants.
+
+**Reference**: `tests/OptionsExecutionService.Tests/IbkrResilience_IT.cs`,
+contrast with `tests/OptionsExecutionService.Tests/Services/SemaphoreGateTests.cs`
+(`FakeTimeProvider` — the same idea for a different dependency).
+
+## LESSON-199 — Contract tests: fixtures over snapshots
+
+**Categoria**: Testing / Contract Design
+**Task**: Phase 7.6 (.NET↔Worker contract tests)
+**Data**: 2026-04-21
+
+**Context**: Designing `tests/TradingSupervisorService.ContractTests/` +
+`infra/cloudflare/worker/test/contract.test.ts` to lock the shape of
+each outbox event type. The obvious choices were:
+
+- **Option A**: Snapshot tests that auto-update on first run (Jest-style).
+- **Option B**: Hand-maintained JSON fixtures checked into the repo.
+- **Option C**: Shared type definitions in a cross-compiled file (gross).
+
+**Discovery**: We picked Option B. The trade-off is explicit:
+
+- **Snapshot tests** make "is this drift intentional?" invisible. The
+  first commit after a shape change passes with a diff in the `.snap`
+  file that nobody reviews. For a contract that spans two stacks (C# /
+  TypeScript), silent updates are corrosive — the drift only surfaces
+  in production when a Zod parse fails on a live event.
+- **Hand fixtures** force the question into the PR diff. If
+  `tests/Contract/fixtures/outbox-events/heartbeat.json` changes, it
+  shows up as a line-level diff next to whatever code triggered it.
+  Reviewer cost: 0 seconds longer. Visibility cost: infinite lower.
+
+Secondary benefit we didn't anticipate: the fixtures are also
+operator-useful for local debug (`curl -d @fixtures/.../heartbeat.json`
+is a working reproducer for any ingest bug).
+
+**Discovery #2**: The `Every_known_event_type_has_a_fixture` sentinel
+test is the drift-detector-of-last-resort. It reads `OutboxEventTypes.All`
+(the .NET enum) and verifies each member has a matching fixture file.
+Without it, adding a new event type and forgetting the fixture is a
+silent contract gap — the Worker starts rejecting the new event and
+nobody realises until they check D1 for missing rows.
+
+**Impact**: Any future contract between two stacks in this monorepo
+should default to this pattern: checked-in fixtures + parallel tests on
+each stack + a sentinel test that enumerates the source-of-truth enum.
+The cost of updating a fixture is a 20-second line edit; the cost of a
+silent schema drift in prod is measured in debugging hours.
+
+**Reference**: `tests/Contract/README.md` (procedure),
+`tests/TradingSupervisorService.ContractTests/OutboxEventContractTests.cs`
+(sentinel at line ~205), `infra/cloudflare/worker/test/contract.test.ts`.
+
+## LESSON-200 — React 19 + Vite 8 + Playwright: what surprised us
+
+**Categoria**: Testing / Tooling
+**Task**: Phase 7.6 (Playwright E2E setup)
+**Data**: 2026-04-21
+
+**Context**: Standing up `dashboard/tests/e2e/` with `@playwright/test`.
+Expected it to "just work" — the dashboard is standard Vite + React 19,
+Playwright 1.59 supports that stack out of the box. Three things did NOT
+just work.
+
+**Discovery #1 — localStorage in themeStore assertions**. The
+`theme-toggle.spec.ts` reads `localStorage.getItem('ts-theme')` to verify
+persistence. In the vitest unit tests we had a whole setup file that
+installs an in-memory localStorage shim because Node 25 + happy-dom 20
+collide on the native localStorage (see existing `test/setup.ts`). That
+problem does NOT exist in Playwright because the browser has a real
+localStorage. But if you reuse assertions from vitest in Playwright, you
+may be reading through that shim — make sure the spec calls
+`page.evaluate(() => localStorage.getItem(...))`, NOT the Node-side
+localStorage.
+
+**Discovery #2 — page.goto('/') with Vite's HMR**. Playwright's
+`webServer` config can start Vite but the HMR WebSocket handshake is
+slow enough that a goto right after startup can race the bundle
+readiness. Two symptoms: (a) the page renders an empty body for ~100ms
+then the React tree, breaking selectors timed against the final state;
+(b) occasional failure to hydrate. Fix: rely on `networkidle` via
+`await page.waitForLoadState('networkidle')` at the critical points,
+not only the default `domcontentloaded`.
+
+**Discovery #3 — ESLint scans tests/ by default**. We expected the
+existing `eslint.config.js` `files: ['**/*.{ts,tsx}']` matcher to also
+lint `tests/e2e/*.ts`. It does — which means the Playwright specs go
+through the same `no-explicit-any` / `no-unused-vars` rules as the src.
+This is GOOD — it caught a `window as any` in `strategy-wizard.spec.ts`
+before the commit — but it does mean you can't casually `// eslint-disable`
+a spec without review.
+
+**Impact**: The Phase 7.7 "make Playwright a required PR check" task
+should budget time for HMR-timing flake chasing. The 2-retries policy in
+`playwright.config.ts` is a pragmatic compromise but the right fix is to
+use `--mode production` serving (i.e. `vite preview`) against a
+pre-built bundle, not `vite dev`. Future work.
+
+**Reference**: `dashboard/playwright.config.ts`,
+`dashboard/tests/e2e/theme-toggle.spec.ts`,
+`dashboard/tests/e2e/sidebar-navigation.spec.ts`.

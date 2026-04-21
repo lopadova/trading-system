@@ -457,6 +457,110 @@ schedule the next calendar rotation).
 
 ---
 
+## Playbook 8 — Test regressions
+
+### When
+
+One of these alarms has fired (or is about to):
+
+- CI went red with a **Playwright E2E failure** that wasn't red 5 minutes ago.
+- A **k6 load-test run** shows a baseline latency drift >20% vs. the
+  last-recorded numbers in `docs/ops/LOAD_TESTING.md`.
+- A **contract test** started failing (`tests/TradingSupervisorService.ContractTests/`
+  on the .NET side or `infra/cloudflare/worker/test/contract.test.ts` on
+  the Worker side).
+
+### Triage flow
+
+```
+1. Playwright flake?
+   → Re-run the job. If it fails twice in a row with the SAME assertion,
+     it's not flake. Go to "Playwright failure below".
+   → If it fails in different places each retry, suspect a timing / animation
+     change. Check motion-library versions in the dashboard commit range.
+
+2. k6 baseline drift?
+   → Go to "k6 baseline drift below".
+
+3. Contract test?
+   → Go to "Contract drift below".
+```
+
+### Playwright failure
+
+Triggered by `.github/workflows/playwright-e2e.yml`.
+
+1. Download the `playwright-report` artifact from the failed run (retained
+   14 days). Open `index.html` locally — the report has the full trace
+   viewer for each failed test.
+2. Categorise the failure:
+   - **Assertion on a selector that used to work** → a component likely
+     changed its `aria-label` / text / role. Update the spec; the spec
+     lives under `dashboard/tests/e2e/`.
+   - **Timeout waiting for `networkidle`** → a new fetch loop is running
+     forever. Check recent additions to `usePerformanceSummary`,
+     `usePositions`, etc. — is there an uncapped polling interval?
+   - **Console error captured by `sidebar-navigation.spec.ts`** → a
+     component is throwing at render time. Check the browser console in
+     the trace. Fix the component, not the test.
+3. If the failure is in CI only (not locally), confirm you're running
+   against the SAME Vite dev server config. The CI workflow supports a
+   `PLAYWRIGHT_STAGING_URL` mode; if that's set, the failure may be a
+   staging-env issue (not a code issue).
+4. **Do not** disable the failing test without opening a tracking issue.
+   Zero-tolerance on tech debt per `.claude/rules/code-quality.md`.
+
+### k6 baseline drift
+
+See `docs/ops/LOAD_TESTING.md` for the graded policy. Quick version:
+
+1. Re-run the scenario three times. If the median p(95) is still >20% off
+   baseline, it's real.
+2. Run `git log --oneline <last-known-good>..HEAD --grep 'worker\|d1'`
+   to shortlist commits that could have changed Worker/D1 behaviour.
+3. Most common culprits (in order):
+   - New D1 query in a route with no covering index.
+   - A middleware addition in `infra/cloudflare/worker/src/middleware/`
+     that runs on every request (auth caching regression).
+   - Cache TTL change in `lib/metrics.ts` / route handlers.
+4. If you can't root-cause in 60 min, update `LOAD_TESTING.md` with a
+   TODO line documenting the regression, open an issue, and block the
+   offending PR from reaching production.
+
+### Contract drift (fixture vs. code)
+
+See `tests/Contract/README.md` for the full procedure. Triage:
+
+1. `.NET` side failure (`TradingSupervisorService.ContractTests`) — a
+   DTO / anonymous-object emitter changed shape. Either update the
+   fixture under `tests/Contract/fixtures/outbox-events/<type>.json`
+   (if the change was intentional) or revert the producer change.
+2. Worker side failure (`contract.test.ts`) — a Zod schema diverged
+   from the fixture. Either update the schema in
+   `infra/cloudflare/worker/src/routes/ingest.ts` (if the fixture was
+   revised correctly on the .NET side) or revert the Zod change.
+3. **Critical**: both sides MUST be updated in the SAME PR. A fixture
+   update without a matching Zod/DTO change (or vice versa) means the
+   two halves of the contract disagree — that's the exact drift the
+   tests exist to catch.
+4. After updating, run BOTH suites:
+   ```bash
+   dotnet test tests/TradingSupervisorService.ContractTests --no-build
+   cd infra/cloudflare/worker && bunx vitest run test/contract.test.ts
+   ```
+
+### After
+
+- File a post-mortem issue in the repo tagged `phase7.6-regression` if
+  the incident had customer-visible impact (none of the Phase 7.6 test
+  types directly affect users — they're all guard rails).
+- Update this playbook with anything you learned that isn't captured here.
+- If a new fixture was added, verify the `Every_known_event_type_has_a_fixture`
+  sentinel test in `OutboxEventContractTests.cs` still passes. That test
+  is the drift-detector-of-last-resort.
+
+---
+
 ## Escalation
 
 - **Padosoft on-call**: lorenzo.padovani@padosoft.com (this is a solo-op
