@@ -78,18 +78,25 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: infra/cloudflare/worker/package-lock.json
+
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v1
+        uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
       - name: Install dependencies
         working-directory: infra/cloudflare/worker
-        # Use npm instead of bun in CI: `bun install` has recurring tarball
-        # extraction failures for @img/sharp-libvips-linux-x64 (transitive
-        # optional dep of wrangler/miniflare). npm tolerates optional-dep
-        # install fallback more gracefully.
-        run: npm install --no-audit --no-fund
+        # Use npm ci (deterministic, lockfile-enforced). bun install has
+        # recurring tarball extraction failures for @img/sharp-libvips-linux-x64
+        # (transitive optional wrangler dep) — npm tolerates the optional-dep
+        # fallback.
+        run: npm ci --no-audit --no-fund
 
       - name: Run tests
         working-directory: infra/cloudflare/worker
@@ -114,14 +121,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v1
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          bun-version: latest
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
 
       - name: Install dependencies
         working-directory: dashboard
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
 
       - name: Type check
         working-directory: dashboard
@@ -205,18 +214,21 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v4
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v1
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          bun-version: latest
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
 
-      # Deploy Cloudflare Worker
+      # Deploy Cloudflare Worker — use npm ci (not bun install) so re-enabling
+      # this (by removing the `if: false &&` gate) won't regress to the
+      # @img/sharp-libvips tarball failure seen when we used bun.
       - name: Deploy Cloudflare Worker
         working-directory: infra/cloudflare/worker
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
-          bun install
+          npm ci --no-audit --no-fund
           npx wrangler deploy
 
       # Deploy Dashboard to Cloudflare Pages

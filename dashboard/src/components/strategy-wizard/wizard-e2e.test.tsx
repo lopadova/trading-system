@@ -138,9 +138,10 @@ const PARTIAL_EL_CONVERSION_RESULT = {
 // MOCKS
 // ============================================================================
 
-// Mock fetch for publish and convert endpoints
+// Mock fetch for publish and convert endpoints. Use vi.stubGlobal so Vitest
+// tracks the override and can tear it down cleanly in afterEach, preventing
+// leakage into other test files running in the same worker.
 const mockFetch = vi.fn()
-;(globalThis as unknown as { fetch: typeof fetch }).fetch = mockFetch as unknown as typeof fetch
 
 // Mock console methods to suppress validation warnings during tests
 const originalConsoleWarn = console.warn
@@ -149,6 +150,7 @@ const originalConsoleError = console.error
 beforeEach(() => {
   console.warn = vi.fn()
   console.error = vi.fn()
+  vi.stubGlobal('fetch', mockFetch)
 
   // Reset store to initial state
   useWizardStore.setState({
@@ -177,6 +179,7 @@ beforeEach(() => {
 afterEach(() => {
   console.warn = originalConsoleWarn
   console.error = originalConsoleError
+  vi.unstubAllGlobals()
 })
 
 // ============================================================================
@@ -218,14 +221,16 @@ describe('E2E-W-01: Complete wizard flow (new strategy)', () => {
     useWizardStore.getState().setField('structure.target_dte_max', 7)
     useWizardStore.getState().setField('structure.target_delta_pct', 15)
 
-    // Add a sell PUT leg
+    // Add a sell PUT leg. Use the schema-valid field name `target_delta`
+    // (StrategyLeg has `target_delta`, not `delta_pct`) so this draft stays a
+    // valid SDF v1 leg and the wizard's own validators can't mask real bugs.
     useWizardStore.getState().setField('structure.legs', [
       {
         leg_id: 'leg-1',
         action: 'sell',
         right: 'put',
         quantity: 1,
-        delta_pct: -15,
+        target_delta: -15,
       },
     ])
 
@@ -520,20 +525,16 @@ describe('E2E-W-04: Validation blocks nextStep when errors exist', () => {
   })
 
   it('should re-validate step when field changes', () => {
-    // Set invalid value
+    // Set invalid value — we don't snapshot errors here; the important
+    // assertion is post-fix that errors clear.
     useWizardStore.getState().setField('name', '')
-
-    let state = useWizardStore.getState()
-    // Initial state captured via getState — error snapshot not asserted here
-    // because the important assertion is post-fix (errors cleared).
-    void state
 
     // Fix the error
     useWizardStore.getState().setField('name', 'Fixed Strategy Name')
 
-    state = useWizardStore.getState()
-
-    // Verify re-validation happened
+    // Verify re-validation happened (stepErrors entry exists for step 1,
+    // even if empty — indicates validator has run)
+    const state = useWizardStore.getState()
     expect(state.stepErrors[1]).toBeDefined()
   })
 

@@ -35,6 +35,9 @@ public interface EWrapper
     void execDetails(int reqId, Contract contract, Execution execution);
     void execDetailsEnd(int reqId);
     void commissionReport(CommissionReport commissionReport);
+    // TWS API 10.19+ renamed commissionReport → commissionAndFeesReport;
+    // the real SDK provides both for a transition window, so the stub does too.
+    void commissionAndFeesReport(CommissionAndFeesReport commissionAndFeesReport);
     void fundamentalData(int reqId, string data);
     void historicalData(int reqId, Bar bar);
     void historicalDataEnd(int reqId, string start, string end);
@@ -188,6 +191,19 @@ public class CommissionReport
 {
     public string ExecId { get; set; } = "";
     public double Commission { get; set; }
+}
+
+// TWS API 10.19+ renamed CommissionReport → CommissionAndFeesReport with an
+// extended field set (fees, yield, yieldRedemptionDate). Stub exposes enough
+// surface for compile-time compat; runtime uses the real CSharpAPI.dll.
+public class CommissionAndFeesReport
+{
+    public string ExecId { get; set; } = "";
+    public double CommissionAndFees { get; set; }
+    public string Currency { get; set; } = "";
+    public double RealizedPNL { get; set; }
+    public double Yield { get; set; }
+    public int YieldRedemptionDate { get; set; }
 }
 
 public class Bar { }
