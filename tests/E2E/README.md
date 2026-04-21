@@ -1,3 +1,15 @@
+---
+title: "End-to-End Test Suite"
+tags: ["dev", "testing", "reference"]
+aliases: ["E2E README"]
+status: current
+audience: ["developer"]
+last-reviewed: "2026-04-21"
+related:
+  - "[[Trading System - End-to-End Test Plan|TEST_PLAN]]"
+  - "[[Trading System Integration Tests|Tests README]]"
+---
+
 # End-to-End Test Suite
 
 > Comprehensive E2E testing scenarios for Trading System

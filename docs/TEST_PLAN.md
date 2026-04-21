@@ -1,4 +1,21 @@
+---
+title: "Trading System - End-to-End Test Plan"
+tags: ["testing", "ops", "reference"]
+aliases: ["E2E Test Plan", "Test Plan"]
+status: current
+audience: ["operator", "developer"]
+last-reviewed: "2026-04-21"
+related:
+  - "[[PAPER_VALIDATION]]"
+  - "[[LOAD_TESTING]]"
+  - "[[DAILY_OPS]]"
+---
+
 # Trading System - End-to-End Test Plan
+
+> This is the **end-to-end verification plan** (manual / semi-manual runs against a live paper-trading environment).
+> For automated test suites (xUnit / vitest / playwright) see `tests/` in the repo root, which is the source of truth for everything that CI runs automatically.
+> Relocated from repo root to `docs/` on 2026-04-21 as part of the docs restructure.
 
 **Version**: 2.0  
 **Last Updated**: 2026-04-20  

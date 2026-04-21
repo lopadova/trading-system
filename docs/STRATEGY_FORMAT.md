@@ -1,3 +1,16 @@
+---
+title: "Strategy File Format"
+tags: ["reference", "dev", "ibkr"]
+aliases: ["Strategy Format", "SDF"]
+status: current
+audience: ["developer", "operator"]
+last-reviewed: "2026-04-21"
+related:
+  - "[[Trading System Architecture|ARCHITECTURE]]"
+  - "[[Configuration Reference|CONFIGURATION]]"
+  - "[[Getting Started with Trading System|GETTING_STARTED]]"
+---
+
 # Strategy File Format
 
 > Complete reference for strategy JSON files

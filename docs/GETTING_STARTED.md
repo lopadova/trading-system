@@ -1,3 +1,18 @@
+---
+title: "Getting Started with Trading System"
+tags: ["onboarding", "dev", "reference"]
+aliases: ["Getting Started", "Setup Guide"]
+status: current
+audience: ["new-user", "developer"]
+last-reviewed: "2026-04-21"
+related:
+  - "[[Trading System - Developer Onboarding|ONBOARDING]]"
+  - "[[Configuration Reference|CONFIGURATION]]"
+  - "[[Strategy File Format|STRATEGY_FORMAT]]"
+  - "[[Trading System - Deployment Guide|DEPLOYMENT_GUIDE]]"
+  - "[[Windows Defender Unlock - Complete Guide|WINDOWS_DEFENDER]]"
+---
+
 # Getting Started with Trading System
 
 > Step-by-step guide to set up and run the automated trading system
@@ -683,14 +698,14 @@ Then:
 
 ### 3. Deploy Cloudflare Worker (Optional)
 
-See [Deployment Guide](./DEPLOYMENT.md) for:
+See [Deployment Guide](./DEPLOYMENT_GUIDE.md) for:
 - Creating D1 database
 - Deploying Worker
 - Configuring Worker URL in services
 
 ### 4. Set Up Dashboard (Optional)
 
-See [Dashboard Guide](./DASHBOARD_GUIDE.md) for:
+See [Dashboard README](../dashboard/README.md) for:
 - Building React app
 - Deploying to Cloudflare Pages
 - Configuring API endpoint

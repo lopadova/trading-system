@@ -1,3 +1,17 @@
+---
+title: "Market Data Pipeline (Phase 7.1)"
+tags: ["ops", "architecture", "ibkr"]
+aliases: ["MARKET_DATA_PIPELINE", "Market Data Pipeline"]
+status: current
+audience: ["developer", "operator"]
+phase: "phase-7.1"
+last-reviewed: "2026-04-21"
+related:
+  - "[[OBSERVABILITY]]"
+  - "[[Trading System Architecture|ARCHITECTURE]]"
+  - "[[RUNBOOK]]"
+---
+
 # Market Data Pipeline (Phase 7.1)
 
 > Ingestion path for real-time market + portfolio series into Cloudflare D1.

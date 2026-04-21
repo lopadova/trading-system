@@ -1,3 +1,11 @@
+---
+title: "E2E-08: Cloudflare Worker Unreachable and Outbox Queuing"
+tags: ["dev", "testing", "worker", "incident-response"]
+status: reference
+audience: ["developer"]
+last-reviewed: "2026-04-21"
+---
+
 # E2E-08: Cloudflare Worker Unreachable and Outbox Queuing
 
 > Manual test checklist for Worker failure and event queuing resilience

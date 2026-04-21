@@ -1,3 +1,12 @@
+---
+title: "Dashboard E2E (Playwright)"
+tags: ["dev", "dashboard", "testing"]
+status: current
+audience: ["developer"]
+phase: "phase-7.6"
+last-reviewed: "2026-04-21"
+---
+
 # Dashboard E2E (Playwright)
 
 Phase 7.6 deliverable. Five critical-journey specs that exercise the top

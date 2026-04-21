@@ -1,3 +1,18 @@
+---
+title: "Trading System Architecture"
+tags: ["architecture", "reference", "dotnet", "worker", "dashboard"]
+aliases: ["Architecture", "System Architecture", "Architecture Deep Dive"]
+status: current
+audience: ["developer", "reviewer"]
+last-reviewed: "2026-04-21"
+related:
+  - "[[Trading System - Architecture Overview|ARCHITECTURE_OVERVIEW]]"
+  - "[[MARKET_DATA_PIPELINE]]"
+  - "[[OBSERVABILITY]]"
+  - "[[Strategy File Format|STRATEGY_FORMAT]]"
+  - "[[Trading System - Deployment Guide|DEPLOYMENT_GUIDE]]"
+---
+
 # Trading System Architecture
 
 > Production-ready automated options trading system
@@ -455,9 +470,19 @@ await ValidateConfigAsync(cancellationToken);
 
 ## Database Schema
 
-See [Database Schema Reference](./database-schema.md) for complete schema documentation.
+Schema source of truth is split by component — each side has its own migration history:
 
-Both services use SQLite with:
+| Component | Schema location | Migration runner |
+|-----------|-----------------|------------------|
+| Cloudflare Worker (D1, cloud) | `infra/cloudflare/worker/migrations/*.sql` | `bunx wrangler d1 migrations apply` |
+| TradingSupervisorService (SQLite, local) | `src/TradingSupervisorService/Migrations/` (C#) | `SupervisorMigrations` on service startup |
+| OptionsExecutionService (SQLite, local) | `src/OptionsExecutionService/Migrations/` (C#) | `OptionsMigrations` on service startup |
+
+When adding a column or table, update the migration in the correct
+location — cross-database changes (rare) require coordinated migrations
+on both sides.
+
+Both .NET services use SQLite with:
 - WAL mode (concurrent readers + 1 writer)
 - Foreign key enforcement enabled
 - Automatic migrations on startup
@@ -649,9 +674,8 @@ Static Hosting (Cloudflare Pages or S3)
 - [Getting Started Guide](./GETTING_STARTED.md)
 - [Configuration Reference](./CONFIGURATION.md)
 - [Strategy Format](./STRATEGY_FORMAT.md)
-- [Database Schema](./database-schema.md)
 - [Telegram Integration](./telegram-integration.md)
-- [Deployment Guide](./DEPLOYMENT.md)
+- [Deployment Guide](./DEPLOYMENT_GUIDE.md)
 - [Contributing Guide](./CONTRIBUTING.md)
 
 ---

@@ -1,3 +1,12 @@
+---
+title: "Changelog — Scripts & Workflow"
+tags: ["dev", "workflow", "reference"]
+aliases: ["Scripts Changelog"]
+status: reference
+audience: ["developer"]
+last-reviewed: "2026-04-21"
+---
+
 # Changelog — Scripts & Workflow
 
 Documenta le migliorie apportate agli script di automazione e workflow.

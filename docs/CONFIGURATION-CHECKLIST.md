@@ -1,3 +1,16 @@
+---
+title: "Configuration Checklist"
+tags: ["reference", "onboarding"]
+aliases: ["Config Checklist"]
+status: current
+audience: ["operator", "new-user"]
+last-reviewed: "2026-04-21"
+related:
+  - "[[Configuration Reference|CONFIGURATION]]"
+  - "[[SECRETS]]"
+  - "[[GO_LIVE]]"
+---
+
 # Configuration Checklist
 
 Usa questa checklist per verificare di aver configurato correttamente tutte le API keys.

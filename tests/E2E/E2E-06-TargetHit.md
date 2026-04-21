@@ -1,3 +1,11 @@
+---
+title: "E2E-06: Profit Target Hit and Campaign Exit"
+tags: ["dev", "testing", "ibkr"]
+status: reference
+audience: ["developer"]
+last-reviewed: "2026-04-21"
+---
+
 # E2E-06: Profit Target Hit and Campaign Exit
 
 > Manual test checklist for automatic position exit on profit target

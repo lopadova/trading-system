@@ -1,3 +1,14 @@
+---
+title: "Scripts per Windows"
+tags: ["dev", "reference", "workflow"]
+aliases: ["scripts-windows"]
+status: current
+audience: ["developer"]
+last-reviewed: "2026-04-21"
+related:
+  - "[[Trading System Scripts|Scripts README]]"
+---
+
 # Scripts per Windows
 
 Questo repository include script PowerShell (`.ps1`) equivalenti agli script Bash (`.sh`) per l'uso su Windows.

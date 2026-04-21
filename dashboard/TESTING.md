@@ -1,3 +1,14 @@
+---
+title: "Dashboard Testing Guide"
+tags: ["dev", "dashboard", "testing"]
+aliases: ["Dashboard Testing"]
+status: current
+audience: ["developer"]
+last-reviewed: "2026-04-21"
+related:
+  - "[[Trading System Dashboard|Dashboard README]]"
+---
+
 # Dashboard Testing Guide
 
 ## Problem: Bun vitest doesn't support DOM environments

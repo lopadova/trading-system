@@ -1,3 +1,11 @@
+---
+title: "E2E-02: Heartbeat Sync to Cloudflare and Outbox Processing"
+tags: ["dev", "testing", "worker"]
+status: reference
+audience: ["developer"]
+last-reviewed: "2026-04-21"
+---
+
 # E2E-02: Heartbeat Sync to Cloudflare and Outbox Processing
 
 > Manual test checklist for event synchronization from services to Cloudflare Worker

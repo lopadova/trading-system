@@ -1,3 +1,11 @@
+---
+title: "E2E-10: Emergency Stop, Position Liquidation, and Alerts"
+tags: ["dev", "testing", "ibkr", "safety"]
+status: reference
+audience: ["developer"]
+last-reviewed: "2026-04-21"
+---
+
 # E2E-10: Emergency Stop, Position Liquidation, and Alerts
 
 > Manual test checklist for emergency stop functionality

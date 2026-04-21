@@ -1,3 +1,15 @@
+---
+title: "Brainstorming Output Template"
+tags: ["dev", "workflow", "reference"]
+aliases: ["Brainstorming Output Template"]
+status: reference
+audience: ["ai-agent", "developer"]
+last-reviewed: "2026-04-21"
+related:
+  - "[[Template Prompt per Brainstorming Nuove Feature|BRAINSTORMING-PROMPT-TEMPLATE]]"
+  - "[[Workflow Nuove Feature — Guida Completa|WORKFLOW-NUOVE-FEATURE]]"
+---
+
 # Brainstorming Output Template
 
 > **PURPOSE**: Questo template guida la fase di brainstorming/analisi con AI (ChatGPT, Claude, Gemini, ecc.)

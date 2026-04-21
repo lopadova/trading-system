@@ -1,3 +1,16 @@
+---
+title: "Template Prompt per Brainstorming Nuove Feature"
+tags: ["dev", "workflow", "reference"]
+aliases: ["Brainstorming Prompt Template"]
+status: reference
+audience: ["developer"]
+last-reviewed: "2026-04-21"
+related:
+  - "[[Brainstorming Output Template|brainstorming-output-template]]"
+  - "[[Workflow Nuove Feature — Guida Completa|WORKFLOW-NUOVE-FEATURE]]"
+  - "[[Quick Start — Nuova Feature|QUICK-START-NUOVA-FEATURE]]"
+---
+
 # Template Prompt per Brainstorming Nuove Feature
 
 > **ISTRUZIONI**: 

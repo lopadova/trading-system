@@ -1,3 +1,16 @@
+---
+title: "Quick Start — Nuova Feature"
+tags: ["dev", "workflow", "onboarding"]
+aliases: ["Quick Start Nuova Feature", "New Feature Quick Ref"]
+status: current
+audience: ["developer"]
+last-reviewed: "2026-04-21"
+related:
+  - "[[Workflow Nuove Feature — Guida Completa|WORKFLOW-NUOVE-FEATURE]]"
+  - "[[FAQ — Workflow Nuove Feature|FAQ-WORKFLOW]]"
+  - "[[Template Prompt per Brainstorming Nuove Feature|BRAINSTORMING-PROMPT-TEMPLATE]]"
+---
+
 # Quick Start — Nuova Feature
 
 > **PER**: Lorenzo e collaboratori Padosoft  

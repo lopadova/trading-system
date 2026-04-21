@@ -1,3 +1,18 @@
+---
+title: "Trading System - Deployment Guide"
+tags: ["ops", "deployment", "reference", "dotnet", "worker", "dashboard"]
+aliases: ["Deployment Guide", "Deployment", "Deploy Guide"]
+status: current
+audience: ["operator", "developer"]
+last-reviewed: "2026-04-21"
+related:
+  - "[[RELEASE]]"
+  - "[[GO_LIVE]]"
+  - "[[DR]]"
+  - "[[SECRETS]]"
+  - "[[Configuration Reference|CONFIGURATION]]"
+---
+
 # Trading System - Deployment Guide
 
 **Last Updated**: 2026-04-07  

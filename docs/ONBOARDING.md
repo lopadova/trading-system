@@ -1,3 +1,17 @@
+---
+title: "Trading System - Developer Onboarding"
+tags: ["onboarding", "dev"]
+aliases: ["Onboarding", "Developer Onboarding"]
+status: current
+audience: ["new-user", "developer"]
+last-reviewed: "2026-04-21"
+related:
+  - "[[Getting Started with Trading System|GETTING_STARTED]]"
+  - "[[Trading System - Architecture Overview|ARCHITECTURE_OVERVIEW]]"
+  - "[[Contributing Guide|CONTRIBUTING]]"
+  - "[[Configuration Reference|CONFIGURATION]]"
+---
+
 # Trading System - Developer Onboarding
 
 Welcome to the Trading System! This guide will get you up and running in 30 minutes.

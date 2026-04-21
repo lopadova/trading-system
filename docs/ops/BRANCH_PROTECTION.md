@@ -1,3 +1,16 @@
+---
+title: "Branch Protection Settings"
+tags: ["ops", "dev", "release"]
+aliases: ["BRANCH_PROTECTION", "Branch Protection"]
+status: current
+audience: ["operator", "developer"]
+phase: "phase-7.7"
+last-reviewed: "2026-04-21"
+related:
+  - "[[RELEASE]]"
+  - "[[Contributing Guide|CONTRIBUTING]]"
+---
+
 # Branch Protection Settings
 
 > Phase 7.7 deliverable. Exact GitHub UI settings Lorenzo applies to the

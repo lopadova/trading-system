@@ -1,3 +1,12 @@
+---
+title: "Guida Bash → PowerShell"
+tags: ["knowledge-base", "dev", "reference"]
+aliases: ["Bash to PowerShell"]
+status: current
+audience: ["ai-agent", "developer"]
+last-reviewed: "2026-04-21"
+---
+
 # Guida Bash → PowerShell — Per Agenti
 
 > Riferimento rapido per convertire script bash in PowerShell su Windows.

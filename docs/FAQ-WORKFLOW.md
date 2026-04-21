@@ -1,3 +1,15 @@
+---
+title: "FAQ — Workflow Nuove Feature"
+tags: ["dev", "workflow", "reference"]
+aliases: ["Workflow FAQ"]
+status: current
+audience: ["developer"]
+last-reviewed: "2026-04-21"
+related:
+  - "[[Workflow Nuove Feature — Guida Completa|WORKFLOW-NUOVE-FEATURE]]"
+  - "[[Quick Start — Nuova Feature|QUICK-START-NUOVA-FEATURE]]"
+---
+
 # FAQ — Workflow Nuove Feature
 
 > Domande frequenti sul workflow di sviluppo nuove feature

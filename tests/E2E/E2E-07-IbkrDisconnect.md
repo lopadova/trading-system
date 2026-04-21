@@ -1,3 +1,11 @@
+---
+title: "E2E-07: IBKR Connection Loss, Reconnection, and State Recovery"
+tags: ["dev", "testing", "ibkr", "incident-response"]
+status: reference
+audience: ["developer"]
+last-reviewed: "2026-04-21"
+---
+
 # E2E-07: IBKR Connection Loss, Reconnection, and State Recovery
 
 > Manual test checklist for connection resilience and state recovery

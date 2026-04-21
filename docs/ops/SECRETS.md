@@ -1,3 +1,18 @@
+---
+title: "Secrets Management"
+tags: ["ops", "security", "runbook"]
+aliases: ["SECRETS", "Secrets", "Secret Rotation"]
+status: current
+audience: ["operator"]
+phase: "phase-7.5"
+last-reviewed: "2026-04-21"
+related:
+  - "[[GO_LIVE]]"
+  - "[[DR]]"
+  - "[[RUNBOOK]]"
+  - "[[Configuration Reference|CONFIGURATION]]"
+---
+
 # Secrets Management
 
 > Operator-facing guide to the Trading System secret pipeline (Phase 7.5).

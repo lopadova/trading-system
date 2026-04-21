@@ -1,3 +1,15 @@
+---
+title: "Trading System Dashboard"
+tags: ["dev", "dashboard", "reference"]
+aliases: ["Dashboard README"]
+status: current
+audience: ["developer"]
+last-reviewed: "2026-04-21"
+related:
+  - "[[Trading System|Repository Overview]]"
+  - "[[Trading System Architecture|ARCHITECTURE]]"
+---
+
 # Trading System Dashboard
 
 React + TypeScript + Vite dashboard for the Trading System monitoring and control interface.

@@ -1,3 +1,17 @@
+---
+title: "Trading System - Architecture Overview"
+tags: ["architecture", "reference", "onboarding"]
+aliases: ["Architecture Overview", "System Overview"]
+status: current
+audience: ["developer", "new-user", "reviewer"]
+last-reviewed: "2026-04-21"
+related:
+  - "[[Trading System Architecture|ARCHITECTURE]]"
+  - "[[Trading System - Developer Onboarding|ONBOARDING]]"
+  - "[[Trading System - Deployment Guide|DEPLOYMENT_GUIDE]]"
+  - "[[MARKET_DATA_PIPELINE]]"
+---
+
 # Trading System - Architecture Overview
 
 **Last Updated**: 2026-04-07  
@@ -639,8 +653,7 @@ SELECT * FROM bot_whitelist WHERE user_id = ? AND platform = ?;
 ## References
 
 - [Deployment Guide](DEPLOYMENT_GUIDE.md)
-- [API Documentation](API_DOCUMENTATION.md) (future)
-- [SDF Specification](../knowledge/SDF_SPECIFICATION.md)
+- [Strategy File Format (SDF)](STRATEGY_FORMAT.md)
 - [Error Registry](../knowledge/errors-registry.md)
 - [Lessons Learned](../knowledge/lessons-learned.md)
 

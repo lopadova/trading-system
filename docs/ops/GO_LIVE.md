@@ -1,3 +1,20 @@
+---
+title: "Go-live Runbook"
+tags: ["ops", "runbook", "deployment", "safety"]
+aliases: ["GO_LIVE", "Go Live", "Paper to Live"]
+status: current
+audience: ["operator"]
+phase: "phase-7.7"
+last-reviewed: "2026-04-21"
+related:
+  - "[[RUNBOOK]]"
+  - "[[DAILY_OPS]]"
+  - "[[DR]]"
+  - "[[RELEASE]]"
+  - "[[PAPER_VALIDATION]]"
+  - "[[SECRETS]]"
+---
+
 # Go-live Runbook
 
 > Phase 7.7 deliverable. The exact procedure to flip the trading system

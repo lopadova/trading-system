@@ -1,3 +1,16 @@
+---
+title: "Troubleshooting Guide"
+tags: ["reference", "incident-response", "dev"]
+aliases: ["Troubleshooting"]
+status: current
+audience: ["developer", "operator"]
+last-reviewed: "2026-04-21"
+related:
+  - "[[RUNBOOK]]"
+  - "[[Windows Defender Unlock - Complete Guide|WINDOWS_DEFENDER]]"
+  - "[[DR]]"
+---
+
 # Troubleshooting Guide
 
 > Common issues and solutions
@@ -336,7 +349,7 @@ TWS workstation logs are in a **proprietary binary format** (`.ibgzenc`). You mu
    - Add localhost port to exclusions (check antivirus documentation)
    - Temporarily disable antivirus to test (re-enable after test)
    
-   **Note**: See `WINDOWS_DEFENDER_UNLOCK.md` for detailed antivirus troubleshooting
+   **Note**: See `docs/ops/WINDOWS_DEFENDER.md` for detailed antivirus troubleshooting
 
 ---
 

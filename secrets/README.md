@@ -1,3 +1,13 @@
+---
+title: "secrets/ — Cloudflare Worker provisioning staging area"
+tags: ["ops", "security", "reference"]
+status: reference
+audience: ["operator"]
+last-reviewed: "2026-04-21"
+related:
+  - "[[SECRETS]]"
+---
+
 # secrets/ — Cloudflare Worker provisioning staging area
 
 This directory is **gitignored** (except for this README and `.env.example`).

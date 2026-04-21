@@ -1,3 +1,17 @@
+---
+title: "Service Level Objectives (SLO)"
+tags: ["ops", "observability", "reference"]
+aliases: ["SLO", "SLIs", "Service Level Objectives"]
+status: current
+audience: ["operator"]
+phase: "phase-7.7"
+last-reviewed: "2026-04-21"
+related:
+  - "[[OBSERVABILITY]]"
+  - "[[DAILY_OPS]]"
+  - "[[RUNBOOK]]"
+---
+
 # Service Level Objectives (SLO)
 
 > Phase 7.7 deliverable. Defines the measurable reliability targets that the

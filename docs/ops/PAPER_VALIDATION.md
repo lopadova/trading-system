@@ -1,3 +1,17 @@
+---
+title: "14-day Paper Validation"
+tags: ["ops", "runbook", "safety", "testing"]
+aliases: ["PAPER_VALIDATION", "Paper Validation", "Paper Run"]
+status: current
+audience: ["operator"]
+phase: "phase-7.7"
+last-reviewed: "2026-04-21"
+related:
+  - "[[GO_LIVE]]"
+  - "[[DAILY_OPS]]"
+  - "[[Paper-run day log — YYYY-MM-DD|Paper-run Template]]"
+---
+
 # 14-day Paper Validation
 
 > Phase 7.7 deliverable. The procedure Lorenzo follows to validate the

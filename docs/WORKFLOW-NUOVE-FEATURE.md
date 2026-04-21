@@ -1,3 +1,17 @@
+---
+title: "Workflow Nuove Feature — Guida Completa"
+tags: ["dev", "workflow"]
+aliases: ["Workflow Nuove Feature", "New Feature Workflow"]
+status: current
+audience: ["developer"]
+last-reviewed: "2026-04-21"
+related:
+  - "[[Quick Start — Nuova Feature|QUICK-START-NUOVA-FEATURE]]"
+  - "[[FAQ — Workflow Nuove Feature|FAQ-WORKFLOW]]"
+  - "[[Template Prompt per Brainstorming Nuove Feature|BRAINSTORMING-PROMPT-TEMPLATE]]"
+  - "[[Contributing Guide|CONTRIBUTING]]"
+---
+
 # Workflow Nuove Feature — Guida Completa
 
 > **IMPORTANTE**: Segui questa procedura ESATTAMENTE per implementare nuove feature nel Trading System.
@@ -555,7 +569,7 @@ Severity: CRITICAL   ← Aggiungi questa riga
 │    git commit -m "feat: ..."                               │
 │                                                             │
 │ 6. DEPLOY                                                   │
-│    (see DEPLOYMENT.md)                                      │
+│    (see docs/DEPLOYMENT_GUIDE.md)                           │
 └─────────────────────────────────────────────────────────────┘
 ```
 

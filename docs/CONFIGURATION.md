@@ -1,3 +1,17 @@
+---
+title: "Configuration Reference"
+tags: ["reference", "onboarding", "dotnet", "worker", "dashboard"]
+aliases: ["Configuration", "Config Reference"]
+status: current
+audience: ["developer", "operator"]
+last-reviewed: "2026-04-21"
+related:
+  - "[[Configuration Checklist|CONFIGURATION-CHECKLIST]]"
+  - "[[SECRETS]]"
+  - "[[Getting Started with Trading System|GETTING_STARTED]]"
+  - "[[Bot Setup Guide - Telegram & Discord Integration|BOT_SETUP_GUIDE]]"
+---
+
 # Configuration Reference
 
 > Complete guide to all configuration options

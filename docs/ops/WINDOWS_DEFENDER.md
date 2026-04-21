@@ -1,3 +1,17 @@
+---
+title: "Windows Defender Unlock - Complete Guide"
+tags: ["ops", "dev", "security"]
+aliases: ["Windows Defender", "AVIRA Setup", "Antivirus Setup"]
+status: current
+audience: ["developer"]
+phase: "phase-7"
+last-reviewed: "2026-04-21"
+related:
+  - "[[Getting Started with Trading System|GETTING_STARTED]]"
+  - "[[Troubleshooting Guide|TROUBLESHOOTING]]"
+  - "[[RUNBOOK]]"
+---
+
 # Windows Defender Unlock - Complete Guide
 
 ## 🎯 Problema
@@ -109,6 +123,39 @@ dotnet test
 
 **Pro**: Permanente  
 **Contro**: Lascia esclusioni attive (possibile rischio sicurezza)
+
+### Opzione B.1: Esclusioni Permanenti (GUI manuale)
+
+> Fallback per quando PowerShell è bloccato da policy aziendali.
+> Questa sezione ha assorbito il precedente `ADD_EXCLUSIONS_MANUAL.md` il 2026-04-21.
+
+1. Premi `Win + I` per aprire Impostazioni.
+2. Vai a **Privacy e sicurezza** → **Sicurezza di Windows**.
+3. Clicca **Protezione da virus e minacce**.
+4. Scorri in basso e clicca **Gestisci impostazioni** sotto "Impostazioni di Protezione da virus e minacce".
+5. Scorri fino a **Esclusioni** e clicca **Aggiungi o rimuovi esclusioni**.
+6. Clicca **Aggiungi un'esclusione** → **Cartella** e aggiungi queste directory (adatta il percorso al tuo repo):
+
+   ```
+   <repo>\tests\SharedKernel.Tests\bin
+   <repo>\tests\TradingSupervisorService.Tests\bin
+   <repo>\tests\OptionsExecutionService.Tests\bin
+   <repo>\src\SharedKernel\bin
+   <repo>\src\TradingSupervisorService\bin
+   <repo>\src\OptionsExecutionService\bin
+   <repo>\src\IBApi.Stub\bin
+   ```
+
+7. Ricompila e lancia i test:
+
+   ```powershell
+   cd <repo>
+   dotnet clean
+   dotnet build
+   dotnet test --no-build
+   ```
+
+**Se Windows Security è disabilitato da policy aziendale**: contatta l'IT aziendale e richiedi l'aggiunta delle cartelle sopra alle esclusioni Windows Defender. Alternativa: chiedi di disabilitare Windows Defender Application Control per la cartella di sviluppo.
 
 ### Opzione C: Unblock Post-Build
 

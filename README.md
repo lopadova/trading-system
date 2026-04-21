@@ -1,3 +1,10 @@
+---
+title: "Trading System"
+tags: ["overview"]
+aliases: ["Repository Overview"]
+status: current
+---
+
 # Trading System — Automated Options Trading with IBKR
 
 Production-ready automated trading system for options strategies via Interactive Brokers TWS/Gateway.
@@ -42,30 +49,32 @@ Production-ready automated trading system for options strategies via Interactive
 - **[Strategy Format Guide](docs/STRATEGY_FORMAT.md)** - How to create strategies
 
 ### Architecture & Design
-- **[Architecture Overview (NEW)](docs/ARCHITECTURE_OVERVIEW.md)** - System design, components, database schema
-- **[Database Schema](docs/database-schema.md)** - Legacy schema reference (see ARCHITECTURE_OVERVIEW.md for latest)
-- **[Telegram Integration](docs/telegram-integration.md)** - Alert configuration
+- **[Architecture Overview](docs/ARCHITECTURE_OVERVIEW.md)** - System design (quick), components, database schema
+- **[Architecture (deep-dive)](docs/ARCHITECTURE.md)** - Detailed patterns, data flow, safety architecture
+- **[Telegram Integration](docs/telegram-integration.md)** - .NET alert pipeline
+- **[Bot Setup Guide](docs/BOT_SETUP_GUIDE.md)** - Telegram + Discord bot configuration + whitelists
 
 ### Operations & Deployment
-- **[Deployment Guide (NEW)](docs/DEPLOYMENT_GUIDE.md)** - Complete deployment instructions (manual + CI/CD)
-- **[Deployment Guide (Legacy)](DEPLOYMENT.md)** - Original deployment guide (T-24)
-- **[Monitoring Guide](docs/MONITORING.md)** - Observability and alerting
+- **[Deployment Guide](docs/DEPLOYMENT_GUIDE.md)** - Complete deployment instructions (manual + CI/CD)
+- **[Daily Ops](docs/ops/DAILY_OPS.md)** - Morning/midday/EOD operator routine (Phase 7)
+- **[Runbook](docs/ops/RUNBOOK.md)** - Incident-response playbooks
+- **[Observability](docs/ops/OBSERVABILITY.md)** - Logging, metrics, alerting (Phase 7.3)
 - **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Common issues and solutions
   - **IBKR Connection Issues** - API setup, port configuration, firewall, log export
 
 ### Development
-- **[Development Setup](DEVELOPMENT_SETUP.md)** - Complete environment setup (IDE, build, AVIRA/antivirus, strong-name signing)
-- **[Onboarding](docs/ONBOARDING.md)** - Developer quick start (NEW)
+- **[Getting Started](docs/GETTING_STARTED.md)** - Developer environment setup (IDE, build, antivirus — see also [Windows Defender ops guide](docs/ops/WINDOWS_DEFENDER.md))
+- **[Onboarding](docs/ONBOARDING.md)** - Developer quick start
 - **[Contributing Guide](docs/CONTRIBUTING.md)** - How to extend the system
-- **[Dashboard Guide](docs/DASHBOARD_GUIDE.md)** - React dashboard development
+- **[Dashboard README](dashboard/README.md)** - React dashboard development
 - **[Workflow Nuove Feature](docs/WORKFLOW-NUOVE-FEATURE.md)** - Complete workflow for new features
 - **[Quick Start Nuova Feature](docs/QUICK-START-NUOVA-FEATURE.md)** - Quick reference for developers
 - **[FAQ Workflow](docs/FAQ-WORKFLOW.md)** - Frequently asked questions
 
 ### Knowledge Base
-- **[Errors Registry](knowledge/errors-registry.md)** - 11 documented errors with root causes and fixes
-- **[Lessons Learned](knowledge/lessons-learned.md)** - 156 lessons from development
-- **[Skills](\.claude\skills\)** - Coding patterns (.NET, Testing, SQLite, IBKR, Cloudflare)
+- **[Errors Registry](knowledge/errors-registry.md)** - Documented errors with root causes and fixes
+- **[Lessons Learned](knowledge/lessons-learned.md)** - Lessons from development
+- **[Skills](.claude/skills/)** - Coding patterns (.NET, Testing, SQLite, IBKR, Cloudflare)
 
 ### CI/CD
 - **[GitHub Actions](.github/workflows/)** - Automated build, test, and deployment
@@ -765,16 +774,21 @@ See [Architecture Overview](docs/ARCHITECTURE.md) for detailed design documentat
 
 ```
 trading-system/
-├── docs/                       # Documentation
-│   ├── ARCHITECTURE.md         # System design
+├── docs/                       # Documentation (Obsidian-compatible vault)
+│   ├── INDEX.md                # Wiki entry point (start here)
+│   ├── ARCHITECTURE.md         # System design (deep-dive)
+│   ├── ARCHITECTURE_OVERVIEW.md # System design (quick)
 │   ├── GETTING_STARTED.md      # Installation guide
+│   ├── ONBOARDING.md           # Developer 30-minute quick start
 │   ├── CONFIGURATION.md        # Config reference
 │   ├── STRATEGY_FORMAT.md      # Strategy JSON guide
+│   ├── DEPLOYMENT_GUIDE.md     # Deployment + CI/CD
 │   ├── TROUBLESHOOTING.md      # Common issues
-│   ├── MONITORING.md           # Observability
 │   ├── CONTRIBUTING.md         # Development guide
-│   ├── database-schema.md      # Schema reference
-│   └── telegram-integration.md # Alert setup
+│   ├── BOT_SETUP_GUIDE.md      # Telegram + Discord bot setup
+│   ├── telegram-integration.md # .NET alert pipeline
+│   ├── ops/                    # Phase 7 ops (RUNBOOK, DR, OBSERVABILITY, SLO, GO_LIVE, ...)
+│   └── archive/                # Superseded docs (history preserved)
 ├── src/
 │   ├── SharedKernel/           # Domain types, shared utilities
 │   ├── TradingSupervisorService/  # Health monitoring service
@@ -846,7 +860,7 @@ On Windows, Windows Defender Application Control may block test DLL execution wi
 .\scripts\run-tests-with-exclusion.ps1
 
 # If PowerShell policy blocks the script, use manual setup:
-# See ADD_EXCLUSIONS_MANUAL.md for step-by-step GUI instructions
+# See docs/ops/WINDOWS_DEFENDER.md § "Opzione B.1: GUI manuale" for step-by-step instructions
 ```
 
 **What it does**:
@@ -864,7 +878,7 @@ On Windows, Windows Defender Application Control may block test DLL execution wi
 .\scripts\unblock-test-dlls.ps1
 
 # 2. Add exclusions via Windows Security GUI
-# See ADD_EXCLUSIONS_MANUAL.md for detailed steps
+# See docs/ops/WINDOWS_DEFENDER.md § "Opzione B.1: GUI manuale" for detailed steps
 
 # 3. Clean and rebuild
 dotnet clean
@@ -874,7 +888,7 @@ dotnet test
 
 ---
 
-📖 **Complete Guide**: See [WINDOWS_DEFENDER_UNLOCK.md](WINDOWS_DEFENDER_UNLOCK.md) for:
+📖 **Complete Guide**: See [Windows Defender ops guide](docs/ops/WINDOWS_DEFENDER.md) for:
 - Detailed troubleshooting
 - CI/CD alternatives (GitHub Actions, WSL2, Docker)
 - Expected test results breakdown
@@ -1094,7 +1108,7 @@ Access web dashboard at configured URL to monitor:
 - Alert history
 - System configuration
 
-See [Monitoring Guide](docs/MONITORING.md) for comprehensive observability documentation.
+See [Observability Guide](docs/ops/OBSERVABILITY.md) for comprehensive observability documentation (structured logs, metrics, Sentry, alerting).
 
 ---
 

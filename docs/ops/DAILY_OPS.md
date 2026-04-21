@@ -1,3 +1,19 @@
+---
+title: "Daily Operations Checklist"
+tags: ["ops", "runbook"]
+aliases: ["DAILY_OPS", "Daily Ops"]
+status: current
+audience: ["operator"]
+phase: "phase-7"
+last-reviewed: "2026-04-21"
+related:
+  - "[[RUNBOOK]]"
+  - "[[GO_LIVE]]"
+  - "[[OBSERVABILITY]]"
+  - "[[SLO]]"
+  - "[[PAPER_VALIDATION]]"
+---
+
 # Daily Operations Checklist
 
 > Phase 7.7 deliverable. Operator's morning and end-of-day rounds during

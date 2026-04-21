@@ -1,3 +1,15 @@
+---
+title: "Trading System Scripts"
+tags: ["dev", "reference", "workflow"]
+aliases: ["Scripts README"]
+status: current
+audience: ["developer"]
+last-reviewed: "2026-04-21"
+related:
+  - "[[Scripts per Windows|scripts-windows]]"
+  - "[[Changelog — Scripts & Workflow|CHANGELOG-SCRIPTS]]"
+---
+
 # Trading System Scripts
 
 Automation scripts for building, testing, and deploying the Trading System.
@@ -358,9 +370,12 @@ Fix each failure before proceeding with deployment.
 
 ## Documentation
 
-- **Deployment Guide**: `DEPLOYMENT.md` - Complete deployment instructions
+- **Deployment Guide**: `docs/DEPLOYMENT_GUIDE.md` - Complete deployment instructions
 - **Coding Standards**: `CLAUDE.md` - Project guidelines and rules
-- **Database Schema**: `docs/database-schema.md`
+- **Database Schemas** (source of truth, split by component):
+  - Cloudflare Worker / D1: `infra/cloudflare/worker/migrations/*.sql`
+  - TradingSupervisorService (SQLite): `src/TradingSupervisorService/Migrations/`
+  - OptionsExecutionService (SQLite): `src/OptionsExecutionService/Migrations/`
 - **Telegram Integration**: `docs/telegram-integration.md`
 - **Knowledge Base**: `knowledge/` - Errors, lessons learned, corrections
 

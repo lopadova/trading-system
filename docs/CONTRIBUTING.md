@@ -1,3 +1,17 @@
+---
+title: "Contributing Guide"
+tags: ["dev", "onboarding", "reference", "workflow"]
+aliases: ["Contributing", "Development Guide"]
+status: current
+audience: ["developer"]
+last-reviewed: "2026-04-21"
+related:
+  - "[[Trading System - Developer Onboarding|ONBOARDING]]"
+  - "[[Getting Started with Trading System|GETTING_STARTED]]"
+  - "[[BRANCH_PROTECTION]]"
+  - "[[Workflow Nuove Feature — Guida Completa|WORKFLOW-NUOVE-FEATURE]]"
+---
+
 # Contributing Guide
 
 > How to extend and improve the Trading System
@@ -79,15 +93,18 @@ trading-system/
 │   ├── agents/                 # Task-specific prompts
 │   └── skills/                 # Reusable skill files
 ├── docs/                       # Documentation
-│   ├── ARCHITECTURE.md
+│   ├── INDEX.md                # Wiki entry point
+│   ├── ARCHITECTURE.md / ARCHITECTURE_OVERVIEW.md
 │   ├── GETTING_STARTED.md
-│   ├── CONFIGURATION.md
+│   ├── ONBOARDING.md
+│   ├── CONFIGURATION.md / CONFIGURATION-CHECKLIST.md
 │   ├── STRATEGY_FORMAT.md
 │   ├── TROUBLESHOOTING.md
 │   ├── CONTRIBUTING.md         # This file
-│   ├── MONITORING.md
-│   ├── database-schema.md
-│   └── telegram-integration.md
+│   ├── telegram-integration.md
+│   ├── BOT_SETUP_GUIDE.md
+│   ├── ops/                    # Phase 7 operational docs (runbook, DR, observability...)
+│   └── archive/                # Superseded docs (history preserved)
 ├── knowledge/                  # Self-improvement system
 │   ├── errors-registry.md      # Known errors and fixes
 │   ├── lessons-learned.md      # Patterns and discoveries
@@ -773,7 +790,7 @@ Skill files in `.claude/skills/` can be updated.
 2. **Add to migrations class**: `XXXMigrations.All` property
 3. **Create repository**: Implement I/O operations
 4. **Test**: Unit tests with in-memory database
-5. **Document**: `docs/database-schema.md`
+5. **Document**: Update the relevant migration file in `infra/cloudflare/worker/migrations/` (source of truth for schema). For SQLite (`supervisor.db`, `options.db`) document in the relevant `src/*/Migrations/` C# files.
 
 ---
 
