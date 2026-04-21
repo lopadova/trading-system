@@ -1,4 +1,81 @@
+using SharedKernel.Domain;
+
 namespace SharedKernel.Safety;
+
+/// <summary>
+/// Canonical audit outcomes. Extend this enum rather than scattering magic
+/// strings throughout the codebase; it keeps Worker-side filter values and the
+/// .NET write-path vocabulary in sync. The <see cref="ToWire"/> extension
+/// returns the lowercase snake_case value used in <c>OrderAuditEntry.Outcome</c>
+/// and the D1 <c>order_audit_log.outcome</c> column.
+/// </summary>
+public enum AuditOutcome
+{
+    /// <summary>Order was submitted to IBKR (pre-fill).</summary>
+    Placed,
+
+    /// <summary>Order was confirmed filled by IBKR.</summary>
+    Filled,
+
+    /// <summary>Blocked at Gate #1 — semaphore RED.</summary>
+    RejectedSemaphore,
+
+    /// <summary>Blocked at Gate #2 — trading-paused flag set by DailyPnLWatcher.</summary>
+    RejectedPnlPause,
+
+    /// <summary>Blocked at Gate #3 — position-size validator.</summary>
+    RejectedMaxSize,
+
+    /// <summary>Blocked at Gate #3 — position-value validator (USD cap).</summary>
+    RejectedMaxValue,
+
+    /// <summary>Blocked at Gate #3 — risk-pct-of-account validator.</summary>
+    RejectedMaxRisk,
+
+    /// <summary>Blocked at Gate #3 — account-balance-below-minimum validator.</summary>
+    RejectedMinBalance,
+
+    /// <summary>Blocked at Gate #4 — circuit breaker open.</summary>
+    RejectedBreaker,
+
+    /// <summary>Rejected by IBKR (insufficient margin, invalid contract, etc.).</summary>
+    RejectedBroker,
+
+    /// <summary>Any unclassified error during placement (IO exception, timeout).</summary>
+    Error
+}
+
+/// <summary>
+/// Extension helpers to keep <see cref="AuditOutcome"/> serialization centralized.
+/// </summary>
+public static class AuditOutcomeExtensions
+{
+    /// <summary>Returns the snake_case wire value expected by the Worker schema.</summary>
+    public static string ToWire(this AuditOutcome outcome) => outcome switch
+    {
+        AuditOutcome.Placed => "placed",
+        AuditOutcome.Filled => "filled",
+        AuditOutcome.RejectedSemaphore => "rejected_semaphore",
+        AuditOutcome.RejectedPnlPause => "rejected_pnl_pause",
+        AuditOutcome.RejectedMaxSize => "rejected_max_size",
+        AuditOutcome.RejectedMaxValue => "rejected_max_value",
+        AuditOutcome.RejectedMaxRisk => "rejected_max_risk",
+        AuditOutcome.RejectedMinBalance => "rejected_min_balance",
+        AuditOutcome.RejectedBreaker => "rejected_breaker",
+        AuditOutcome.RejectedBroker => "rejected_broker",
+        AuditOutcome.Error => "error",
+        _ => throw new ArgumentOutOfRangeException(nameof(outcome), outcome, "Unknown AuditOutcome")
+    };
+
+    /// <summary>Returns the snake_case wire value for a <see cref="SemaphoreStatus"/>.</summary>
+    public static string ToWire(this SemaphoreStatus status) => status switch
+    {
+        SemaphoreStatus.Green => "green",
+        SemaphoreStatus.Orange => "orange",
+        SemaphoreStatus.Red => "red",
+        _ => "unknown"
+    };
+}
 
 /// <summary>
 /// Immutable record representing a single row in the order audit log — the
@@ -58,4 +135,145 @@ public sealed record OrderAuditEntry
 
     /// <summary>Arbitrary JSON metadata (e.g. limit price, stop price, error message).</summary>
     public string? DetailsJson { get; init; }
+
+    // ------------------------------------------------------------------
+    // Factory helpers — keep the call-sites inside OrderPlacer small and
+    // readable. Each factory fills the fields that are always-known at the
+    // point of the decision (from OrderRequest + the gate observation) and
+    // leaves per-outcome specifics to the caller (OrderId, Price, DetailsJson).
+    // ------------------------------------------------------------------
+
+    /// <summary>
+    /// Build an audit row for an order that was blocked BEFORE it reached IBKR
+    /// (gate/validator/breaker rejection). <paramref name="overrideReason"/>
+    /// doubles as a free-text rejection rationale (e.g. "semaphore-red",
+    /// "pnl-paused"). <see cref="OrderId"/> stays null since no IBKR call was made.
+    /// </summary>
+    public static OrderAuditEntry Rejected(
+        OrderRequest request,
+        SemaphoreStatus semaphore,
+        AuditOutcome outcome,
+        string rejectionReason)
+    {
+        if (request is null)
+        {
+            throw new ArgumentNullException(nameof(request));
+        }
+        return new OrderAuditEntry
+        {
+            AuditId = Guid.NewGuid().ToString(),
+            OrderId = null,
+            Ts = DateTimeOffset.UtcNow.ToString("O"),
+            Actor = "system",
+            StrategyId = request.StrategyName,
+            ContractSymbol = request.ContractSymbol,
+            Side = request.Side.ToString().ToUpperInvariant(),
+            Quantity = request.Quantity,
+            Price = null,
+            SemaphoreStatus = semaphore.ToWire(),
+            Outcome = outcome.ToWire(),
+            OverrideReason = rejectionReason,
+            DetailsJson = null
+        };
+    }
+
+    /// <summary>
+    /// Build an audit row for an order that was accepted and submitted to IBKR
+    /// (pre-fill). Caller provides <paramref name="orderId"/> so later fill/
+    /// error rows can be correlated.
+    /// </summary>
+    public static OrderAuditEntry Placed(
+        OrderRequest request,
+        SemaphoreStatus semaphore,
+        string orderId)
+    {
+        if (request is null)
+        {
+            throw new ArgumentNullException(nameof(request));
+        }
+        if (string.IsNullOrWhiteSpace(orderId))
+        {
+            throw new ArgumentException("orderId required", nameof(orderId));
+        }
+        return new OrderAuditEntry
+        {
+            AuditId = Guid.NewGuid().ToString(),
+            OrderId = orderId,
+            Ts = DateTimeOffset.UtcNow.ToString("O"),
+            Actor = "system",
+            StrategyId = request.StrategyName,
+            ContractSymbol = request.ContractSymbol,
+            Side = request.Side.ToString().ToUpperInvariant(),
+            Quantity = request.Quantity,
+            Price = request.LimitPrice,
+            SemaphoreStatus = semaphore.ToWire(),
+            Outcome = AuditOutcome.Placed.ToWire(),
+            OverrideReason = null,
+            DetailsJson = null
+        };
+    }
+
+    /// <summary>
+    /// Build an audit row for a broker-side rejection (IBKR returned false
+    /// or threw). <paramref name="errorMessage"/> is stored under OverrideReason
+    /// for searchability.
+    /// </summary>
+    public static OrderAuditEntry BrokerRejected(
+        OrderRequest request,
+        SemaphoreStatus semaphore,
+        string? orderId,
+        string errorMessage)
+    {
+        if (request is null)
+        {
+            throw new ArgumentNullException(nameof(request));
+        }
+        return new OrderAuditEntry
+        {
+            AuditId = Guid.NewGuid().ToString(),
+            OrderId = orderId,
+            Ts = DateTimeOffset.UtcNow.ToString("O"),
+            Actor = "system",
+            StrategyId = request.StrategyName,
+            ContractSymbol = request.ContractSymbol,
+            Side = request.Side.ToString().ToUpperInvariant(),
+            Quantity = request.Quantity,
+            Price = null,
+            SemaphoreStatus = semaphore.ToWire(),
+            Outcome = AuditOutcome.RejectedBroker.ToWire(),
+            OverrideReason = errorMessage,
+            DetailsJson = null
+        };
+    }
+
+    /// <summary>
+    /// Build an audit row for an unclassified error (exception in the pipeline).
+    /// </summary>
+    public static OrderAuditEntry ErrorDuring(
+        OrderRequest request,
+        SemaphoreStatus semaphore,
+        string? orderId,
+        string errorMessage)
+    {
+        if (request is null)
+        {
+            throw new ArgumentNullException(nameof(request));
+        }
+        return new OrderAuditEntry
+        {
+            AuditId = Guid.NewGuid().ToString(),
+            OrderId = orderId,
+            Ts = DateTimeOffset.UtcNow.ToString("O"),
+            Actor = "system",
+            StrategyId = request.StrategyName,
+            ContractSymbol = request.ContractSymbol,
+            Side = request.Side.ToString().ToUpperInvariant(),
+            Quantity = request.Quantity,
+            Price = null,
+            SemaphoreStatus = semaphore.ToWire(),
+            Outcome = AuditOutcome.Error.ToWire(),
+            OverrideReason = errorMessage,
+            DetailsJson = null
+        };
+    }
 }

@@ -1,9 +1,13 @@
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using OptionsExecutionService.Orders;
 using OptionsExecutionService.Repositories;
+using OptionsExecutionService.Services;
 using OptionsExecutionService.Tests.Mocks;
+using SharedKernel.Configuration;
 using SharedKernel.Data;
 using SharedKernel.Domain;
+using SharedKernel.Safety;
 using SharedKernel.Tests.Data;
 using Xunit;
 
@@ -20,6 +24,9 @@ public sealed class OrderPlacerTests : IAsyncDisposable
     private readonly IOrderTrackingRepository _orderRepo;
     private readonly OrderSafetyConfig _safetyConfig;
     private readonly OrderPlacer _orderPlacer;
+    private readonly RecordingAlerter _alerter;
+    private readonly InMemorySafetyFlagStore _flagStore;
+    private readonly RecordingAuditSink _auditSink;
 
     public OrderPlacerTests()
     {
@@ -51,11 +58,24 @@ public sealed class OrderPlacerTests : IAsyncDisposable
             CircuitBreakerCooldownMinutes = 30
         };
 
+        // Phase 7.4 safety dependencies — all default to permissive (green semaphore,
+        // no pause flag, null audit sink) so pre-existing tests behave unchanged.
+        SemaphoreGate greenGate = GateTestHelpers.FixedGate(SemaphoreStatus.Green);
+        _alerter = new RecordingAlerter();
+        _flagStore = new InMemorySafetyFlagStore();
+        _auditSink = new RecordingAuditSink();
+        IOptions<SafetyOptions> safetyOptions = Options.Create(new SafetyOptions());
+
         // Create OrderPlacer
         _orderPlacer = new OrderPlacer(
             _mockIbkr,
             _orderRepo,
             _safetyConfig,
+            greenGate,
+            _flagStore,
+            _auditSink,
+            _alerter,
+            safetyOptions,
             NullLogger<OrderPlacer>.Instance);
 
         // Set initial account balance

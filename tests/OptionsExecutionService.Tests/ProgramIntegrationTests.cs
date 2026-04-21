@@ -258,6 +258,17 @@ public sealed class ProgramIntegrationTests
                 // Register time provider
                 services.AddSingleton<OptionsExecutionService.Common.ITimeProvider, OptionsExecutionService.Common.SystemTimeProvider>();
 
+                // Phase 7.4 safety-gate dependencies. Using test doubles so the host
+                // can compose without a running Worker / SMTP.
+                services.Configure<SharedKernel.Configuration.CloudflareOptions>(configuration.GetSection("Cloudflare"));
+                services.Configure<SharedKernel.Configuration.SafetyOptions>(configuration.GetSection("Safety"));
+                services.AddHttpClient();
+                services.AddSingleton<SharedKernel.Observability.IAlerter, Mocks.RecordingAlerter>();
+                services.AddSingleton<OptionsExecutionService.Services.SemaphoreGate>(_ =>
+                    Mocks.GateTestHelpers.FixedGate(SharedKernel.Safety.SemaphoreStatus.Green));
+                services.AddSingleton<SharedKernel.Safety.ISafetyFlagStore, Mocks.InMemorySafetyFlagStore>();
+                services.AddSingleton<SharedKernel.Safety.IOrderAuditSink, Mocks.RecordingAuditSink>();
+
                 // Register order placer (scoped to match repository lifetime)
                 services.AddScoped<IOrderPlacer, OrderPlacer>();
 
