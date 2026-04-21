@@ -229,6 +229,73 @@ performance.get('/summary', async (c) => {
 })
 
 /**
+ * GET /api/performance/today (Phase 7.4)
+ *
+ * Returns today's account snapshot and the day-over-day PnL. Consumed by the
+ * DailyPnLWatcher (.NET) to decide whether to flip trading_paused.
+ *
+ * Shape:
+ *   { accountValue, cash, pnl, pnlPct, yesterdayClose }
+ *
+ * All numeric fields are non-null; `yesterdayClose` is null only when there's
+ * no prior row. Caller treats null as "can't compute drawdown" and skips.
+ */
+performance.get('/today', async (c) => {
+  try {
+    // Latest two rows by date. We ORDER BY date DESC so the tuple is always
+    // (today, yesterday) even if the ingest timing is irregular.
+    const res = await c.env.DB
+      .prepare(
+        'SELECT date, account_value, cash FROM account_equity_daily ORDER BY date DESC LIMIT 2',
+      )
+      .all<{ date: string; account_value: number; cash: number }>()
+    const rows = res.results ?? []
+
+    if (rows.length === 0) {
+      // No equity history at all — the watcher's ISafetyFlagStore shortcut will
+      // see yesterdayClose=null and skip the drawdown check. Return zeros.
+      return c.json({
+        accountValue: 0,
+        cash: 0,
+        pnl: 0,
+        pnlPct: 0,
+        yesterdayClose: null,
+        asOf: null,
+      })
+    }
+
+    const today = rows[0]!
+    const yesterday = rows.length > 1 ? rows[1] : undefined
+
+    const accountValue = +today.account_value.toFixed(2)
+    const cash = +today.cash.toFixed(2)
+    const yesterdayClose = yesterday ? +yesterday.account_value.toFixed(2) : null
+
+    // Use full precision for the math, only round the outputs. Avoids
+    // rounding-before-ratio errors that would shift a borderline pause decision.
+    const pnl = yesterday ? +(today.account_value - yesterday.account_value).toFixed(2) : 0
+    const pnlPct = yesterday && yesterday.account_value !== 0
+      ? +(((today.account_value - yesterday.account_value) / yesterday.account_value) * 100).toFixed(4)
+      : 0
+
+    return c.json({
+      accountValue,
+      cash,
+      pnl,
+      pnlPct,
+      yesterdayClose,
+      asOf: today.date,
+    })
+  } catch (error) {
+    console.error('performance/today query failed:', error)
+    return c.json(
+      { error: 'performance_today_error', message: error instanceof Error ? error.message : 'unknown' },
+      500,
+    )
+  }
+})
+
+/**
  * GET /api/performance/series
  *
  * SQL (approx):
