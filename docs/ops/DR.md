@@ -1,3 +1,18 @@
+---
+title: "Disaster Recovery (DR)"
+tags: ["ops", "runbook", "incident-response", "safety"]
+aliases: ["DR", "Disaster Recovery"]
+status: current
+audience: ["operator"]
+phase: "phase-7"
+last-reviewed: "2026-04-21"
+related:
+  - "[[RUNBOOK]]"
+  - "[[GO_LIVE]]"
+  - "[[SECRETS]]"
+  - "[[RELEASE]]"
+---
+
 # Disaster Recovery (DR)
 
 > Phase 7.7 deliverable. Real operator procedure for backing up and

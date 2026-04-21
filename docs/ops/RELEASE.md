@@ -1,3 +1,18 @@
+---
+title: "Release Procedure"
+tags: ["ops", "deployment", "release"]
+aliases: ["Release", "Release Process"]
+status: current
+audience: ["operator", "developer"]
+phase: "phase-7"
+last-reviewed: "2026-04-21"
+related:
+  - "[[GO_LIVE]]"
+  - "[[DR]]"
+  - "[[BRANCH_PROTECTION]]"
+  - "[[Trading System - Deployment Guide|DEPLOYMENT_GUIDE]]"
+---
+
 # Release Procedure
 
 This file documents how to cut a release that ships code to **production**.

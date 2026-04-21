@@ -1,3 +1,16 @@
+---
+title: "Paper-run day log — YYYY-MM-DD"
+tags: ["ops", "runbook", "testing"]
+aliases: ["Paper-run Template"]
+status: reference
+audience: ["operator"]
+phase: "phase-7.7"
+last-reviewed: "2026-04-21"
+related:
+  - "[[PAPER_VALIDATION]]"
+  - "[[DAILY_OPS]]"
+---
+
 # Paper-run day log — YYYY-MM-DD
 
 > Template. Copy to `docs/ops/paper-run/YYYY-MM-DD.md` at EOD during

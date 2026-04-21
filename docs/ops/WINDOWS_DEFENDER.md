@@ -1,3 +1,17 @@
+---
+title: "Windows Defender Unlock - Complete Guide"
+tags: ["ops", "dev", "security"]
+aliases: ["Windows Defender", "AVIRA Setup", "Antivirus Setup"]
+status: current
+audience: ["developer"]
+phase: "phase-7"
+last-reviewed: "2026-04-21"
+related:
+  - "[[Getting Started with Trading System|GETTING_STARTED]]"
+  - "[[Troubleshooting Guide|TROUBLESHOOTING]]"
+  - "[[RUNBOOK]]"
+---
+
 # Windows Defender Unlock - Complete Guide
 
 ## 🎯 Problema

@@ -1,3 +1,19 @@
+---
+title: "Observability (Phase 7.3)"
+tags: ["ops", "observability", "reference"]
+aliases: ["Observability", "Monitoring", "Logging"]
+status: current
+audience: ["operator", "developer"]
+phase: "phase-7.3"
+last-reviewed: "2026-04-21"
+related:
+  - "[[DAILY_OPS]]"
+  - "[[RUNBOOK]]"
+  - "[[SLO]]"
+  - "[[Trading System Architecture|ARCHITECTURE]]"
+  - "[[Telegram Alert Integration|telegram-integration]]"
+---
+
 # Observability (Phase 7.3)
 
 > How the trading system emits and consumes operational signals.

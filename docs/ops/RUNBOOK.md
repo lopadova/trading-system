@@ -1,3 +1,20 @@
+---
+title: "Runbook — Common Failure Playbooks"
+tags: ["ops", "runbook", "incident-response"]
+aliases: ["Runbook", "Playbooks"]
+status: current
+audience: ["operator"]
+phase: "phase-7"
+last-reviewed: "2026-04-21"
+related:
+  - "[[DAILY_OPS]]"
+  - "[[GO_LIVE]]"
+  - "[[DR]]"
+  - "[[OBSERVABILITY]]"
+  - "[[Windows Defender Unlock - Complete Guide|WINDOWS_DEFENDER]]"
+  - "[[SLO]]"
+---
+
 # Runbook — Common Failure Playbooks
 
 > On-call reference for the trading system. Open this on the second screen

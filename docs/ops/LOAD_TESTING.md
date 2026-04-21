@@ -1,3 +1,17 @@
+---
+title: "Load Testing — Trading System"
+tags: ["ops", "testing", "reference"]
+aliases: ["Load Testing"]
+status: current
+audience: ["developer"]
+phase: "phase-7.6"
+last-reviewed: "2026-04-21"
+related:
+  - "[[SLO]]"
+  - "[[OBSERVABILITY]]"
+  - "[[Trading System - End-to-End Test Plan|TEST_PLAN]]"
+---
+
 # Load Testing — Trading System
 
 Phase 7.6 deliverable. Describes how to run the k6 load tests against the
