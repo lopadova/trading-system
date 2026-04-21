@@ -561,6 +561,88 @@ See `tests/Contract/README.md` for the full procedure. Triage:
 
 ---
 
+## Playbook 9 — Go-live incident (first 24h live)
+
+Phase 7.7 added this playbook specifically for the window between
+`GO_LIVE.md` flip and the 24h-post-live retrospective. The rule of
+the first 24h is: err hard toward aborting. Real money in the loop
+changes the calculus; a false positive (unnecessary rollback) costs
+an hour of operator time. A false negative (ignored real problem)
+costs money.
+
+### Trigger signals
+
+Any of these during the first 24h of live == go to `GO_LIVE.md` § 4
+(rollback) IMMEDIATELY, without further diagnosis:
+
+- A Critical Telegram alert that wasn't seen during the 14-day paper
+  validation.
+- An order placed that you did not expect (regardless of outcome).
+- Positions in the Worker diverge from TWS (operator visual check).
+- Semaphore flips red with no concurrent market reason (check
+  Bloomberg, major news feed).
+- Either service enters `Stopped` state without an operator request.
+- Any log line at `Fatal` level.
+
+### Before rolling back
+
+Quick context capture (30 seconds max — do not let this delay the
+rollback decision):
+
+```powershell
+# Snapshot last 200 log lines from both services so you have
+# forensic data AFTER rollback.
+$ts = Get-Date -Format "yyyyMMdd-HHmmss"
+Copy-Item "C:\trading-system\logs\supervisor-*.log" `
+          "C:\trading-system\incidents\go-live-$ts-supervisor.log" -Force
+Copy-Item "C:\trading-system\logs\options-*.log" `
+          "C:\trading-system\incidents\go-live-$ts-options.log" -Force
+```
+
+### Execute rollback
+
+Follow `docs/ops/GO_LIVE.md` § 4 step-by-step. Target: paper-mode
+confirmation within 60 seconds of the abort decision.
+
+### Post-rollback investigation
+
+1. Pull the incident log files captured above into the repo
+   (attach to the `phase7.7-abort` issue).
+2. Cross-reference the trigger signal with the order audit log:
+   ```bash
+   # If an unexpected order triggered the abort:
+   curl -s -H "X-Api-Key: $CLOUDFLARE_API_KEY" \
+     "https://trading-bot.padosoft.workers.dev/api/audit/orders?from=$(date -u +%Y-%m-%dT%H:00:00)" \
+     | jq '.rows[]'
+   ```
+3. Root-cause analysis MUST complete before any re-go-live attempt.
+   Patch fixes go through a fresh ≥ 3-day paper session (not the
+   full 14-day — this is a pattern drift, not a regression from
+   the validated build).
+
+### What NOT to do
+
+- Do not try to "fix forward" during the first 24h. If the issue
+  warrants fixing, the system should be in paper while you fix.
+- Do not silence alerts. An alert that fired during the first 24h
+  is the highest-signal alert we'll ever get.
+- Do not change TradingMode repeatedly. One flip per day max.
+  Multiple flips in a day = operator is improvising = time to stop
+  and think.
+
+### Re-go-live preconditions
+
+After an abort, to attempt go-live again:
+
+1. Root cause documented in `docs/ops/post-live/abort-YYYY-MM-DD.md`.
+2. Fix merged to main, CI green.
+3. Fresh 3-day paper-mode run from the patched build (not the old
+   validation — that build is tainted by the fix gap).
+4. Re-run `GO_LIVE.md` precondition checklist (all 9 items).
+5. Announce in Telegram before the new flip.
+
+---
+
 ## Escalation
 
 - **Padosoft on-call**: lorenzo.padovani@padosoft.com (this is a solo-op
@@ -571,4 +653,6 @@ See `tests/Contract/README.md` for the full procedure. Triage:
 ---
 
 *Related: `docs/ops/OBSERVABILITY.md` (signal pipeline),
-`docs/DEPLOYMENT_GUIDE.md` (deploy + rollback).*
+`docs/DEPLOYMENT_GUIDE.md` (deploy + rollback),
+`docs/ops/GO_LIVE.md` (first-24h specifics referenced in Playbook 9),
+`docs/ops/SLO.md` (objectives that determine what counts as an incident).*
