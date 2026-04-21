@@ -16,8 +16,7 @@ public static class SupervisorMigrations
     {
         new SupervisorInitial001(),
         new Migration002_IvtsMonitoring(),
+        new Migration003_MarketDataCache(),
         // Future migrations will be added here:
-        // new AddPositionIndexes003(),
-        // new AddAlertSeverityColumn004(),
     };
 }
