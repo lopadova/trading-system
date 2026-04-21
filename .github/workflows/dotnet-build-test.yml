@@ -61,13 +61,15 @@ jobs:
           !src/*/bin/Release/**/ref/**
         retention-days: 7
 
-  # ⚠ DISABLED until Phase 7 production-readiness (per Lorenzo).
-  # Re-enable by removing `false &&` once the production runbook is signed off.
+  # Re-enabled in Phase 7.7 — Windows Service binaries are now published
+  # on every push to main so the operator can download + install without
+  # a local build step. Production flip (TradingMode=live) is still gated
+  # by docs/ops/GO_LIVE.md on the service host.
   publish-services:
     name: Publish Windows Services
     runs-on: windows-latest
     needs: build-and-test
-    if: false && github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     steps:
     - name: Checkout code

@@ -3517,3 +3517,116 @@ pre-built bundle, not `vite dev`. Future work.
 **Reference**: `dashboard/playwright.config.ts`,
 `dashboard/tests/e2e/theme-toggle.spec.ts`,
 `dashboard/tests/e2e/sidebar-navigation.spec.ts`.
+
+## LESSON-201 — SLO without measurement method is aspiration, not commitment
+
+**Categoria**: Operations / Documentation
+**Task**: Phase 7.7 (SLO doc)
+**Data**: 2026-04-21
+
+**Context**: Writing `docs/ops/SLO.md`. The obvious first draft was a
+table of five objectives with percentages — availability 99%, latency
+P95 < 500ms, etc. On review that draft was useless: no query, no
+threshold, no operator action, no budget accounting.
+
+**Discovery**: an SLO is operable only if four things are pinned down
+at the same time: (a) a rolling window, (b) a specific data source,
+(c) a copy-pasteable query an operator runs to know right now if we're
+inside or outside the budget, (d) a concrete on-call action. Missing
+any one of these and the SLO collapses into "feels slow today",
+which is not pageable. The final SLO.md was deliberately restructured
+so every objective has those four anchors in named sub-sections — the
+document gained ~300 lines over the draft and the signal density went
+up, not down.
+
+**Impact**: Any future reliability commitment in this repo (Phase 8+
+SLOs for a second strategy, latency budgets for AI assistant calls,
+etc.) must follow the same four-anchor pattern. The anti-pattern to
+guard against is a "dashboard of green percentages" with no link to
+the underlying query — that's observability theater, not reliability.
+
+**Reference**: `docs/ops/SLO.md` (all four SLOs apply the pattern),
+`.claude/rules/architectural-decisions.md` (candidate for sync).
+
+## LESSON-202 — DR: untested backup is not a backup
+
+**Categoria**: Operations / Disaster Recovery
+**Task**: Phase 7.7 (DR runbook)
+**Data**: 2026-04-21
+
+**Context**: Writing `docs/ops/DR.md`. Easy to specify a daily
+`wrangler d1 export` cron and call it done. The harder question —
+"how do we know the export is actually restorable?" — exists almost
+nowhere in most runbooks, and its absence is why DR fails when it
+matters.
+
+**Discovery**: the only defensible proof that a backup works is to
+restore it. Everything else (file exists, file is > 1KB, wrangler
+exit code 0) can be true for an export that would fail restore.
+The mandatory quarterly drill in § 6 of the runbook is therefore
+the entire point of DR — not the backup script, which is just the
+precondition. The drill procedure was designed so a single operator
+can execute it in 90 min on staging without producing a real incident
+(destroy a non-critical table, restore, diff row counts). Skipping
+the drill quietly degrades every other DR guarantee in the doc to
+"I hope".
+
+**Impact**: Operationalized in two places:
+1. `GO_LIVE.md` § 1.4 makes "DR drill within last 90 days" a literal
+   precondition of going live, so skipping the drill also blocks the
+   next go-live attempt — a hard forcing function.
+2. The drill is calendared per quarter in § 6 of DR.md. If Lorenzo
+   misses a quarter, that miss is visible in the `docs/ops/dr-drills/`
+   directory as a gap.
+
+The principle generalizes: any "just in case" asset (backup, runbook,
+contact list) that is not periodically exercised should be treated as
+absent. The DR doc explicitly names this in § 1.
+
+**Reference**: `docs/ops/DR.md` § 6 (drill procedure),
+`docs/ops/GO_LIVE.md` § 1.4 (precondition).
+
+## LESSON-203 — Go-live rollback must be a single command under 60 seconds
+
+**Categoria**: Operations / Go-live
+**Task**: Phase 7.7 (GO_LIVE.md)
+**Data**: 2026-04-21
+
+**Context**: Writing `docs/ops/GO_LIVE.md`. First draft of the rollback
+section was a 12-step procedure: "stop services, generate new DPAPI
+blob, edit both appsettings files, restart, verify, announce, open an
+issue, ...". Reviewing it with "if an unexpected live order fires, do
+I trust myself to execute this in 60 seconds?" — the answer was no.
+
+**Discovery**: the rollback procedure has to be FAST or the operator
+will not trust the live posture. If rollback takes 10 minutes,
+there's a real financial cost to initiating it, which raises the
+threshold for initiating — which means operators wait "one more
+minute" on questionable signals, which is how small incidents become
+large ones. The reframe: rollback should be a one-minute dance the
+operator can execute on autopilot while still reading log tails for
+context.
+
+The practical fix split the 12-step draft into two phases:
+- **Pre-flip preparation** (§ 2.3 of GO_LIVE.md): generate the
+  paper-mode DPAPI blob UP FRONT, save it next to the live-mode blob.
+  Now the rollback needs 0 wait time for crypto.
+- **Rollback proper** (§ 4): stop, paste x 2, restart, verify. Four
+  actions, ~60 seconds.
+
+All the other steps (announce, open an issue, preserve logs) became
+POST-rollback follow-ups, not part of the 60-second critical path.
+
+**Impact**: This splits "incident response" into "panic button" (must
+be fast, must be rehearsed) and "post-incident cleanup" (can be
+deliberate). The same split belongs in any future "break-glass"
+procedure — kill-switch for a runaway strategy, emergency positions
+flatten, etc. The pattern: prepare the rollback asset BEFORE making
+the dangerous change, not during a retro after it went wrong.
+
+Playbook 9 in `RUNBOOK.md` references this directly — the first-24h-live
+playbook lists the trigger signals and routes to GO_LIVE.md § 4 rather
+than replicating the rollback. One canonical rollback path.
+
+**Reference**: `docs/ops/GO_LIVE.md` § 2.3 + § 4,
+`docs/ops/RUNBOOK.md` Playbook 9 (first-24h incident → routes to § 4).

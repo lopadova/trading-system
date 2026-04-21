@@ -84,14 +84,18 @@ jobs:
         path: dashboard/dist/
         retention-days: 7
 
-  # ⚠ DISABLED until Phase 7 production-readiness (per Lorenzo).
-  # Install strategy mirrors the test jobs (npm ci + Node setup), so
-  # re-enabling = just removing `if: false &&`.
+  # Re-enabled in Phase 7.7.
+  #
+  # Production deploys now require a manual workflow_dispatch — the GitHub
+  # `environment: production` protection (branch-rule set up per
+  # docs/ops/BRANCH_PROTECTION.md § 4) adds a reviewer-required step so
+  # an automated push cannot ship prod without a human in the loop.
+  # Staging gets its own auto-deploy path in deploy-worker-staging below.
   deploy-worker:
-    name: Deploy Worker to Cloudflare
+    name: Deploy Worker to Cloudflare (production)
     runs-on: ubuntu-latest
     needs: [test-worker, test-dashboard]
-    if: false && github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     environment:
       name: production
       url: https://trading-bot.padosoft.workers.dev
@@ -117,12 +121,44 @@ jobs:
         CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       run: npx wrangler deploy
 
-  # ⚠ DISABLED until Phase 7 production-readiness (per Lorenzo).
-  deploy-dashboard:
-    name: Deploy Dashboard to Cloudflare Pages
+  # Staging auto-deploy — runs on every push to main. NO environment
+  # protection (the point of staging is to catch things before prod).
+  deploy-worker-staging:
+    name: Deploy Worker to Cloudflare (staging)
     runs-on: ubuntu-latest
     needs: [test-worker, test-dashboard]
-    if: false && github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment:
+      name: staging
+      url: https://ts-staging.padosoft.workers.dev
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: npm
+        cache-dependency-path: infra/cloudflare/worker/package-lock.json
+
+    - name: Install dependencies
+      working-directory: infra/cloudflare/worker
+      run: npm ci --no-audit --no-fund
+
+    - name: Deploy to Cloudflare Workers (staging)
+      working-directory: infra/cloudflare/worker
+      env:
+        CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      run: npx wrangler deploy --env staging
+
+  # Re-enabled in Phase 7.7. Production-only; manual trigger.
+  deploy-dashboard:
+    name: Deploy Dashboard to Cloudflare Pages (production)
+    runs-on: ubuntu-latest
+    needs: [test-worker, test-dashboard]
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     environment:
       name: production
       url: https://trading-dashboard.pages.dev
@@ -152,5 +188,47 @@ jobs:
         apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         projectName: trading-dashboard
+        directory: dashboard/dist
+        gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+
+  # Staging dashboard — auto-deploy on merge to main. No environment
+  # protection (mirrors deploy-worker-staging).
+  deploy-dashboard-staging:
+    name: Deploy Dashboard to Cloudflare Pages (staging)
+    runs-on: ubuntu-latest
+    needs: [test-worker, test-dashboard]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment:
+      name: staging
+      url: https://trading-dashboard-staging.pages.dev
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: npm
+        cache-dependency-path: dashboard/package-lock.json
+
+    - name: Install dependencies
+      working-directory: dashboard
+      run: npm ci --no-audit --no-fund
+
+    - name: Build dashboard
+      working-directory: dashboard
+      run: npm run build
+
+    # Staging Pages project is distinct so staging traffic doesn't
+    # pollute production analytics. Create the project with:
+    #   bunx wrangler pages project create trading-dashboard-staging
+    - name: Deploy to Cloudflare Pages (staging)
+      uses: cloudflare/pages-action@v1
+      with:
+        apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        projectName: trading-dashboard-staging
         directory: dashboard/dist
         gitHubToken: ${{ secrets.GITHUB_TOKEN }}
