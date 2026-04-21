@@ -2721,3 +2721,28 @@ public Task ConnectAsync(CancellationToken ct = default) => Task.CompletedTask;
 
 **Reference**: `.gitignore` lines 150-154, commit 9c6f974.
 
+## LESSON-183 — Phase 7.1 market-data ingest: natural PKs + UPSERT make Outbox retries safe
+
+**Contesto**: Phase 7.1 (feat/phase7.1-market-data-ingestion) introduced 5 new D1 tables for market-data ingestion from IBKR via the .NET Outbox pipeline: `account_equity_daily`, `market_quotes_daily`, `vix_term_structure`, `benchmark_series`, `position_greeks`.
+
+**Scoperta**: The Outbox to Worker pipeline is **at-least-once**: if the Worker ingest route returns a 5xx or the HTTP call times out, the supervisor will retry the same event later. We cannot rely on the `event_id` envelope alone for idempotency on the Worker side because different event types hit different tables, and there's no single "events" log on D1 (by design — D1 storage is expensive). The solution is to choose **natural primary keys** on each destination table that capture the real business identity of the row:
+
+| Table | Primary key | Rationale |
+|-------|-------------|-----------|
+| `account_equity_daily` | `date` | One row per calendar day — latest snapshot wins |
+| `market_quotes_daily` | `(symbol, date)` | One OHLCV bar per symbol per day |
+| `vix_term_structure` | `date` | One VIX curve per day |
+| `benchmark_series` | `(symbol, date)` | Pre-normalized close per symbol per day |
+| `position_greeks` | `(position_id, snapshot_ts)` | Distinct snapshots preserved |
+
+Then every handler uses `INSERT OR REPLACE INTO ...`, which SQLite resolves as "if a row exists for this PK, overwrite it; otherwise insert". A retried event replays the same payload → same PK → idempotent no-op.
+
+**Applicazione**:
+- The choice of PK is a **contract with the producer**. Document it (see `docs/ops/MARKET_DATA_PIPELINE.md`) so the .NET collectors know what granularity to emit (e.g. "one `account_equity` per day — don't emit hourly").
+- When a leg is semantically part of a bigger row (VIX/VIX1D/VIX3M/VIX6M all part of a daily curve), the `vix_snapshot` handler denormalizes the curve row AND mirrors each leg into `market_quotes_daily` so downstream chart endpoints have one source of truth across symbols. Both writes remain idempotent thanks to their respective composite PKs.
+- Zod validates the payload shape BEFORE any D1 write. Malformed → 400 with a flattened `[{path, message}]` issue list; the supervisor logs the rejection and moves on (a schema-incompatible event should never block the queue).
+
+**Impatto**: Zero duplicate-row bugs when the Worker returns 502 during a deploy window and the supervisor retries every pending Outbox entry. Makes the Worker side "dumb" — it doesn't need an event-log table, it doesn't need to deduplicate by `event_id`, it just upserts.
+
+**Reference**: `infra/cloudflare/worker/migrations/0007_market_data.sql`, `infra/cloudflare/worker/src/routes/ingest.ts`, `infra/cloudflare/worker/test/ingest.test.ts` (the idempotency test per event type is the regression gate).
+
