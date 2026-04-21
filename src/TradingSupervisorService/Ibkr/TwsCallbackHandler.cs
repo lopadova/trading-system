@@ -22,6 +22,39 @@ public sealed class TwsCallbackHandler : DefaultEWrapper
     // Optional market data service for forwarding callbacks
     private MarketDataService? _marketDataService;
 
+    // ------------- Phase 7.1 event hooks for MarketDataCollector -------------
+    // These are raised on the reader thread; subscribers must be thread-safe.
+    // TickPrice fields of interest: 4=LAST, 6=HIGH(day), 7=LOW(day), 8=VOLUME,
+    //                                9=CLOSE(prev), 14=OPEN(day).
+
+    /// <summary>
+    /// Fired for every tickPrice callback from IBKR (reqId, field, price).
+    /// Used by MarketDataCollector to track day OHLC for each subscribed symbol.
+    /// </summary>
+    public event EventHandler<(int ReqId, int Field, double Price)>? TickPriceReceived;
+
+    /// <summary>
+    /// Fired for every tickSize callback from IBKR (reqId, field, size).
+    /// Used by MarketDataCollector to capture day volume (field=8).
+    /// </summary>
+    public event EventHandler<(int ReqId, int Field, decimal Size)>? TickSizeReceived;
+
+    /// <summary>
+    /// Fired for every accountSummary row from IBKR (reqId, account, tag, value, currency).
+    /// </summary>
+    public event EventHandler<(int ReqId, string Account, string Tag, string Value, string Currency)>? AccountSummaryReceived;
+
+    /// <summary>
+    /// Fired when an accountSummary batch completes for a given reqId.
+    /// </summary>
+    public event EventHandler<int>? AccountSummaryEndReceived;
+
+    /// <summary>
+    /// Fired for every tickOptionComputation callback (reqId, field, iv, delta, gamma, vega, theta, undPrice).
+    /// Consumed by GreeksMonitorWorker for live position Greeks.
+    /// </summary>
+    public event EventHandler<(int ReqId, int Field, double Iv, double Delta, double Gamma, double Vega, double Theta, double UndPrice)>? TickOptionComputationReceived;
+
     public TwsCallbackHandler(
         ILogger<TwsCallbackHandler> logger,
         Action<ConnectionState> onConnectionStateChanged)
@@ -95,6 +128,16 @@ public sealed class TwsCallbackHandler : DefaultEWrapper
 
         // Forward to MarketDataService if available
         _marketDataService?.OnTickPrice(tickerId, field, price);
+
+        // Raise Phase 7.1 event (wrapped so a subscriber exception doesn't kill the reader thread)
+        try
+        {
+            TickPriceReceived?.Invoke(this, (tickerId, field, price));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "TickPriceReceived subscriber threw (reqId={ReqId})", tickerId);
+        }
     }
 
     public override void tickSize(int tickerId, int field, decimal size)
@@ -103,6 +146,16 @@ public sealed class TwsCallbackHandler : DefaultEWrapper
 
         // Forward to MarketDataService if available
         _marketDataService?.OnTickSize(tickerId, field, size);
+
+        // Raise Phase 7.1 event
+        try
+        {
+            TickSizeReceived?.Invoke(this, (tickerId, field, size));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "TickSizeReceived subscriber threw (reqId={ReqId})", tickerId);
+        }
     }
 
     public override void tickString(int tickerId, int tickType, string value)
@@ -140,6 +193,17 @@ public sealed class TwsCallbackHandler : DefaultEWrapper
 
         // Forward to MarketDataService if available
         _marketDataService?.OnTickOptionComputation(tickerId, field, impliedVolatility, delta, optPrice, gamma, vega, theta, undPrice);
+
+        // Raise Phase 7.1 event (consumed by GreeksMonitorWorker for live Greeks)
+        try
+        {
+            TickOptionComputationReceived?.Invoke(this,
+                (tickerId, field, impliedVolatility, delta, gamma, vega, theta, undPrice));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "TickOptionComputationReceived subscriber threw (reqId={ReqId})", tickerId);
+        }
     }
 
     #endregion
@@ -194,8 +258,36 @@ public sealed class TwsCallbackHandler : DefaultEWrapper
     #region Unused Callbacks (stubs required by EWrapper interface)
 
     public override void accountDownloadEnd(string account) { }
-    public override void accountSummary(int reqId, string account, string tag, string value, string currency) { }
-    public override void accountSummaryEnd(int reqId) { }
+
+    public override void accountSummary(int reqId, string account, string tag, string value, string currency)
+    {
+        _logger.LogDebug(
+            "Account summary: reqId={ReqId} account={Account} tag={Tag} value={Value} currency={Currency}",
+            reqId, account, tag, value, currency);
+
+        try
+        {
+            AccountSummaryReceived?.Invoke(this, (reqId, account, tag, value, currency));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "AccountSummaryReceived subscriber threw (reqId={ReqId})", reqId);
+        }
+    }
+
+    public override void accountSummaryEnd(int reqId)
+    {
+        _logger.LogDebug("Account summary end: reqId={ReqId}", reqId);
+
+        try
+        {
+            AccountSummaryEndReceived?.Invoke(this, reqId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "AccountSummaryEndReceived subscriber threw (reqId={ReqId})", reqId);
+        }
+    }
     public override void accountUpdateMulti(int reqId, string account, string modelCode, string key, string value, string currency) { }
     public override void accountUpdateMultiEnd(int reqId) { }
     public override void bondContractDetails(int reqId, ContractDetails contract) { }

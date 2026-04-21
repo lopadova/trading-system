@@ -186,6 +186,8 @@ try
             services.AddHostedService<LogReaderWorker>();
             services.AddHostedService<IvtsMonitorWorker>();
             services.AddHostedService<GreeksMonitorWorker>();
+            services.AddHostedService<MarketDataCollector>();
+            services.AddHostedService<BenchmarkCollector>();
 
             // Bot webhook registrar (runs at startup)
             services.AddHostedService<BotWebhookRegistrar>();
