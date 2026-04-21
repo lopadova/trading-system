@@ -16,7 +16,6 @@ import Step10Review from '../src/components/strategy-wizard/steps/Step10Review'
 import StepSummaryCard from '../src/components/strategy-wizard/shared/StepSummaryCard'
 import ValidationSummary from '../src/components/strategy-wizard/shared/ValidationSummary'
 import PublishButton from '../src/components/strategy-wizard/shared/PublishButton'
-import ConflictDialog from '../src/components/strategy-wizard/shared/ConflictDialog'
 import { createDefaultStrategy } from '../src/utils/sdf-defaults'
 import type { ValidationError } from '../src/utils/sdf-validator'
 

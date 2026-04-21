@@ -91,8 +91,15 @@ export const useSettingsStore = create<SettingsStore>()(
     {
       name: 'trading-settings',
       partialize: (state) => {
-        // Exclude functions from persisted state
-        const { updateSettings, resetSettings, validateSettings, ...settings } = state
+        // Exclude functions from persisted state (action names prefixed with _
+        // to satisfy @typescript-eslint/no-unused-vars — they exist only to be
+        // destructured away from the persisted payload)
+        const {
+          updateSettings: _updateSettings,
+          resetSettings: _resetSettings,
+          validateSettings: _validateSettings,
+          ...settings
+        } = state
         return settings
       },
     }
