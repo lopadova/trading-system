@@ -22,6 +22,11 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Moq" Version="4.20.70" />
+    <!-- Enables [SkippableFact] for OS-gated tests (DPAPI is Windows-only). -->
+    <PackageReference Include="Xunit.SkippableFact" Version="1.4.13" />
+    <!-- In-memory IConfiguration used by EncryptedConfigProvider tests. -->
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.0" />
   </ItemGroup>
 
   <ItemGroup>

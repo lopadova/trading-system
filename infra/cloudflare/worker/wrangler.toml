@@ -3,6 +3,9 @@ main = "src/index.ts"
 compatibility_date = "2025-01-01"
 compatibility_flags = ["nodejs_compat"]
 
+# -------------------------------------------------------------------------
+# Production (default environment — used by `bunx wrangler deploy`)
+# -------------------------------------------------------------------------
 # D1 Database Binding
 [[d1_databases]]
 binding = "DB"
@@ -22,10 +25,43 @@ dataset = "trading_system_metrics"
 DASHBOARD_ORIGIN = "http://localhost:5173"
 # For production, set to actual dashboard URL: https://trading.example.com
 
-# Secrets (set via: wrangler secret put <SECRET_NAME>)
-# API_KEY - Authentication key for protected endpoints
-# ANTHROPIC_API_KEY - For EasyLanguage → SDF conversion in wizard
-# TELEGRAM_BOT_TOKEN - For Telegram bot integration
-# DISCORD_BOT_TOKEN - For Discord bot integration (optional)
-# DISCORD_PUBLIC_KEY - For Discord webhook signature verification
-# BOT_WHITELIST - Comma-separated list of allowed user IDs (Telegram or Discord)
+# Secrets (set via: `bunx wrangler secret put <SECRET_NAME>` or
+#                   `scripts/provision-secrets.sh production`)
+#   API_KEY            - Authentication key for protected endpoints
+#   ANTHROPIC_API_KEY  - For EasyLanguage → SDF conversion in wizard
+#   TELEGRAM_BOT_TOKEN - For Telegram bot integration
+#   DISCORD_BOT_TOKEN  - For Discord bot integration (optional)
+#   DISCORD_PUBLIC_KEY - For Discord webhook signature verification
+#   BOT_WHITELIST      - Comma-separated list of allowed user IDs (Telegram or Discord)
+#   SENTRY_DSN         - Sentry DSN for Worker error reporting (Phase 7.4)
+
+# -------------------------------------------------------------------------
+# Staging (Phase 7.5 — mirrors production shape, isolated secrets + D1)
+# -------------------------------------------------------------------------
+# Deploy with: `bunx wrangler deploy --env staging`
+# Provision secrets with: `scripts/provision-secrets.sh staging`
+#
+# PREREQUISITE: the staging D1 database must exist. Run the helper script
+# `scripts/provision-d1-staging.sh` ONCE — it creates `trading-db-staging`
+# via `wrangler d1 create` and writes the resulting database_id back into
+# THIS file (replacing the TBD placeholder below). The script is idempotent.
+# -------------------------------------------------------------------------
+[env.staging]
+name = "ts-staging"
+
+[env.staging.vars]
+DASHBOARD_ORIGIN = "https://trading-dashboard-staging.pages.dev"
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "trading-db-staging"
+# IMPORTANT: this id MUST be filled in by the operator (or by
+# `scripts/provision-d1-staging.sh`) before the first staging deploy.
+# Leave as TBD to make a forgotten-setup failure obvious at deploy time.
+database_id = "TBD-after-wrangler-d1-create"
+
+# Analytics Engine dataset — staging uses a DISTINCT dataset so staging
+# traffic doesn't pollute production metrics / dashboards.
+[[env.staging.analytics_engine_datasets]]
+binding = "METRICS"
+dataset = "trading_system_metrics_staging"

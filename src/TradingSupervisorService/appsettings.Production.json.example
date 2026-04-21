@@ -1,0 +1,41 @@
+{
+  "__": [
+    "TradingSupervisorService — PRODUCTION overrides (Phase 7.5).",
+    "Copy to appsettings.Production.json (gitignored) on the production host,",
+    "replace REPLACE_WITH_* placeholders, and wrap ALL sensitive values via",
+    "the EncryptConfigValue CLI so the file on disk never contains cleartext",
+    "secrets. See docs/ops/SECRETS.md § Provisioning.",
+    "",
+    "TradingMode STAYS \"paper\" until the operator explicitly flips it to",
+    "\"live\" after verifying every safety check — see the TradingMode warning",
+    "in install-options-engine.ps1."
+  ],
+  "TradingMode": "paper",
+  "Cloudflare": {
+    "WorkerUrl": "https://ts.padosoft.workers.dev",
+    "ApiKey": "DPAPI:REPLACE_WITH_PROTECTED_BASE64"
+  },
+  "Telegram": {
+    "Enabled": true,
+    "BotToken": "DPAPI:REPLACE_WITH_PROTECTED_BASE64",
+    "ChatId": 0
+  },
+  "Bots": {
+    "ActiveBot": "telegram",
+    "WebhookUrl": "https://ts.padosoft.workers.dev/api/bot",
+    "TelegramBotToken": "DPAPI:REPLACE_WITH_PROTECTED_BASE64",
+    "DiscordBotToken": "DPAPI:REPLACE_WITH_PROTECTED_BASE64",
+    "DiscordPublicKey": "DPAPI:REPLACE_WITH_PROTECTED_BASE64",
+    "Whitelist": "REPLACE_WITH_COMMA_SEPARATED_USER_IDS"
+  },
+  "Smtp": {
+    "Enabled": true,
+    "Host": "smtp.gmail.com",
+    "Port": 587,
+    "Username": "REPLACE_WITH_SMTP_USER",
+    "Password": "DPAPI:REPLACE_WITH_PROTECTED_BASE64",
+    "From": "REPLACE_WITH_FROM_ADDRESS",
+    "To": "REPLACE_WITH_TO_ADDRESS",
+    "EnableSsl": true
+  }
+}

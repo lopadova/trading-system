@@ -32,13 +32,18 @@ try
 {
     Log.Information("OptionsExecutionService starting up");
 
-    // Build configuration for early validation
+    // Build configuration for early validation.
+    // Layer order: appsettings.json → appsettings.{Env}.json → appsettings.Local.json
+    // → EncryptedProvider (decrypts DPAPI:<blob> from earlier layers)
+    // → environment variables (still win for emergency override)
+    // → command line. See Supervisor Program.cs + docs/ops/SECRETS.md.
     IConfiguration configForValidation = new ConfigurationBuilder()
         .SetBasePath(Directory.GetCurrentDirectory())
         .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
         .AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") ?? "Production"}.json",
             optional: true, reloadOnChange: true)
         .AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true)  // Developer overrides (not in git)
+        .AddEncryptedProvider()
         .AddEnvironmentVariables()
         .AddCommandLine(args)
         .Build();
@@ -73,6 +78,12 @@ try
     Log.Information("Configuration validation passed");
 
     HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
+
+    // Mirror the DPAPI decryption layer on the host's own IConfiguration so
+    // code paths reading from builder.Configuration (e.g. Serilog, IBKR
+    // config below) see decrypted values too. CreateApplicationBuilder
+    // already registered the standard JSON + env-var sources.
+    builder.Configuration.AddEncryptedProvider();
 
     // Configure Windows Service
     builder.Services.AddWindowsService(options =>

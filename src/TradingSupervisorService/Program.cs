@@ -24,13 +24,25 @@ try
 {
     Log.Information("TradingSupervisorService starting up");
 
-    // Build configuration for early validation
+    // Build configuration for early validation.
+    // Layer order (last wins):
+    //   1. appsettings.json                   — paper-mode defaults, checked in
+    //   2. appsettings.{Environment}.json     — per-env overrides, GITIGNORED
+    //   3. appsettings.Local.json             — developer overrides, GITIGNORED
+    //   4. EncryptedProvider                  — decrypts DPAPI:<blob> values
+    //                                            from layers 1-3 transparently
+    //   5. Environment variables              — still win (emergency override)
+    //   6. Command-line args                  — absolute final word
+    // AddEncryptedProvider must come AFTER the JSON files (so it observes the
+    // wrapped blobs) but BEFORE env vars (so operators can force-override any
+    // key without regenerating the DPAPI blob). See docs/ops/SECRETS.md.
     IConfiguration configForValidation = new ConfigurationBuilder()
         .SetBasePath(Directory.GetCurrentDirectory())
         .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
         .AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") ?? "Production"}.json",
             optional: true, reloadOnChange: true)
         .AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true)  // Developer overrides (not in git)
+        .AddEncryptedProvider()
         .AddEnvironmentVariables()
         .AddCommandLine(args)
         .Build();
@@ -68,8 +80,11 @@ try
         .ConfigureAppConfiguration((context, config) =>
         {
             // CRITICAL: Explicitly add appsettings.Local.json to override base settings
-            // CreateDefaultBuilder doesn't include .Local.json by default
+            // CreateDefaultBuilder doesn't include .Local.json by default.
             config.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
+            // DPAPI decryption — same placement rationale as configForValidation above:
+            // observes all JSON sources, still beaten by env vars for emergency override.
+            config.AddEncryptedProvider();
         })
         .UseWindowsService(options =>
         {

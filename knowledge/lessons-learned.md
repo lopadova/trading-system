@@ -3251,3 +3251,126 @@ later without grepping logs.
 - `infra/cloudflare/worker/src/routes/audit.ts` (read endpoint)
 - `src/OptionsExecutionService/Services/OutboxOrderAuditSink.cs`
   (local-first, ship-second idempotent writer)
+
+
+## LESSON-195 — DPAPI LocalMachine vs CurrentUser: service-account vs operator-account asymmetry
+
+**Categoria**: Security / Windows Services
+**Task**: Phase 7.5 (EncryptedConfigProvider)
+**Data**: 2026-04-20
+
+**Context**: Wrapping sensitive configuration values (API keys, bot tokens, SMTP
+passwords) via Windows DPAPI so they never live on disk in cleartext.
+
+**Discovery**: A DPAPI blob wrapped under `DataProtectionScope.CurrentUser` is
+decryptable ONLY by that exact Windows user account. Windows Services, by
+default, run under `LocalSystem` or a dedicated service account — a DIFFERENT
+identity than the operator who edits `appsettings.{Env}.json`. Therefore, a
+value wrapped with `--scope=CurrentUser` by the operator becomes
+**undecryptable** by the service at runtime, surfacing as a
+`CryptographicException` during `Unprotect()` that the service cannot recover
+from.
+
+**Decision**: Default `EncryptConfigValue` CLI to `DataProtectionScope.LocalMachine`.
+Keys at this scope are tied to the Windows install itself (living under
+`C:\Windows\System32\Microsoft\Protect\S-1-5-18\User`), so any process on the
+box can decrypt regardless of identity. Trade-off: local admin on the box
+grants decryption, but local admin already implies full service compromise
+(can replace binaries, read process memory), so no additional surface area.
+
+**Surfaces an entire class of UX decisions**:
+- CLI accepts `--scope=CurrentUser` but prints a warning about service-account
+  mismatch, NOT a silent acceptance.
+- Error message from `Unprotect()` explicitly lists scope-mismatch as the #1
+  cause so operators find the root cause fast.
+- SECRETS.md § Recovery documents the re-wrap-on-host procedure for the
+  common "re-imaged machine" case.
+
+**Impact**: Avoids a silent class of "service won't start, decrypt failed"
+incidents where the operator (who tested wrapping interactively) blames the
+service and spends hours before realizing the scope mismatch.
+
+**Reference**: `src/SharedKernel/Configuration/EncryptedConfigProvider.cs`
+(default scope), `src/Tools/EncryptConfigValue/Program.cs` (CLI warning),
+`docs/ops/SECRETS.md` § "Why LocalMachine (not CurrentUser)?".
+
+## LESSON-196 — Cloudflare secrets provisioning: script the bulk push, not per-key manual
+
+**Categoria**: Operations / Cloudflare
+**Task**: Phase 7.5 (provision-secrets.sh)
+**Data**: 2026-04-20
+
+**Context**: Cloudflare Worker secrets are set via `wrangler secret put <KEY>`,
+one key at a time, with the value either piped on stdin or entered
+interactively.
+
+**Discovery**: Per-key manual `wrangler secret put` during rotation produces
+three predictable failure modes:
+1. **Trailing newline contamination** — `echo "value"` (without `-n`) appends
+   a `\n` that Cloudflare stores verbatim; downstream 401s are common and
+   hard to diagnose because the value "looks right" in the dashboard.
+2. **Forgotten key** — 8 secrets × manual cadence → rotation accidentally
+   skips one; the old value stays active until the next incident.
+3. **Wrong `--env`** — easy to type `production` when meaning `staging` and
+   vice versa; silent overwrite, no confirmation.
+
+**Decision**: Wrap provisioning in a script that:
+- Reads from a gitignored file `secrets/.env.<env>` (single source of truth).
+- Validates the env arg against a closed set (`production|staging` only —
+  no typos creating new envs).
+- Uses `printf '%s'` (not `echo`) for each value — no trailing newline.
+- Skips placeholder lines (`REPLACE_*`) so unfinished rotations can't blank
+  out a working secret.
+
+**Impact**: Reduces rotation from ~15 manual wrangler invocations to one
+script call. Makes the "full secret set" auditable at a glance (just
+`cat secrets/.env.production`) instead of requiring `wrangler secret list`
+lookups.
+
+**Reference**: `scripts/provision-secrets.sh`, `scripts/Provision-Secrets.ps1`.
+
+## LESSON-197 — 90-day rotation cadence: the security/fatigue trade-off curve
+
+**Categoria**: Operations / Security Policy
+**Task**: Phase 7.5 (secret rotation policy)
+**Data**: 2026-04-20
+
+**Context**: Choosing a rotation cadence for Trading System secrets
+(Cloudflare, Telegram, Discord, SMTP, Anthropic).
+
+**Discovery**: The cadence choice sits on a curve with three regimes:
+
+- **< 30 days**: Operator fatigue kicks in. Each rotation takes ~30 min of
+  full attention; at weekly cadence, the rotation becomes autopilot and the
+  operator STOPS noticing anomalies during the "monitor 10 minutes" step.
+  Net security effect is NEGATIVE vs. longer cadence.
+- **30-120 days**: Security benefit scales roughly linearly with frequency.
+  Operator still treats each rotation as a non-routine event. This is the
+  sweet spot.
+- **> 180 days**: Blast radius of a leaked secret grows unacceptably. If the
+  leak happens day 1 of a 365-day rotation window, the attacker has nearly
+  a full year of access.
+
+**Decision**: 90-day cadence. Reasons:
+- Fits a quarterly planning rhythm (natural calendar landmarks).
+- Short enough that a leak exposure window stays < 3 months.
+- Long enough that operator attention during rotation stays high.
+- External providers (Cloudflare, Telegram, Discord) tolerate this cadence
+  without rate-limiting their rotation flows.
+
+**Automation boundary**: We do NOT auto-rotate. Manual rotation is a
+deliberate choice — it forces the operator to observe the system during
+the transition (detecting auth drift, stale clients). Auto-rotation without
+a human in the loop has a bad failure mode: a broken rotation at 3 AM
+triggers a 4-hour outage before anyone notices.
+
+**Enforcement**: GitHub issue template
+(`.github/ISSUE_TEMPLATE/secret-rotation.md`) turns the cadence into a
+recurring ticket. The checklist items are granular enough that "kinda did
+it" is visible as un-checked boxes.
+
+**Impact**: Avoids both the "never rotate" trap and the "rotate weekly"
+fatigue trap.
+
+**Reference**: `docs/ops/SECRETS.md` § Rotation,
+`.github/ISSUE_TEMPLATE/secret-rotation.md`.

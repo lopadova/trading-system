@@ -1,0 +1,23 @@
+{
+  "__": [
+    "OptionsExecutionService — STAGING overrides (Phase 7.5).",
+    "Copy to appsettings.Staging.json (gitignored), replace REPLACE_WITH_*",
+    "placeholders, and wrap secrets via the EncryptConfigValue CLI.",
+    "Start with DOTNET_ENVIRONMENT=Staging."
+  ],
+  "TradingMode": "paper",
+  "Cloudflare": {
+    "WorkerUrl": "https://ts-staging.padosoft.workers.dev",
+    "ApiKey": "DPAPI:REPLACE_WITH_PROTECTED_BASE64"
+  },
+  "Smtp": {
+    "Enabled": false,
+    "Host": "smtp.gmail.com",
+    "Port": 587,
+    "Username": "REPLACE_WITH_SMTP_USER",
+    "Password": "DPAPI:REPLACE_WITH_PROTECTED_BASE64",
+    "From": "REPLACE_WITH_FROM_ADDRESS",
+    "To": "REPLACE_WITH_TO_ADDRESS",
+    "EnableSsl": true
+  }
+}

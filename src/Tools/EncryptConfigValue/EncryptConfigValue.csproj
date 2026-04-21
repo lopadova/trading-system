@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>13.0</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- This CLI is Windows-only by design (DPAPI). Annotate the assembly
+         so CA1416 is happy with direct Protect() calls. -->
+    <SupportedOSPlatform>windows</SupportedOSPlatform>
+    <RootNamespace>Tools.EncryptConfigValue</RootNamespace>
+    <AssemblyName>EncryptConfigValue</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\SharedKernel\SharedKernel.csproj" />
+  </ItemGroup>
+
+</Project>
