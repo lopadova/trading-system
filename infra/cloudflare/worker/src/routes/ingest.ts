@@ -14,6 +14,7 @@ import { Hono, type Context } from 'hono'
 import { z } from 'zod'
 import type { Env } from '../types/env'
 import { authMiddleware } from '../middleware/auth'
+import { recordMetric } from '../lib/metrics'
 
 type IngestContext = Context<{ Bindings: Env }>
 
@@ -159,6 +160,10 @@ ingest.post('/', async (c) => {
       }
 
       default:
+        recordMetric(c.env, 'ingest.event_type', {
+          type: String(event_type),
+          status: 'rejected_unknown_type'
+        })
         return c.json(
           {
             error: 'invalid_event_type',
@@ -167,6 +172,12 @@ ingest.post('/', async (c) => {
           400
         )
     }
+
+    // Success metric — tagged by event type so Cloudflare Analytics can split.
+    recordMetric(c.env, 'ingest.event_type', {
+      type: String(event_type),
+      status: 'accepted'
+    })
 
     return c.json({
       success: true,
@@ -177,6 +188,7 @@ ingest.post('/', async (c) => {
 
   } catch (error) {
     console.error('Failed to ingest event:', error)
+    recordMetric(c.env, 'd1.error', { route: 'ingest' })
     return c.json(
       {
         error: 'ingest_error',
@@ -204,6 +216,10 @@ function validationError(
     path: i.path.join('.'),
     message: i.message
   }))
+  recordMetric(c.env, 'ingest.event_type', {
+    type: eventType,
+    status: 'rejected_validation'
+  })
   return c.json(
     {
       error: 'invalid_payload',

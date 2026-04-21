@@ -7,6 +7,10 @@ export interface Env {
   // D1 Database binding
   DB: D1Database
 
+  // Analytics Engine dataset (Phase 7.3 observability) — optional because
+  // local `wrangler dev` without the binding still needs to run.
+  METRICS?: AnalyticsEngineDataset
+
   // Environment variables
   DASHBOARD_ORIGIN: string
 

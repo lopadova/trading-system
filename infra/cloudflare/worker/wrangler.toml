@@ -11,6 +11,13 @@ database_id = "6d7a686a-000d-495d-bea2-e71dfe1e63c8"
 # To create: wrangler d1 create trading-db
 # Then replace the database_id above with the output
 
+# Analytics Engine dataset (Phase 7.3 observability)
+# Emits counters for ingest event types, auth failures, D1 errors.
+# Query via the Cloudflare dashboard > Workers > Analytics tab, or SQL API.
+[[analytics_engine_datasets]]
+binding = "METRICS"
+dataset = "trading_system_metrics"
+
 [vars]
 DASHBOARD_ORIGIN = "http://localhost:5173"
 # For production, set to actual dashboard URL: https://trading.example.com

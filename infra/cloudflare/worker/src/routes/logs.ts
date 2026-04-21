@@ -25,6 +25,7 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 import type { Env } from '../types/env'
 import { authMiddleware } from '../middleware/auth'
+import { recordMetric } from '../lib/metrics'
 
 const logs = new Hono<{ Bindings: Env }>()
 
@@ -135,10 +136,20 @@ logs.post('/', async (c) => {
       accepted++
     }
 
+    // Counter tagged by service + level. We increment once per batch (not per
+    // row) to keep the cardinality bounded; downstream `accepted` is in the
+    // response body if a caller wants row-level insight.
+    const serviceTags = new Set<string>()
+    for (const e of entries) serviceTags.add(e.service)
+    for (const svc of serviceTags) {
+      recordMetric(c.env, 'logs.batch', { service: svc, status: 'accepted' })
+    }
+
     return c.json({ accepted })
   } catch (error) {
     // Don't leak SQL internals. Log once, return a generic 500.
     console.error('[LOGS] D1 write failed:', error)
+    recordMetric(c.env, 'd1.error', { route: 'logs' })
     return c.json(
       {
         error: 'ingest_error',
