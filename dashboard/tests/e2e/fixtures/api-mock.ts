@@ -2,13 +2,20 @@ import type { Page, Route } from '@playwright/test'
 
 /**
  * Canned JSON responses for the dashboard's Worker-backed queries so E2E
- * specs can run without a live Cloudflare Worker. Every field present on
- * the real API is represented here — if a route shape drifts on the backend,
- * the corresponding contract test (tests/Contract/) will fail first and
- * flag the fixture for update.
+ * specs can run without a live Cloudflare Worker. These fixtures are meant
+ * to stay aligned with the Worker response shapes consumed by the dashboard.
+ *
+ * NOTE on coverage: the Phase 7.6 contract fixtures/tests under
+ * `tests/Contract/` cover outbox ingest payloads + ingest response envelopes
+ * — NOT the dashboard GET endpoints mocked here (e.g. `/api/risk/metrics`,
+ * `/api/system/metrics`, `/api/performance/*`). A dashboard-GET contract
+ * surface is a future enhancement; for now these mocks drift independently
+ * and a Playwright failure after a backend change means "update the mock",
+ * not "the contract test caught it first".
  *
  * Phase 7.6 — see docs/ops/RUNBOOK.md Playbook 8 (Test regressions) for the
- * procedure when a Playwright E2E starts failing after an API change.
+ * procedure when a Playwright E2E starts failing after an API change and a
+ * mocked response in this file must be updated to match the backend.
  */
 
 type JsonValue = string | number | boolean | null | JsonValue[] | { [k: string]: JsonValue }

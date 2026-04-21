@@ -16,14 +16,22 @@
 .PARAMETER EquityDays
   account_equity_daily stale threshold in days. Default 1.
 
-.PARAMETER QuotesHours
-  market_quotes_daily stale threshold in hours. Default 1.
+.PARAMETER QuotesDays
+  market_quotes_daily stale threshold in days. Default 1. The underlying
+  column is a DATE (not a timestamp), so sub-day granularity is not
+  expressible without a schema change.
 
-.PARAMETER VixHours
-  vix_term_structure stale threshold in hours. Default 1.
+.PARAMETER VixDays
+  vix_term_structure stale threshold in days. Default 1. Same date-granularity
+  note as -QuotesDays.
 
 .PARAMETER BenchmarkDays
   benchmark_series stale threshold in days. Default 1.
+
+.PARAMETER DbName
+  D1 database name. Default: parsed from infra/cloudflare/worker/wrangler.toml
+  for the given -Environment (production from the top-level block, staging
+  from the [env.staging] block).
 
 .EXAMPLE
   .\scripts\Verify-DataFreshness.ps1 -Environment staging
@@ -39,9 +47,11 @@ param(
 
     [int]$HeartbeatsMinutes = 2,
     [int]$EquityDays = 1,
-    [int]$QuotesHours = 1,
-    [int]$VixHours = 1,
-    [int]$BenchmarkDays = 1
+    [int]$QuotesDays = 1,
+    [int]$VixDays = 1,
+    [int]$BenchmarkDays = 1,
+
+    [string]$DbName = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -50,10 +60,47 @@ $ErrorActionPreference = 'Stop'
 $scriptDir = Split-Path -Parent $PSCommandPath
 $repoRoot  = Resolve-Path (Join-Path $scriptDir '..')
 $wranglerDir = Join-Path $repoRoot 'infra/cloudflare/worker'
+$wranglerConfig = Join-Path $wranglerDir 'wrangler.toml'
 
 if (-not (Test-Path (Join-Path $wranglerDir 'package.json'))) {
     Write-Error "Missing wrangler dir at $wranglerDir"
     exit 2
+}
+
+# -----------------------------------------------------------------------------
+# Resolve D1 database name — parse from wrangler.toml if -DbName was not given.
+# Production sits under the top-level [[d1_databases]] block; staging sits
+# under [env.staging.[[d1_databases]]] (or an equivalent section prefix).
+# -----------------------------------------------------------------------------
+if ([string]::IsNullOrWhiteSpace($DbName)) {
+    if (-not (Test-Path $wranglerConfig)) {
+        Write-Error "wrangler.toml not found at $wranglerConfig; pass -DbName explicitly."
+        exit 2
+    }
+    $inStaging = $false
+    foreach ($line in Get-Content -LiteralPath $wranglerConfig) {
+        if ($Environment -eq 'staging') {
+            # Match both [env.staging.vars] (single-bracket) and
+            # [[env.staging.d1_databases]] (double-bracket array-of-tables).
+            if ($line -match '^\[+env\.staging\.') { $inStaging = $true; continue }
+            if ($line -match '^\[+' -and -not ($line -match '^\[+env\.staging\.')) { $inStaging = $false }
+            if ($inStaging -and $line -match '^\s*database_name\s*=\s*"([^"]+)"') {
+                $DbName = $Matches[1]; break
+            }
+        }
+        else {
+            # Production: first database_name BEFORE any [env.*] marker.
+            if ($line -match '^\[+env\.') { break }
+            if ($line -match '^\s*database_name\s*=\s*"([^"]+)"') {
+                $DbName = $Matches[1]; break
+            }
+        }
+    }
+    if ([string]::IsNullOrWhiteSpace($DbName)) {
+        Write-Error "Could not parse database_name for Environment='$Environment' from wrangler.toml. Pass -DbName explicitly."
+        exit 2
+    }
+    Write-Host "Using D1 database: $DbName (parsed from wrangler.toml)"
 }
 
 # Production uses the default Worker env; staging takes --env staging.
@@ -63,7 +110,14 @@ if ($Environment -eq 'staging') {
 }
 
 # -----------------------------------------------------------------------------
-# Run a scalar D1 query and return the first column of the first row as string.
+# Run a scalar D1 query and return the first column of the first row.
+#
+# Return-shape semantics (required so callers can distinguish empty table
+# from command failure — the original one-$null-for-everything version
+# misclassified empty-table rows as 'error' instead of 'stale'):
+#   - [pscustomobject]@{ Ok=$true;  Value='<string>' }  — query returned a scalar value
+#   - [pscustomobject]@{ Ok=$true;  Value=$null }       — query succeeded but no rows / NULL
+#   - [pscustomobject]@{ Ok=$false; Value=$null }       — wrangler / JSON parse failure
 # -----------------------------------------------------------------------------
 function Invoke-D1Scalar {
     param(
@@ -72,24 +126,33 @@ function Invoke-D1Scalar {
     try {
         Push-Location $wranglerDir
         # --json returns [{results:[{...}]}]; we pull the first value out.
-        $rawArgs = @('wrangler', 'd1', 'execute', 'ts-d1') + $wranglerEnvFlag + @(
+        $rawArgs = @('wrangler', 'd1', 'execute', $DbName) + $wranglerEnvFlag + @(
             '--remote', '--json', '--command', $Sql
         )
         $raw = & npx @rawArgs 2>$null
         if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($raw)) {
-            return $null
+            return [pscustomobject]@{ Ok = $false; Value = $null }
         }
         $parsed = $raw | ConvertFrom-Json
+        # Empty results array (no rows) — success with null value, treated as stale upstream.
+        if ($null -eq $parsed -or $null -eq $parsed[0].results -or $parsed[0].results.Count -eq 0) {
+            return [pscustomobject]@{ Ok = $true; Value = $null }
+        }
         $firstRow = $parsed[0].results[0]
-        if ($null -eq $firstRow) { return $null }
-        # Grab first property's value regardless of column name.
-        $firstVal = ($firstRow.PSObject.Properties | Select-Object -First 1).Value
-        if ($null -eq $firstVal) { return $null }
-        return [string]$firstVal
+        if ($null -eq $firstRow) {
+            return [pscustomobject]@{ Ok = $true; Value = $null }
+        }
+        # Grab first property's value regardless of column name. A MAX() over
+        # an empty set returns SQL NULL which ConvertFrom-Json renders as $null.
+        $firstProp = $firstRow.PSObject.Properties | Select-Object -First 1
+        if ($null -eq $firstProp -or $null -eq $firstProp.Value) {
+            return [pscustomobject]@{ Ok = $true; Value = $null }
+        }
+        return [pscustomobject]@{ Ok = $true; Value = [string]$firstProp.Value }
     }
     catch {
         Write-Verbose "D1 query failed: $_"
-        return $null
+        return [pscustomobject]@{ Ok = $false; Value = $null }
     }
     finally {
         Pop-Location
@@ -124,21 +187,21 @@ function Add-Row {
 
 # service_heartbeats — column is ISO-8601 timestamp
 $thresholdIso = (Get-Date).ToUniversalTime().AddMinutes(-$HeartbeatsMinutes).ToString("yyyy-MM-ddTHH:mm:ssZ")
-$latest = Invoke-D1Scalar -Sql "SELECT MAX(last_seen_at) FROM service_heartbeats"
-if ($null -eq $latest) {
+$r = Invoke-D1Scalar -Sql "SELECT MAX(last_seen_at) FROM service_heartbeats"
+if (-not $r.Ok) {
     Add-Row 'service_heartbeats' 'error' '<query failed>' "<$HeartbeatsMinutes min"
 }
-elseif ([string]::IsNullOrWhiteSpace($latest)) {
+elseif ([string]::IsNullOrWhiteSpace($r.Value)) {
     Add-Row 'service_heartbeats' 'stale' '<empty table>' "<$HeartbeatsMinutes min"
 }
-elseif ($latest -lt $thresholdIso) {
-    Add-Row 'service_heartbeats' 'stale' $latest ">$HeartbeatsMinutes min behind"
+elseif ($r.Value -lt $thresholdIso) {
+    Add-Row 'service_heartbeats' 'stale' $r.Value ">$HeartbeatsMinutes min behind"
 }
 else {
-    Add-Row 'service_heartbeats' 'fresh' $latest "within $HeartbeatsMinutes min"
+    Add-Row 'service_heartbeats' 'fresh' $r.Value "within $HeartbeatsMinutes min"
 }
 
-# Reusable helpers for the daily-date checks. Returns $true when fresh.
+# Reusable helper for the daily-date checks (all 4 remaining tables).
 function Test-DailyByDays {
     param(
         [string]$Table,
@@ -146,52 +209,27 @@ function Test-DailyByDays {
         [int]$Days
     )
     $threshold = (Get-Date).ToUniversalTime().AddDays(-$Days).ToString("yyyy-MM-dd")
-    $latest = Invoke-D1Scalar -Sql "SELECT MAX($Column) FROM $Table"
-    if ($null -eq $latest) {
+    $r = Invoke-D1Scalar -Sql "SELECT MAX($Column) FROM $Table"
+    if (-not $r.Ok) {
         Add-Row $Table 'error' '<query failed>' "<$Days day"
         return
     }
-    if ([string]::IsNullOrWhiteSpace($latest)) {
+    if ([string]::IsNullOrWhiteSpace($r.Value)) {
         Add-Row $Table 'stale' '<empty table>' "<$Days day"
         return
     }
-    if ($latest -lt $threshold) {
-        Add-Row $Table 'stale' $latest ">$Days day(s) behind"
+    if ($r.Value -lt $threshold) {
+        Add-Row $Table 'stale' $r.Value ">$Days day(s) behind"
     }
     else {
-        Add-Row $Table 'fresh' $latest "within $Days day(s)"
+        Add-Row $Table 'fresh' $r.Value "within $Days day(s)"
     }
 }
 
-function Test-DailyByHours {
-    param(
-        [string]$Table,
-        [string]$Column,
-        [int]$Hours
-    )
-    $today = (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd")
-    $yesterday = (Get-Date).ToUniversalTime().AddDays(-1).ToString("yyyy-MM-dd")
-    $latest = Invoke-D1Scalar -Sql "SELECT MAX($Column) FROM $Table"
-    if ($null -eq $latest) {
-        Add-Row $Table 'error' '<query failed>' "<$Hours hours"
-        return
-    }
-    if ([string]::IsNullOrWhiteSpace($latest)) {
-        Add-Row $Table 'stale' '<empty table>' "<$Hours hours"
-        return
-    }
-    if ($latest -eq $today -or $latest -eq $yesterday) {
-        Add-Row $Table 'fresh' $latest "<= $Hours hours (date granularity)"
-    }
-    else {
-        Add-Row $Table 'stale' $latest ">$Hours hours behind"
-    }
-}
-
-Test-DailyByDays  -Table 'account_equity_daily' -Column 'date' -Days  $EquityDays
-Test-DailyByHours -Table 'market_quotes_daily'  -Column 'date' -Hours $QuotesHours
-Test-DailyByHours -Table 'vix_term_structure'   -Column 'date' -Hours $VixHours
-Test-DailyByDays  -Table 'benchmark_series'     -Column 'date' -Days  $BenchmarkDays
+Test-DailyByDays -Table 'account_equity_daily' -Column 'date' -Days $EquityDays
+Test-DailyByDays -Table 'market_quotes_daily'  -Column 'date' -Days $QuotesDays
+Test-DailyByDays -Table 'vix_term_structure'   -Column 'date' -Days $VixDays
+Test-DailyByDays -Table 'benchmark_series'     -Column 'date' -Days $BenchmarkDays
 
 # -----------------------------------------------------------------------------
 # Report

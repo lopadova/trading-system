@@ -10,12 +10,19 @@
 #
 #   --heartbeats-minutes <N>     default 2      (any service)
 #   --equity-days <N>            default 1      (after last US market close)
-#   --quotes-hours <N>           default 1      (after last US market close)
-#   --vix-hours <N>              default 1      (same as quotes)
+#   --quotes-days <N>            default 1      (date column, not hour-granular)
+#   --vix-days <N>               default 1      (date column, not hour-granular)
 #   --benchmark-days <N>         default 1
 #
+# NOTE on quotes/vix: the underlying tables store a DATE column (not a full
+# timestamp), so sub-day granularity is not expressible today. The flag is
+# intentionally days-based. If we ever need hour-level freshness we must
+# first add a timestamp column (e.g. 'last_updated_at') to market_quotes_daily
+# and vix_term_structure.
+#
 # Target Worker:
-#   --env production | staging    default production
+#   --env production | staging   default production
+#   --db-name <NAME>             default parsed from wrangler.toml for --env
 #
 # Exits non-zero on any stale table and prints a concise table.
 # ---------------------------------------------------------------------------
@@ -24,15 +31,17 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 WRANGLER_DIR="${REPO_ROOT}/infra/cloudflare/worker"
+WRANGLER_CONFIG="${WRANGLER_DIR}/wrangler.toml"
 
 # ----------------------------------------------------------------------------
 # Defaults
 # ----------------------------------------------------------------------------
 ENV="production"
+DB_NAME=""           # if unset, parsed from wrangler.toml after env parse
 HEARTBEATS_MIN=2
 EQUITY_DAYS=1
-QUOTES_HOURS=1
-VIX_HOURS=1
+QUOTES_DAYS=1
+VIX_DAYS=1
 BENCHMARK_DAYS=1
 
 usage() {
@@ -43,10 +52,11 @@ Verifies freshness of 5 D1 tables populated by the Trading System outbox.
 
 Options:
   --env <production|staging>   Target Worker env. Default: production.
+  --db-name <NAME>             D1 database name. Default: parsed from wrangler.toml.
   --heartbeats-minutes <N>     service_heartbeats stale threshold. Default: ${HEARTBEATS_MIN}.
   --equity-days <N>            account_equity_daily stale threshold. Default: ${EQUITY_DAYS}.
-  --quotes-hours <N>           market_quotes_daily stale threshold. Default: ${QUOTES_HOURS}.
-  --vix-hours <N>              vix_term_structure stale threshold. Default: ${VIX_HOURS}.
+  --quotes-days <N>            market_quotes_daily stale threshold. Default: ${QUOTES_DAYS}.
+  --vix-days <N>               vix_term_structure stale threshold. Default: ${VIX_DAYS}.
   --benchmark-days <N>         benchmark_series stale threshold. Default: ${BENCHMARK_DAYS}.
   -h | --help                  Show this help.
 
@@ -64,14 +74,16 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --env)
       ENV="$2"; shift 2;;
+    --db-name)
+      DB_NAME="$2"; shift 2;;
     --heartbeats-minutes)
       HEARTBEATS_MIN="$2"; shift 2;;
     --equity-days)
       EQUITY_DAYS="$2"; shift 2;;
-    --quotes-hours)
-      QUOTES_HOURS="$2"; shift 2;;
-    --vix-hours)
-      VIX_HOURS="$2"; shift 2;;
+    --quotes-days)
+      QUOTES_DAYS="$2"; shift 2;;
+    --vix-days)
+      VIX_DAYS="$2"; shift 2;;
     --benchmark-days)
       BENCHMARK_DAYS="$2"; shift 2;;
     -h|--help)
@@ -89,6 +101,42 @@ case "${ENV}" in
     echo "ERROR: --env must be 'production' or 'staging', got '${ENV}'" >&2
     exit 2;;
 esac
+
+# ----------------------------------------------------------------------------
+# DB name resolution — parse from wrangler.toml unless --db-name was given.
+# Production lives under the top-level [[d1_databases]] block; staging lives
+# under [env.staging.[[d1_databases]]]. We tolerate either ordering and
+# whitespace around '=' and the quoted value.
+# ----------------------------------------------------------------------------
+if [ -z "${DB_NAME}" ]; then
+  if [ ! -f "${WRANGLER_CONFIG}" ]; then
+    echo "ERROR: wrangler.toml not found at ${WRANGLER_CONFIG}; pass --db-name explicitly." >&2
+    exit 2
+  fi
+  if [ "${ENV}" = "staging" ]; then
+    # First database_name AFTER the staging section marker. Section marker
+    # can be either [env.staging.*] (single-bracket table) or
+    # [[env.staging.d1_databases]] (double-bracket array-of-tables); match both.
+    DB_NAME=$(awk '
+      /^\[+env\.staging\./              { in_staging=1; next }
+      /^\[+/ && !/^\[+env\.staging\./   { in_staging=0 }
+      in_staging && /^[[:space:]]*database_name[[:space:]]*=/ {
+        match($0, /"[^"]*"/); print substr($0, RSTART+1, RLENGTH-2); exit
+      }' "${WRANGLER_CONFIG}")
+  else
+    # Production: first database_name BEFORE any [env.*] section marker.
+    DB_NAME=$(awk '
+      /^\[env\./ { exit }
+      /^[[:space:]]*database_name[[:space:]]*=/ {
+        match($0, /"[^"]*"/); print substr($0, RSTART+1, RLENGTH-2); exit
+      }' "${WRANGLER_CONFIG}")
+  fi
+  if [ -z "${DB_NAME}" ]; then
+    echo "ERROR: could not parse database_name for env='${ENV}' from ${WRANGLER_CONFIG}. Pass --db-name explicitly." >&2
+    exit 2
+  fi
+  echo "Using D1 database: ${DB_NAME} (parsed from wrangler.toml)"
+fi
 
 # ----------------------------------------------------------------------------
 # Prerequisites
@@ -120,7 +168,7 @@ run_d1_scalar() {
   local sql="$1"
   local raw
   # shellcheck disable=SC2086 # WRANGLER_ENV_FLAG is intentionally unquoted
-  raw=$(cd "${WRANGLER_DIR}" && npx wrangler d1 execute ts-d1 ${WRANGLER_ENV_FLAG} \
+  raw=$(cd "${WRANGLER_DIR}" && npx wrangler d1 execute "${DB_NAME}" ${WRANGLER_ENV_FLAG} \
     --remote --json --command "${sql}" 2>/dev/null) || return 1
   # Shape: [ { "results": [ { "col": "..." } ] } ]. Extract first value.
   echo "${raw}" | jq -r '.[0].results[0] | to_entries[0].value // empty'
@@ -202,48 +250,14 @@ check_daily_by_days() {
   fi
 }
 
-# For vix_term_structure / market_quotes_daily the freshness granularity is
-# hours but the column is still a date; we compare dates and allow today's
-# date to always pass when within business hours.
-check_daily_by_hours() {
-  local table="$1"
-  local column="$2"
-  local hours="$3"
-  local latest sql today
-  today=$(date -u '+%Y-%m-%d')
-  sql="SELECT MAX(${column}) FROM ${table}"
-  if ! latest=$(run_d1_scalar "${sql}"); then
-    ROWS+=("${table}|error|<query failed>|<${hours} hours")
-    ERROR_COUNT=$((ERROR_COUNT + 1))
-    return
-  fi
-  if [ -z "${latest}" ] || [ "${latest}" = "null" ]; then
-    ROWS+=("${table}|stale|<empty table>|<${hours} hours")
-    STALE_COUNT=$((STALE_COUNT + 1))
-    return
-  fi
-  # Simpler rule for the day column: must be today OR yesterday (if running
-  # before the next-day ingest completes, yesterday is acceptable). Day math
-  # keeps the check intelligible; precise hour-level freshness requires a
-  # timestamp column which this table does not expose.
-  local yesterday
-  yesterday=$(date -u -d "-1 day" '+%Y-%m-%d' 2>/dev/null || date -u -v "-1d" '+%Y-%m-%d')
-  if [ "${latest}" = "${today}" ] || [ "${latest}" = "${yesterday}" ]; then
-    ROWS+=("${table}|fresh|${latest}|≤ ${hours} hours (date granularity)")
-  else
-    ROWS+=("${table}|stale|${latest}|>${hours} hours behind")
-    STALE_COUNT=$((STALE_COUNT + 1))
-  fi
-}
-
 # ----------------------------------------------------------------------------
 # Run
 # ----------------------------------------------------------------------------
 echo "Running data-freshness checks against env='${ENV}'..."
 check_heartbeats
 check_daily_by_days "account_equity_daily" "date" "${EQUITY_DAYS}"
-check_daily_by_hours "market_quotes_daily" "date" "${QUOTES_HOURS}"
-check_daily_by_hours "vix_term_structure" "date" "${VIX_HOURS}"
+check_daily_by_days "market_quotes_daily" "date" "${QUOTES_DAYS}"
+check_daily_by_days "vix_term_structure" "date" "${VIX_DAYS}"
 check_daily_by_days "benchmark_series" "date" "${BENCHMARK_DAYS}"
 
 # ----------------------------------------------------------------------------

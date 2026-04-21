@@ -87,28 +87,23 @@ public sealed class OutboxEventContractTests
     }
 
     // ---------------------------------------------------------------------
-    // account_equity — anonymous object with SnakeCaseLower. Taken from the
-    // Worker's Zod schema in ingest.ts (AccountEquityPayloadSchema). NOTE:
-    // the MarketDataCollector emits account_id + margin_used but NOT
-    // margin_used_pct; for the contract test we assert the Worker-expected
-    // shape, not the producer's current shape — this lets the test flag
-    // the mismatch as a real contract violation (see lesson).
+    // account_equity — real producer payload from MarketDataCollector
+    // (EmitAccountEquityAsync). Anonymous object, SnakeCaseLower policy.
+    // Producer emits: date, account_id, account_value, cash, buying_power,
+    // margin_used. It does NOT emit margin_used_pct — the Worker computes
+    // that ratio downstream (see handleAccountEquity in ingest.ts).
     // ---------------------------------------------------------------------
     [Fact]
-    public void AccountEquity_payload_matches_worker_schema()
+    public void AccountEquity_producer_payload_matches_fixture()
     {
-        // The canonical shape the Worker expects (AccountEquityPayloadSchema
-        // in infra/cloudflare/worker/src/routes/ingest.ts). When the
-        // producer (MarketDataCollector) is updated to emit margin_used_pct
-        // this serialization and the fixture are already aligned.
         object payload = new
         {
             date = "2026-04-20",
+            account_id = "DU1234567",
             account_value = 125400.50,
             cash = 54200.00,
             buying_power = 98000.00,
-            margin_used = 27200.50,
-            margin_used_pct = 21.69
+            margin_used = 27200.50
         };
 
         string actual = JsonSerializer.Serialize(payload, SnakeCase);
@@ -118,13 +113,11 @@ public sealed class OutboxEventContractTests
     }
 
     // ---------------------------------------------------------------------
-    // market_quote — MarketDataCollector.cs L441, SnakeCase anonymous
-    // object. NOTE producer emits prev_close (not in Zod schema); for the
-    // contract test we lock the SHAPE the Worker validates — prev_close is
-    // optional/ignored, volume is optional/nullable.
+    // market_quote — real producer payload from MarketDataCollector
+    // (L441). Producer emits symbol/date/OHLC + prev_close + volume.
     // ---------------------------------------------------------------------
     [Fact]
-    public void MarketQuote_payload_matches_worker_schema()
+    public void MarketQuote_producer_payload_matches_fixture()
     {
         object payload = new
         {
@@ -134,6 +127,7 @@ public sealed class OutboxEventContractTests
             high = 5415.88,
             low = 5398.22,
             close = 5410.25,
+            prev_close = 5395.40,
             volume = 2543211
         };
 
@@ -144,20 +138,19 @@ public sealed class OutboxEventContractTests
     }
 
     // ---------------------------------------------------------------------
-    // vix_snapshot — MarketDataCollector.cs L502. Producer emits date,
-    // vix, vix3m. Worker schema also allows vix1d and vix6m. Lock the
-    // maximal shape the Worker validates.
+    // vix_snapshot — real producer payload from MarketDataCollector
+    // (EmitVixSnapshotAsync, L502). Producer ONLY emits date/vix/vix3m.
+    // The Worker schema optionally accepts vix1d/vix6m but the producer
+    // doesn't subscribe to those contracts today.
     // ---------------------------------------------------------------------
     [Fact]
-    public void VixSnapshot_payload_matches_worker_schema()
+    public void VixSnapshot_producer_payload_matches_fixture()
     {
         object payload = new
         {
             date = "2026-04-20",
             vix = 14.22,
-            vix1d = 12.88,
-            vix3m = 15.10,
-            vix6m = 16.02
+            vix3m = 15.10
         };
 
         string actual = JsonSerializer.Serialize(payload, SnakeCase);
@@ -167,18 +160,20 @@ public sealed class OutboxEventContractTests
     }
 
     // ---------------------------------------------------------------------
-    // benchmark_close — BenchmarkCollector.cs L419, SnakeCase. Producer
-    // emits symbol, date, close. Worker schema also allows close_normalized.
+    // benchmark_close — real producer payload from BenchmarkCollector
+    // (QueueBenchmarkCloseEventAsync, L419). Producer emits symbol, date,
+    // close only. Worker schema optionally accepts close_normalized for
+    // pre-normalized (base-100) series, but the collector defers that
+    // math to D1 (there's no normalization step in the .NET side yet).
     // ---------------------------------------------------------------------
     [Fact]
-    public void BenchmarkClose_payload_matches_worker_schema()
+    public void BenchmarkClose_producer_payload_matches_fixture()
     {
         object payload = new
         {
             symbol = "SPX",
             date = "2026-04-20",
-            close = 5410.25,
-            close_normalized = 100.0
+            close = 5410.25
         };
 
         string actual = JsonSerializer.Serialize(payload, SnakeCase);

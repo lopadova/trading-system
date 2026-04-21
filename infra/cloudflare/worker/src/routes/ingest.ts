@@ -35,11 +35,16 @@ const optionalNumber = z.number().nullable().optional()
 
 export const AccountEquityPayloadSchema = z.object({
   date: isoDate,
+  // Optional — MarketDataCollector emits the IBKR account id when known;
+  // legacy callers without a multi-account setup may omit it.
+  account_id: z.string().min(1).max(64).nullable().optional(),
   account_value: z.number(),
   cash: z.number(),
   buying_power: z.number(),
   margin_used: z.number(),
-  margin_used_pct: z.number()
+  // Optional — producer currently emits margin_used only. Worker aggregate
+  // endpoints that need the ratio compute it as margin_used/account_value.
+  margin_used_pct: optionalNumber
 })
 
 export const MarketQuotePayloadSchema = z.object({
@@ -49,6 +54,9 @@ export const MarketQuotePayloadSchema = z.object({
   high: optionalNumber,
   low: optionalNumber,
   close: z.number(),
+  // Producer emits prev_close for regime/return computation; schema accepts
+  // it as optional so legacy callers without the field still pass.
+  prev_close: optionalNumber,
   volume: z.number().int().nullable().optional()
 })
 
@@ -408,6 +416,18 @@ async function handleAccountEquity(
   eventId: string,
   payload: z.infer<typeof AccountEquityPayloadSchema>
 ) {
+  // margin_used_pct is optional on the wire (producer may not emit it).
+  // When absent, compute the ratio here so downstream reads (risk.ts margin
+  // gauge) always find a value. Guard against account_value=0 which would
+  // produce ±Infinity — treat it as "unknown" / null.
+  const pctFromPayload = payload.margin_used_pct ?? null
+  const computedPct =
+    pctFromPayload !== null
+      ? pctFromPayload
+      : payload.account_value > 0
+        ? (payload.margin_used / payload.account_value) * 100
+        : null
+
   const sql = `
     INSERT OR REPLACE INTO account_equity_daily
       (date, account_value, cash, buying_power, margin_used, margin_used_pct)
@@ -420,7 +440,7 @@ async function handleAccountEquity(
       payload.cash,
       payload.buying_power,
       payload.margin_used,
-      payload.margin_used_pct
+      computedPct
     )
     .run()
 

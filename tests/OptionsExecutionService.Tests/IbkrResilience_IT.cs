@@ -166,17 +166,18 @@ public sealed class IbkrResilience_IT : IAsyncDisposable
         Assert.Equal(attemptsMade, _auditSink.Entries.Count);
 
         // During "down" windows, OrderPlacer hits the "IBKR client is not
-        // connected" branch which writes AuditOutcome.Error.
+        // connected" branch which writes AuditOutcome.Error. Setup is fully
+        // deterministic (fixed green gate, permissive safety config,
+        // FlappingIbkrClient always accepts when connected), so we assert
+        // EXACT counts — a drift here is a real regression in the
+        // connection-check / auditing paths, not test flake.
         int errorRows = _auditSink.Entries.Count(e => e.Outcome == AuditOutcome.Error.ToWire());
-        Assert.True(errorRows >= attemptsWhileDown / 2,
-            $"Expected at least {attemptsWhileDown / 2} error audits during down windows, got {errorRows}. " +
-            "This suggests some down-window attempts did NOT produce an audit row — silent drop.");
+        Assert.Equal(attemptsWhileDown, errorRows);
 
         // During "up" windows, each successful submission writes
         // AuditOutcome.Placed. FlappingIbkrClient defaults to accepting.
         int placedRows = _auditSink.Entries.Count(e => e.Outcome == AuditOutcome.Placed.ToWire());
-        Assert.True(placedRows >= placedWhileConnected / 2,
-            $"Expected at least {placedWhileConnected / 2} placed audits during up windows, got {placedRows}.");
+        Assert.Equal(placedWhileConnected, placedRows);
 
         // -- Contract #3: no duplicate broker submissions --------------------
         // Each broker submission's (ibkrOrderId, contractSymbol) pair must

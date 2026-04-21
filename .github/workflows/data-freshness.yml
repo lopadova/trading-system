@@ -88,13 +88,22 @@ jobs:
             exit 0
           fi
           ENV="${{ github.event.inputs.environment || 'production' }}"
-          REPORT=$(cat freshness-report.txt | tail -20)
-          # Telegram text is HTML-formatted; fence the report with <pre> so
-          # the monospace alignment survives.
+          RAW_REPORT=$(cat freshness-report.txt | tail -20)
+          # The report contains literal '<empty table>' / '<query failed>'
+          # placeholders which Telegram HTML parse-mode would interpret as
+          # tags and reject (or mangle) the message. Escape &, <, > BEFORE
+          # wrapping in <pre>...</pre>. Must escape & first, otherwise it
+          # would double-escape the others.
+          ESCAPED_REPORT=$(printf '%s' "${RAW_REPORT}" \
+            | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g')
+          # Same treatment for the env tag in case a future env name picks up
+          # special chars — trivially cheap insurance.
+          ESCAPED_ENV=$(printf '%s' "${ENV}" \
+            | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g')
           MESSAGE="<b>⚠ Data-freshness FAILED</b>
-Env: <code>${ENV}</code>
+Env: <code>${ESCAPED_ENV}</code>
 Run: <a href=\"${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}\">${GITHUB_RUN_ID}</a>
-<pre>${REPORT}</pre>"
+<pre>${ESCAPED_REPORT}</pre>"
 
           curl -sS -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
             -d "chat_id=${CHAT_ID}" \
