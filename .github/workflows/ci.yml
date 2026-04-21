@@ -196,15 +196,22 @@ jobs:
           fi
           echo "Gitignore rules verified"
 
-  # Job 5: Deploy (manual trigger only)
-  # ⚠ DISABLED until Phase 7 production-readiness (per Lorenzo).
-  # Re-enable by removing `if: false` once the real market-data pipeline
-  # and deployment runbook are in place.
+  # Job 5: Deploy to PRODUCTION (manual trigger only — workflow_dispatch).
+  #
+  # Re-enabled in Phase 7.7 (post go-live ops). Production deploys are
+  # manual-only: they require a human to open Actions → "Run workflow"
+  # and confirm the branch. The `environment: production` binding picks
+  # up the GitHub environment-protection rule (reviewer required) that
+  # Lorenzo configures in the repo settings — see
+  # docs/ops/BRANCH_PROTECTION.md § 4.
+  #
+  # Push to main does NOT trigger this job. See `deploy-staging` below
+  # for the auto-deploy path.
   deploy:
-    name: Deploy
+    name: Deploy to Production
     runs-on: ubuntu-latest
     needs: [dotnet-build-test, cloudflare-worker, dashboard, security]
-    if: false && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     environment: production
 
     steps:
@@ -221,8 +228,8 @@ jobs:
           cache: npm
 
       # Deploy Cloudflare Worker — use npm ci (not bun install) so re-enabling
-      # this (by removing the `if: false &&` gate) won't regress to the
-      # @img/sharp-libvips tarball failure seen when we used bun.
+      # this won't regress to the @img/sharp-libvips tarball failure seen
+      # when we used bun.
       - name: Deploy Cloudflare Worker
         working-directory: infra/cloudflare/worker
         env:
@@ -239,7 +246,9 @@ jobs:
         run: |
           npx wrangler pages deploy dist/ --project-name=trading-dashboard
 
-      # Note: Windows Services must be deployed manually
+      # Note: Windows Services must be deployed manually — the runbook
+      # in docs/DEPLOYMENT_GUIDE.md describes the download-and-install
+      # procedure the operator runs on the service host.
       - name: Windows Services Deployment Note
         run: |
           echo "Windows Services binaries are available in artifacts."
@@ -247,3 +256,36 @@ jobs:
           echo "  1. Download windows-services artifact"
           echo "  2. Run infra/windows/install-supervisor.ps1"
           echo "  3. Run infra/windows/install-options-engine.ps1"
+
+  # Job 6: Deploy to STAGING (auto on merge to main).
+  #
+  # Staging does NOT use the `environment: production` protection —
+  # staging exists precisely to catch issues BEFORE they need a reviewer.
+  # Every merge to main ends up on staging; production stays manual.
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [dotnet-build-test, cloudflare-worker, dashboard, security]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: staging
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: infra/cloudflare/worker/package-lock.json
+
+      - name: Install worker dependencies
+        working-directory: infra/cloudflare/worker
+        run: npm ci --no-audit --no-fund
+
+      - name: Deploy Cloudflare Worker to staging
+        working-directory: infra/cloudflare/worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: npx wrangler deploy --env staging
