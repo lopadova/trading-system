@@ -2827,3 +2827,21 @@ Two rules we learned the hard way:
 
 **Reference**: `src/TradingSupervisorService/Workers/BenchmarkCollector.cs` (`ShouldRunNow()`), `src/TradingSupervisorService/appsettings.json` (`BenchmarkCollector:DailyRunTimeUtc`).
 
+---
+
+## LESSON-184 — [Lint tech debt] Clear 26 warnings + re-promote to error
+
+**Contesto**: chore/lint-cleanup (2026-04-21). `dashboard/eslint.config.js` had 5 rules downgraded from `error` → `warn` to unblock CI during Phase 7 feature work (commit 10adfb9). 26 warnings had accumulated (12 no-unused-vars, 10 no-explicit-any, 2 no-empty-object-type, 1 no-useless-escape, 1 prefer-const).
+
+**Scoperta**: Most impactful fixes and patterns:
+- **motion/react mocks** were the single largest cluster of `any` (5 sites across WizardComponents / ELConverter / Step06-09 test files). The right shape is `HTMLAttributes<HTMLDivElement> & { children?: ReactNode }` for `motion.div` and `{ children?: ReactNode }` for `AnimatePresence`. Define both as named types at the top of the test file and reuse.
+- **Mocked Zustand store hooks** should use `vi.mocked(useStore).mockReturnValue(...)` instead of `(useStore as any).mockReturnValue(...)`. For partial return shapes, cast the value via `as unknown as ReturnType<typeof useStore>` — this surfaces at review time when the partial shape is no longer sufficient for the test's consumer.
+- **ES2019 optional catch**: `try { ... } catch { ... }` drops the unused `error` binding entirely — cleaner than `catch (_error)`. Used in 3 sites (ImportDropzone, integration-zustand.test.ts x2).
+- **Zustand persist partialize** that strips action functions from persisted state must destructure them to exclude them; prefix each action name with `_` (e.g. `_updateSettings`) to silence no-unused-vars. `varsIgnorePattern: '^_'` in the rule config makes this the contract.
+- **vitest module augmentation** (`interface Assertion<T> extends TestingLibraryMatchers<T, void> {}`) requires an `interface` declaration for declaration merging — a type alias cannot merge into an existing vitest module. This is one of the few legitimate `// eslint-disable-next-line @typescript-eslint/no-empty-object-type` cases; the disable lives in `dashboard/src/vitest.d.ts` with a comment explaining why.
+- **Culture-invariant regex fix (useless-escape)**: `/[+\-*\/=<>()[\]{},;]/` — the `\/` inside a character class is redundant; `/` only needs escaping as a regex literal delimiter, not inside `[...]`.
+- **Test-only invalid-union casts**: when a test deliberately passes an out-of-union value to verify runtime fallback (e.g. `incrementVersion(v, 'invalid')` where the param is `'major' | 'minor' | 'patch'`), cast via `unknown as Parameters<typeof fn>[N]` — this is type-clean, test-honest, and still triggers a review if the function signature changes.
+
+**Impatto**: Dashboard now fails CI on new ESLint debt instead of silently accumulating as warnings. 5 rules are back to `error`: `no-unused-vars`, `no-explicit-any`, `no-empty-object-type`, `no-useless-escape`, `prefer-const`. Only one targeted `eslint-disable` remains (the vitest module-augmentation interfaces, inherently required by the library).
+
+**Reference**: PR chore/lint-cleanup (based on feat/ci-fixes-and-phase7-plan), commits 0de9ff0 / 6ccea88 / 26dd431 / b5296cb.
