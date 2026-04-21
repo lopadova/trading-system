@@ -13,6 +13,14 @@ jobs:
   build-and-test:
     name: Build and Test .NET Services
     runs-on: windows-latest
+    permissions:
+      # dorny/test-reporter creates GitHub Check Runs — without `checks: write`
+      # GitHub Actions default tokens can't publish the TRX results and the
+      # step fails with "Resource not accessible by integration".
+      # `pull-requests: write` lets the reporter attach the summary to PRs.
+      contents: read
+      checks: write
+      pull-requests: write
 
     steps:
     - name: Checkout code
@@ -34,6 +42,9 @@ jobs:
 
     - name: Publish test results
       uses: dorny/test-reporter@v1
+      # Defensive: if token permissions ever get clipped (forks, etc.), a
+      # reporter failure should NOT mask a genuine build/test failure.
+      continue-on-error: true
       if: always()
       with:
         name: .NET Test Results

@@ -1,0 +1,10 @@
+{
+  "position_id": "p-abc123",
+  "snapshot_ts": "2026-04-20T14:30:00.0000000Z",
+  "delta": 0.35,
+  "gamma": 0.015,
+  "theta": -12.50,
+  "vega": 8.20,
+  "iv": 0.22,
+  "underlying_price": 5410.25
+}

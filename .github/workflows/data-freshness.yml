@@ -1,0 +1,118 @@
+# Phase 7.6 — Scheduled data-freshness verifier
+#
+# Runs verify-data-freshness.sh every day at 22:00 UTC (18:00 ET, well after
+# the 16:00 ET US market close so the post-close ingest has had ~2h to
+# land). On failure, alerts via the existing Telegram bot.
+#
+# Manual dispatch is also available for on-demand checks.
+
+name: Data Freshness Check
+
+on:
+  schedule:
+    # Daily at 22:00 UTC (18:00 ET winter / 18:00 ET summer). Runs every day
+    # including weekends — weekend runs will flag quotes/vix/benchmark as
+    # stale, which is WAI; the operator can dismiss those alerts Sat/Sun.
+    # A future enhancement could skip Sat/Sun entirely.
+    - cron: '0 22 * * *'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Which Worker env to check'
+        required: false
+        default: 'production'
+        type: choice
+        options: [production, staging]
+
+concurrency:
+  # Prevent two overlapping runs from racing against wrangler. D1 reads are
+  # cheap but the auth flow has state; serializing avoids spurious 401s.
+  group: data-freshness-${{ github.event.inputs.environment || 'production' }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify D1 freshness
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: npm
+          cache-dependency-path: infra/cloudflare/worker/package-lock.json
+
+      - name: Install worker deps (for wrangler)
+        working-directory: infra/cloudflare/worker
+        run: npm ci --no-audit --no-fund
+
+      - name: Install jq
+        # apt jq is on the ubuntu-latest image already, but confirm in case
+        # a future runner image strips it.
+        run: sudo apt-get install -y jq
+
+      - name: Run freshness check
+        id: check
+        continue-on-error: true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          ENV="${{ github.event.inputs.environment || 'production' }}"
+          set +e
+          bash scripts/verify-data-freshness.sh --env "${ENV}" | tee freshness-report.txt
+          rc=${PIPESTATUS[0]}
+          set -e
+          echo "rc=${rc}" >> "${GITHUB_OUTPUT}"
+          exit ${rc}
+
+      - name: Upload report as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: data-freshness-report-${{ github.run_id }}
+          path: freshness-report.txt
+          retention-days: 30
+
+      - name: Alert via Telegram on failure
+        if: steps.check.outcome == 'failure'
+        env:
+          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          if [ -z "${BOT_TOKEN}" ] || [ -z "${CHAT_ID}" ]; then
+            echo "::warning::TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID not set — skipping alert"
+            exit 0
+          fi
+          ENV="${{ github.event.inputs.environment || 'production' }}"
+          RAW_REPORT=$(cat freshness-report.txt | tail -20)
+          # The report contains literal '<empty table>' / '<query failed>'
+          # placeholders which Telegram HTML parse-mode would interpret as
+          # tags and reject (or mangle) the message. Escape &, <, > BEFORE
+          # wrapping in <pre>...</pre>. Must escape & first, otherwise it
+          # would double-escape the others.
+          ESCAPED_REPORT=$(printf '%s' "${RAW_REPORT}" \
+            | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g')
+          # Same treatment for the env tag in case a future env name picks up
+          # special chars — trivially cheap insurance.
+          ESCAPED_ENV=$(printf '%s' "${ENV}" \
+            | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g')
+          MESSAGE="<b>⚠ Data-freshness FAILED</b>
+Env: <code>${ESCAPED_ENV}</code>
+Run: <a href=\"${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}\">${GITHUB_RUN_ID}</a>
+<pre>${ESCAPED_REPORT}</pre>"
+
+          curl -sS -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
+            -d "chat_id=${CHAT_ID}" \
+            -d "parse_mode=HTML" \
+            --data-urlencode "text=${MESSAGE}" \
+            > /dev/null
+
+      - name: Re-raise failure so the workflow status reflects staleness
+        if: steps.check.outcome == 'failure'
+        run: |
+          echo "Freshness check failed (rc=${{ steps.check.outputs.rc }}). See report above."
+          exit 1

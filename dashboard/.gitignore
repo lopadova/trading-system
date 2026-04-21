@@ -26,3 +26,8 @@ dist-ssr
 # Local dev env (contains secrets)
 .env.local
 .env.*.local
+
+# Playwright artifacts (E2E — Phase 7.6)
+/playwright-report/
+/test-results/
+/playwright/.cache/

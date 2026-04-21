@@ -33,26 +33,34 @@ const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected ISO date YYYY-
 // Optional nullable number helper (payloads may omit or explicitly null)
 const optionalNumber = z.number().nullable().optional()
 
-const AccountEquityPayloadSchema = z.object({
+export const AccountEquityPayloadSchema = z.object({
   date: isoDate,
+  // Optional — MarketDataCollector emits the IBKR account id when known;
+  // legacy callers without a multi-account setup may omit it.
+  account_id: z.string().min(1).max(64).nullable().optional(),
   account_value: z.number(),
   cash: z.number(),
   buying_power: z.number(),
   margin_used: z.number(),
-  margin_used_pct: z.number()
+  // Optional — producer currently emits margin_used only. Worker aggregate
+  // endpoints that need the ratio compute it as margin_used/account_value.
+  margin_used_pct: optionalNumber
 })
 
-const MarketQuotePayloadSchema = z.object({
+export const MarketQuotePayloadSchema = z.object({
   symbol: z.string().min(1).max(32),
   date: isoDate,
   open: optionalNumber,
   high: optionalNumber,
   low: optionalNumber,
   close: z.number(),
+  // Producer emits prev_close for regime/return computation; schema accepts
+  // it as optional so legacy callers without the field still pass.
+  prev_close: optionalNumber,
   volume: z.number().int().nullable().optional()
 })
 
-const VixSnapshotPayloadSchema = z.object({
+export const VixSnapshotPayloadSchema = z.object({
   date: isoDate,
   vix: optionalNumber,
   vix1d: optionalNumber,
@@ -60,14 +68,14 @@ const VixSnapshotPayloadSchema = z.object({
   vix6m: optionalNumber
 })
 
-const BenchmarkClosePayloadSchema = z.object({
+export const BenchmarkClosePayloadSchema = z.object({
   symbol: z.string().min(1).max(32),
   date: isoDate,
   close: z.number(),
   close_normalized: optionalNumber
 })
 
-const PositionGreeksPayloadSchema = z.object({
+export const PositionGreeksPayloadSchema = z.object({
   position_id: z.string().min(1),
   snapshot_ts: z.string().min(1),  // ISO 8601 timestamp (not just date)
   delta: optionalNumber,
@@ -81,7 +89,7 @@ const PositionGreeksPayloadSchema = z.object({
 // Phase 7.3 — browser Web Vitals emitted by the dashboard web-vitals reporter.
 // Kept lenient: clients can send the raw payload produced by the web-vitals
 // library (name, value, id, navigationType, rating) without preprocessing.
-const WebVitalsPayloadSchema = z.object({
+export const WebVitalsPayloadSchema = z.object({
   session_id: z.string().min(1),
   name: z.enum(['CLS', 'INP', 'LCP', 'FCP', 'TTFB']),
   value: z.number(),
@@ -95,7 +103,7 @@ const WebVitalsPayloadSchema = z.object({
 // (placed / filled / rejected_* / error). Matches the OrderAuditEntry contract
 // in src/SharedKernel/Safety/OrderAuditEntry.cs. audit_id is the PK for
 // idempotent replays.
-const ALLOWED_AUDIT_OUTCOMES = [
+export const ALLOWED_AUDIT_OUTCOMES = [
   'placed',
   'filled',
   'rejected_semaphore',
@@ -109,7 +117,7 @@ const ALLOWED_AUDIT_OUTCOMES = [
   'error'
 ] as const
 
-const OrderAuditPayloadSchema = z.object({
+export const OrderAuditPayloadSchema = z.object({
   audit_id: z.string().min(1).max(128),
   order_id: z.string().min(1).max(128).nullable().optional(),
   ts: z.string().min(1),                                // ISO-8601 timestamp
@@ -408,6 +416,18 @@ async function handleAccountEquity(
   eventId: string,
   payload: z.infer<typeof AccountEquityPayloadSchema>
 ) {
+  // margin_used_pct is optional on the wire (producer may not emit it).
+  // When absent, compute the ratio here so downstream reads (risk.ts margin
+  // gauge) always find a value. Guard against account_value=0 which would
+  // produce ±Infinity — treat it as "unknown" / null.
+  const pctFromPayload = payload.margin_used_pct ?? null
+  const computedPct =
+    pctFromPayload !== null
+      ? pctFromPayload
+      : payload.account_value > 0
+        ? (payload.margin_used / payload.account_value) * 100
+        : null
+
   const sql = `
     INSERT OR REPLACE INTO account_equity_daily
       (date, account_value, cash, buying_power, margin_used, margin_used_pct)
@@ -420,7 +440,7 @@ async function handleAccountEquity(
       payload.cash,
       payload.buying_power,
       payload.margin_used,
-      payload.margin_used_pct
+      computedPct
     )
     .run()
 
