@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -8,6 +9,8 @@ using SharedKernel.Data;
 using SharedKernel.Ibkr;
 using SharedKernel.Observability;
 using SharedKernel.Options;
+using SharedKernel.Safety;
+using SharedKernel.Services;
 using SharedKernel.Strategy;
 using OptionsExecutionService.Campaign;
 using OptionsExecutionService.Configuration;
@@ -15,6 +18,7 @@ using OptionsExecutionService.Ibkr;
 using OptionsExecutionService.Migrations;
 using OptionsExecutionService.Orders;
 using OptionsExecutionService.Repositories;
+using OptionsExecutionService.Services;
 using OptionsExecutionService.Workers;
 using SharedKernel.Domain;
 
@@ -160,7 +164,55 @@ try
     // Register time provider
     builder.Services.AddSingleton<OptionsExecutionService.Common.ITimeProvider, OptionsExecutionService.Common.SystemTimeProvider>();
 
-    // Register order placer service (scoped to match repository lifetime)
+    // ============================================================
+    // Phase 7.4 — Safety & risk gates wiring
+    // ============================================================
+
+    // Bind Cloudflare + Safety option records.
+    builder.Services.Configure<CloudflareOptions>(builder.Configuration.GetSection(CloudflareOptions.SectionName));
+    builder.Services.Configure<SafetyOptions>(builder.Configuration.GetSection(SafetyOptions.SectionName));
+
+    // HttpClient factory for SemaphoreGate, DailyPnLWatcher, OutboxOrderAuditSink.
+    builder.Services.AddHttpClient();
+
+    // Email alerter — last-resort channel. EmailAlerter gracefully disables when SMTP is not configured.
+    builder.Services.AddSingleton<ISmtpClient>(sp =>
+    {
+        EmailAlerterConfig cfg = new()
+        {
+            Enabled = builder.Configuration.GetValue<bool>("Smtp:Enabled", false),
+            Host = builder.Configuration.GetValue<string>("Smtp:Host") ?? string.Empty,
+            Port = builder.Configuration.GetValue<int>("Smtp:Port", 587),
+            Username = builder.Configuration.GetValue<string>("Smtp:Username") ?? string.Empty,
+            Password = builder.Configuration.GetValue<string>("Smtp:Password") ?? string.Empty,
+            From = builder.Configuration.GetValue<string>("Smtp:From") ?? string.Empty,
+            To = builder.Configuration.GetValue<string>("Smtp:To") ?? string.Empty,
+            EnableSsl = builder.Configuration.GetValue<bool>("Smtp:EnableSsl", true)
+        };
+        return new SystemSmtpClient(cfg);
+    });
+    builder.Services.AddSingleton<IAlerter, EmailAlerter>();
+
+    // SemaphoreGate (Gate #1) — composite market-risk indicator fetched from Worker.
+    builder.Services.AddSingleton<SemaphoreGate>();
+
+    // SafetyFlagStore (Gate #2) — durable KV for trading_paused.
+    builder.Services.AddSingleton<ISafetyFlagStore, SqliteSafetyFlagStore>();
+
+    // Order-audit sink — local mirror + Worker ingest.
+    builder.Services.AddSingleton<IOrderAuditSink, OutboxOrderAuditSink>();
+
+    // DailyPnLWatcher — BackgroundService polling Worker for daily drawdown.
+    builder.Services.AddHostedService<DailyPnLWatcher>();
+
+    // Startup banner for semaphore override — CRITICAL visibility if ever enabled.
+    bool overrideSemaphore = builder.Configuration.GetValue<bool>("Safety:OverrideSemaphore", false);
+    if (overrideSemaphore)
+    {
+        EmitSemaphoreOverrideBanner();
+    }
+
+    // Register order placer service (scoped to match repository lifetime).
     builder.Services.AddScoped<IOrderPlacer, OrderPlacer>();
 
     // Register campaign manager
@@ -202,6 +254,28 @@ try
         "OptionsExecutionService configured. TradingMode={Mode} IBKR={Host}:{Port} ClientId={ClientId}",
         tradingMode, ibkrConfig.Host, ibkrConfig.Port, ibkrConfig.ClientId);
 
+    // If the override banner fired above, also post a Critical alert after DI is
+    // ready — pre-host we don't have an IAlerter instance, so we do it here.
+    if (overrideSemaphore)
+    {
+        try
+        {
+            IAlerter alerter = host.Services.GetRequiredService<IAlerter>();
+            await alerter.SendImmediateAsync(
+                AlertSeverity.Critical,
+                "Safety:OverrideSemaphore is ACTIVE",
+                "Orders will execute even when the Cloudflare semaphore reports RED. " +
+                "This bypasses the primary operating-risk gate. Set Safety:OverrideSemaphore=false " +
+                "and restart to re-enable the gate. No auto-expiry — this persists across restarts.",
+                CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            // Alert failed — bootstrap log already recorded the banner so operator knowledge is preserved.
+            Log.Error(ex, "Failed to dispatch Safety:OverrideSemaphore startup alert");
+        }
+    }
+
     await host.RunAsync();
     Log.Information("OptionsExecutionService stopped cleanly");
     return 0;
@@ -237,5 +311,40 @@ static async Task RunMigrationsAsync(IServiceProvider services)
     {
         Log.Fatal(ex, "Database migration failed");
         throw;
+    }
+}
+
+/// <summary>
+/// Emit a very-loud multi-line banner when Safety:OverrideSemaphore=true so the
+/// operator CAN'T miss it scrolling through logs. Logged at Fatal level (which
+/// ships through the HTTP sink to the Worker + lights up the dashboard) AND
+/// written to console so the Windows-service console-viewer also surfaces it.
+/// We accept the "Fatal" misnomer (nothing actually fatal happened) in exchange
+/// for the visibility — this IS the loudest level available.
+/// </summary>
+static void EmitSemaphoreOverrideBanner()
+{
+    const string line = "================================================================================";
+    string[] banner = new[]
+    {
+        line,
+        "",
+        "    SAFETY:OVERRIDESEMAPHORE = TRUE",
+        "",
+        "    The SemaphoreGate is BYPASSED. Orders will execute even when the composite",
+        "    operating-risk indicator is RED. This is an ADMIN OVERRIDE and is NOT",
+        "    time-limited — it persists across restarts until the config is flipped back.",
+        "",
+        "    To disable: set Safety:OverrideSemaphore=false in appsettings*.json or env",
+        "    vars (Safety__OverrideSemaphore=false) and restart the service.",
+        "",
+        line
+    };
+
+    // Use CurrentCulture.InvariantCulture here: log banner text is mechanical,
+    // operator-readable English — no numbers to localize.
+    foreach (string row in banner)
+    {
+        Log.Fatal("{BannerRow}", row.ToString(CultureInfo.InvariantCulture));
     }
 }

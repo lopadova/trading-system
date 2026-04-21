@@ -23,6 +23,8 @@ import { systemMetrics } from './routes/system-metrics'
 import { breakdown } from './routes/breakdown'
 import { activity } from './routes/activity'
 import { campaignsSummary } from './routes/campaigns-summary'
+// Phase 7.4 — order-audit read routes backed by order_audit_log
+import { audit } from './routes/audit'
 import { rateLimitMiddleware } from './middleware/rate-limit'
 
 const app = new Hono<{ Bindings: Env }>()
@@ -75,6 +77,8 @@ app.route('/api/system', systemMetrics)
 app.route('/api/breakdown', breakdown)
 app.route('/api/activity', activity)
 app.route('/api/campaigns', campaignsSummary)
+// Phase 7.4 — /api/audit/orders (order_audit_log reader)
+app.route('/api/audit', audit)
 
 // Mount bot routes (no rate limiting on webhooks)
 app.route('/api/bot', botTelegram)
@@ -116,6 +120,8 @@ app.get('/', (c) => {
       'GET /api/heartbeats/stale/:threshold_seconds',
       'GET /api/performance/summary',
       'GET /api/performance/series',
+      'GET /api/performance/today',
+      'GET /api/audit/orders',
       'GET /api/drawdowns',
       'GET /api/monthly-returns',
       'GET /api/risk/metrics',

@@ -43,7 +43,8 @@ class FakeD1 {
     service_heartbeats: new FakeTable(),
     alert_history: new FakeTable(),
     positions_history: new FakeTable(),
-    web_vitals: new FakeTable()
+    web_vitals: new FakeTable(),
+    order_audit_log: new FakeTable()
   }
   log: StmtLog[] = []
 
@@ -131,6 +132,18 @@ class FakeD1 {
         'web_vitals',
         ['session_id', 'name', 'value', 'rating', 'navigation_type', 'metric_id', 'timestamp'],
         ['session_id', 'name', 'timestamp']
+      )
+      return
+    }
+    if (normalized.includes('INSERT OR REPLACE INTO order_audit_log')) {
+      upsert(
+        'order_audit_log',
+        [
+          'audit_id', 'order_id', 'ts', 'actor', 'strategy_id', 'contract_symbol',
+          'side', 'quantity', 'price', 'semaphore_status', 'outcome', 'override_reason',
+          'details_json'
+        ],
+        ['audit_id']
       )
       return
     }
@@ -481,5 +494,88 @@ describe('POST /api/v1/ingest — web_vitals', () => {
     await post(envelope('web_vitals', validPayload))
     await post(envelope('web_vitals', validPayload))
     expect(db.tables.web_vitals.rows.size).toBe(1)
+  })
+})
+
+// ============================================================================
+// order_audit (Phase 7.4 — order placement audit trail)
+// ============================================================================
+
+describe('POST /api/v1/ingest — order_audit', () => {
+  const validPayload = {
+    audit_id: 'aud-00000000-0000-0000-0000-000000000001',
+    order_id: 'ord-abc-123',
+    ts: '2026-04-20T13:45:00.000Z',
+    actor: 'system',
+    strategy_id: 'iron-condor-v1',
+    contract_symbol: 'SPX   250321P05000000',
+    side: 'SELL',
+    quantity: 2,
+    price: 12.5,
+    semaphore_status: 'green',
+    outcome: 'placed',
+    override_reason: null,
+    details_json: null
+  }
+
+  it('accepts valid payload → 200 + row inserted', async () => {
+    const res = await post(envelope('order_audit', validPayload))
+    expect(res.status).toBe(200)
+    expect(db.tables.order_audit_log.rows.size).toBe(1)
+    const row = db.tables.order_audit_log.rows.get(validPayload.audit_id)!
+    expect(row.outcome).toBe('placed')
+    expect(row.contract_symbol).toBe(validPayload.contract_symbol)
+    expect(row.quantity).toBe(2)
+  })
+
+  it('accepts rejection payload with null order_id and override_reason', async () => {
+    const res = await post(envelope('order_audit', {
+      ...validPayload,
+      audit_id: 'aud-2',
+      order_id: null,
+      outcome: 'rejected_semaphore',
+      override_reason: 'semaphore-red'
+    }))
+    expect(res.status).toBe(200)
+    const row = db.tables.order_audit_log.rows.get('aud-2')!
+    expect(row.order_id).toBeNull()
+    expect(row.outcome).toBe('rejected_semaphore')
+    expect(row.override_reason).toBe('semaphore-red')
+  })
+
+  it('rejects unknown outcome with 400', async () => {
+    const res = await post(envelope('order_audit', {
+      ...validPayload,
+      audit_id: 'aud-3',
+      outcome: 'rejected_nonsense'
+    }))
+    expect(res.status).toBe(400)
+    const body = (await res.json()) as { error: string; issues: unknown[] }
+    expect(body.error).toBe('invalid_payload')
+    expect(body.issues.length).toBeGreaterThan(0)
+  })
+
+  it('rejects invalid side with 400', async () => {
+    const res = await post(envelope('order_audit', {
+      ...validPayload,
+      audit_id: 'aud-4',
+      side: 'HOLD'
+    }))
+    expect(res.status).toBe(400)
+  })
+
+  it('rejects negative quantity with 400', async () => {
+    const res = await post(envelope('order_audit', {
+      ...validPayload,
+      audit_id: 'aud-5',
+      quantity: -1
+    }))
+    expect(res.status).toBe(400)
+  })
+
+  it('is idempotent on audit_id PK', async () => {
+    await post(envelope('order_audit', validPayload, 'evt-audit-1'))
+    await post(envelope('order_audit', validPayload, 'evt-audit-1'))
+    expect(db.tables.order_audit_log.rows.size).toBe(1)
   })
 })

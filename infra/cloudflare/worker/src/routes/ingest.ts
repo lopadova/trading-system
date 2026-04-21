@@ -91,6 +91,40 @@ const WebVitalsPayloadSchema = z.object({
   timestamp: z.string().optional()  // ISO 8601; auto-filled if absent
 })
 
+// Phase 7.4 — Order audit log entries. One row per order-placement attempt
+// (placed / filled / rejected_* / error). Matches the OrderAuditEntry contract
+// in src/SharedKernel/Safety/OrderAuditEntry.cs. audit_id is the PK for
+// idempotent replays.
+const ALLOWED_AUDIT_OUTCOMES = [
+  'placed',
+  'filled',
+  'rejected_semaphore',
+  'rejected_pnl_pause',
+  'rejected_max_size',
+  'rejected_max_value',
+  'rejected_max_risk',
+  'rejected_min_balance',
+  'rejected_breaker',
+  'rejected_broker',
+  'error'
+] as const
+
+const OrderAuditPayloadSchema = z.object({
+  audit_id: z.string().min(1).max(128),
+  order_id: z.string().min(1).max(128).nullable().optional(),
+  ts: z.string().min(1),                                // ISO-8601 timestamp
+  actor: z.string().min(1).max(128),
+  strategy_id: z.string().max(128).nullable().optional(),
+  contract_symbol: z.string().min(1).max(64),
+  side: z.enum(['BUY', 'SELL']),
+  quantity: z.number().int().positive(),
+  price: z.number().nullable().optional(),
+  semaphore_status: z.enum(['green', 'orange', 'red', 'unknown']),
+  outcome: z.enum(ALLOWED_AUDIT_OUTCOMES),
+  override_reason: z.string().max(512).nullable().optional(),
+  details_json: z.string().max(8192).nullable().optional()
+})
+
 /**
  * POST /api/v1/ingest
  * Receives outbox events from TradingSupervisorService and inserts into D1.
@@ -176,6 +210,13 @@ ingest.post('/', async (c) => {
         const parsed = WebVitalsPayloadSchema.safeParse(payload)
         if (!parsed.success) return validationError(c, event_type, parsed.error)
         await handleWebVitals(c.env.DB, event_id, parsed.data)
+        break
+      }
+
+      case 'order_audit': {
+        const parsed = OrderAuditPayloadSchema.safeParse(payload)
+        if (!parsed.success) return validationError(c, event_type, parsed.error)
+        await handleOrderAudit(c.env.DB, event_id, parsed.data)
         break
       }
 
@@ -553,6 +594,47 @@ async function handleWebVitals(
   console.log(
     `[INGEST] web_vitals ok: ${payload.name}=${payload.value} (session ${payload.session_id}, event ${eventId})`
   )
+}
+
+/**
+ * order_audit — one row per order attempt. PK audit_id ensures replays are
+ * idempotent. INSERT OR REPLACE semantics so a delayed/retried write overwrites
+ * a stale interim row (e.g. a "placed" row that later became "filled" reuses
+ * the same audit_id if the upstream chose to — but OrderPlacer mints a fresh
+ * GUID per write, so in practice INSERT OR REPLACE just protects against exact
+ * duplicate retries).
+ */
+async function handleOrderAudit(
+  db: D1Database,
+  eventId: string,
+  payload: z.infer<typeof OrderAuditPayloadSchema>
+) {
+  const sql = `
+    INSERT OR REPLACE INTO order_audit_log
+      (audit_id, order_id, ts, actor, strategy_id, contract_symbol,
+       side, quantity, price, semaphore_status, outcome, override_reason,
+       details_json)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `
+  await db.prepare(sql)
+    .bind(
+      payload.audit_id,
+      payload.order_id ?? null,
+      payload.ts,
+      payload.actor,
+      payload.strategy_id ?? null,
+      payload.contract_symbol,
+      payload.side,
+      payload.quantity,
+      payload.price ?? null,
+      payload.semaphore_status,
+      payload.outcome,
+      payload.override_reason ?? null,
+      payload.details_json ?? null
+    )
+    .run()
+
+  console.log(`[INGEST] order_audit ok: ${payload.outcome} ${payload.contract_symbol} (event ${eventId})`)
 }
 
 export { ingest }
