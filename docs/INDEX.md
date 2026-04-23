@@ -1,9 +1,12 @@
 ---
-title: "Trading System Docs — Index"
-tags: ["overview"]
-aliases: ["Wiki Home", "Docs Index"]
+title: Trading System Docs — Index
+tags:
+  - overview
+aliases:
+  - Wiki Home
+  - Docs Index
 status: current
-last-reviewed: "2026-04-21"
+last-reviewed: 2026-04-21
 ---
 
 # Trading System Knowledge Base
