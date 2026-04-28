@@ -18,6 +18,7 @@ public static class OptionsMigrations
         new AddGreeksColumns002(),
         new AddOrderTracking003(),
         new SafetyFlagsAndAudit004(),
+        new AddOrderEvents005(),
         // Future migrations will be added here:
     };
 }
