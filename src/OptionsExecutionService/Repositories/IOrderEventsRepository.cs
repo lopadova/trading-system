@@ -10,7 +10,8 @@ public interface IOrderEventsRepository
 {
     /// <summary>
     /// Inserts an order status callback event into the database.
-    /// This method is idempotent - duplicate inserts are handled by the event_id autoincrement.
+    /// This method creates an append-only audit trail. Each callback creates a new immutable event row.
+    /// Idempotency (deduplication) is the caller's responsibility via upstream IBKR callback filtering.
     /// </summary>
     /// <param name="orderId">Internal order ID (links to order_tracking).</param>
     /// <param name="ibkrOrderId">IBKR order ID (null until submitted).</param>
@@ -38,7 +39,7 @@ public interface IOrderEventsRepository
         string? lastTradeDate,
         string? whyHeld,
         decimal? mktCapPrice,
-        CancellationToken ct);
+        CancellationToken ct = default);
 
     /// <summary>
     /// Retrieves the latest event for a specific order.
@@ -47,7 +48,7 @@ public interface IOrderEventsRepository
     /// <param name="orderId">Internal order ID.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>Latest OrderEventRecord or null.</returns>
-    Task<OrderEventRecord?> GetLatestOrderEventAsync(string orderId, CancellationToken ct);
+    Task<OrderEventRecord?> GetLatestOrderEventAsync(string orderId, CancellationToken ct = default);
 
     /// <summary>
     /// Retrieves all events for a specific order, ordered by event_id (chronological).
@@ -56,5 +57,5 @@ public interface IOrderEventsRepository
     /// <param name="orderId">Internal order ID.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>List of OrderEventRecords ordered by event_id.</returns>
-    Task<IReadOnlyList<OrderEventRecord>> GetOrderEventsAsync(string orderId, CancellationToken ct);
+    Task<IReadOnlyList<OrderEventRecord>> GetOrderEventsAsync(string orderId, CancellationToken ct = default);
 }

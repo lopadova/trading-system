@@ -8,7 +8,7 @@ namespace OptionsExecutionService.Repositories;
 
 /// <summary>
 /// Repository for persisting IBKR order callback events to the database.
-/// Provides immutable audit trail for crash recovery and duplicate prevention.
+/// Provides immutable append-only audit trail for crash recovery.
 /// </summary>
 public sealed class OrderEventsRepository : IOrderEventsRepository
 {
@@ -34,7 +34,7 @@ public sealed class OrderEventsRepository : IOrderEventsRepository
         string? lastTradeDate,
         string? whyHeld,
         decimal? mktCapPrice,
-        CancellationToken ct)
+        CancellationToken ct = default)
     {
         // Validate inputs (negative-first pattern)
         if (string.IsNullOrWhiteSpace(orderId))
@@ -90,7 +90,7 @@ public sealed class OrderEventsRepository : IOrderEventsRepository
         }
     }
 
-    public async Task<OrderEventRecord?> GetLatestOrderEventAsync(string orderId, CancellationToken ct)
+    public async Task<OrderEventRecord?> GetLatestOrderEventAsync(string orderId, CancellationToken ct = default)
     {
         // Validate input
         if (string.IsNullOrWhiteSpace(orderId))
@@ -142,7 +142,7 @@ public sealed class OrderEventsRepository : IOrderEventsRepository
         }
     }
 
-    public async Task<IReadOnlyList<OrderEventRecord>> GetOrderEventsAsync(string orderId, CancellationToken ct)
+    public async Task<IReadOnlyList<OrderEventRecord>> GetOrderEventsAsync(string orderId, CancellationToken ct = default)
     {
         // Validate input
         if (string.IsNullOrWhiteSpace(orderId))
