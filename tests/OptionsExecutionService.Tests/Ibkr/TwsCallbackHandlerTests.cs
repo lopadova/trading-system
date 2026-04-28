@@ -106,6 +106,7 @@ public sealed class TwsCallbackHandlerTests
     [InlineData("PendingSubmit", OrderStatus.PendingSubmit)]    // Order submitted but not acknowledged
     [InlineData("PreSubmitted", OrderStatus.PendingSubmit)]     // Order acknowledged but not active (simulated orders)
     [InlineData("Submitted", OrderStatus.Submitted)]            // Order active on exchange
+    [InlineData("Active", OrderStatus.Active)]                  // Order accepted by IBKR and is active
     [InlineData("PartFilled", OrderStatus.PartiallyFilled)]     // Order partially filled
     [InlineData("Filled", OrderStatus.Filled)]                  // Order completely filled
     [InlineData("Cancelled", OrderStatus.Cancelled)]            // Order cancelled

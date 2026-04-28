@@ -125,8 +125,10 @@ public sealed class TwsCallbackHandler : DefaultEWrapper
 
             // Call repository synchronously (blocks IBKR callback thread until persistence completes)
             // This guarantees test assertions can verify immediately without Task.Delay race conditions
-            _orderEventsRepository.InsertOrderStatusAsync(
-                orderId: orderId.ToString(),        // For now: map IBKR orderId (int) → internal orderId (string)
+            // TODO (Phase 2): Map IBKR orderId → internal orderId via IOrderTrackingRepository lookup
+            // For now: Store IBKR orderId as string directly
+            Task persistTask = _orderEventsRepository.InsertOrderStatusAsync(
+                orderId: orderId.ToString(),
                 ibkrOrderId: orderId,
                 status: mappedStatus,
                 filled: (int)filled,
@@ -139,7 +141,13 @@ public sealed class TwsCallbackHandler : DefaultEWrapper
                 whyHeld: whyHeldNullable,
                 mktCapPrice: mktCapPriceNullable,
                 ct: CancellationToken.None
-            ).Wait();  // Synchronous blocking (acceptable: SQLite inserts are <1ms)
+            );
+
+            // Wait with 5-second timeout to prevent indefinite deadlock if DB locks
+            if (!persistTask.Wait(TimeSpan.FromSeconds(5)))
+            {
+                _logger.LogError("Timeout persisting orderStatus callback for order {OrderId} after 5 seconds", orderId);
+            }
         }
         catch (Exception ex)
         {
@@ -178,6 +186,7 @@ public sealed class TwsCallbackHandler : DefaultEWrapper
 
         // Active states
         "Submitted" => OrderStatus.Submitted,
+        "Active" => OrderStatus.Active,
         "PartFilled" => OrderStatus.PartiallyFilled,
         "Filled" => OrderStatus.Filled,
 

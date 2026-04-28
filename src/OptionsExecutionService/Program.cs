@@ -119,9 +119,9 @@ try
     builder.Services.AddScoped<ICampaignRepository, CampaignRepository>();
     builder.Services.AddScoped<IOrderTrackingRepository, OrderTrackingRepository>();
 
-    // OrderEventsRepository is Singleton (thread-safe, used by Singleton TwsCallbackHandler)
-    // Thread-safety: Each method opens its own connection via IDbConnectionFactory
-    // SQLite WAL mode supports concurrent reads/writes
+    // Thread-safe for Singleton: OrderEventsRepository creates new SQLiteConnection per call
+    // via IDbConnectionFactory.OpenAsync(). No shared state between method invocations.
+    // SQLite with WAL mode supports concurrent reads and writes.
     builder.Services.AddSingleton<IOrderEventsRepository, OrderEventsRepository>();
 
     // Register strategy services
