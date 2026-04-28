@@ -118,7 +118,11 @@ try
     // Register repositories
     builder.Services.AddScoped<ICampaignRepository, CampaignRepository>();
     builder.Services.AddScoped<IOrderTrackingRepository, OrderTrackingRepository>();
-    builder.Services.AddScoped<IOrderEventsRepository, OrderEventsRepository>();
+
+    // OrderEventsRepository is Singleton (thread-safe, used by Singleton TwsCallbackHandler)
+    // Thread-safety: Each method opens its own connection via IDbConnectionFactory
+    // SQLite WAL mode supports concurrent reads/writes
+    builder.Services.AddSingleton<IOrderEventsRepository, OrderEventsRepository>();
 
     // Register strategy services
     builder.Services.AddSingleton<IStrategyValidator, StrategyValidator>();

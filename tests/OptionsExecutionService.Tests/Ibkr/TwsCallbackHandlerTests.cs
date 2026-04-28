@@ -26,13 +26,8 @@ public sealed class TwsCallbackHandlerTests
     /// <summary>
     /// Verifies that orderStatus() callback persists to order_events table via IOrderEventsRepository.
     /// </summary>
-    /// <remarks>
-    /// TDD RED Phase: This test WILL FAIL because:
-    /// - TwsCallbackHandler doesn't have IOrderEventsRepository dependency yet
-    /// - orderStatus() doesn't call repository.InsertOrderStatusAsync() yet
-    /// </remarks>
     [Fact]
-    public async Task InsertOrderStatusAsync_CalledWhenOrderStatusCallbackFired()
+    public void InsertOrderStatusAsync_CalledWhenOrderStatusCallbackFired()
     {
         // ============================================================
         // ARRANGE: Setup mocks and test data
@@ -45,8 +40,6 @@ public sealed class TwsCallbackHandlerTests
         Mock<IOrderEventsRepository> mockRepository = new();
 
         // Create handler with mocked dependencies
-        // ⚠️ EXPECTED COMPILATION ERROR: TwsCallbackHandler constructor doesn't accept IOrderEventsRepository yet
-        // Task #5 will fix this by adding the dependency
         TwsCallbackHandler handler = new(mockLogger.Object, mockRepository.Object);
 
         // Test parameters matching IBKR orderStatus callback signature
@@ -79,8 +72,7 @@ public sealed class TwsCallbackHandlerTests
             whyHeld,
             mktCapPrice);
 
-        // Small delay to allow async persistence to complete (if implemented)
-        await Task.Delay(100);
+        // No Task.Delay needed: .Wait() in implementation makes persistence synchronous
 
         // ============================================================
         // ASSERT: Verify repository was called with correct parameters
@@ -99,7 +91,7 @@ public sealed class TwsCallbackHandlerTests
                 It.Is<int?>(perm => perm == 123456789),     // permId
                 It.Is<int?>(parent => parent == null),      // parentId: 0 → null (no parent)
                 It.Is<string?>(date => date == null),       // lastTradeDate: not provided in orderStatus callback
-                It.Is<string?>(why => why == ""),           // whyHeld: empty string
+                It.Is<string?>(why => why == null),         // whyHeld: empty string → null
                 It.Is<decimal?>(cap => cap == null),        // mktCapPrice: 0.0 → null (no value)
                 It.IsAny<CancellationToken>()),
             Times.Once,
@@ -109,15 +101,18 @@ public sealed class TwsCallbackHandlerTests
     /// <summary>
     /// Verifies that orderStatus() callback maps IBKR status strings to OrderStatus enum correctly.
     /// </summary>
-    /// <remarks>
-    /// TDD RED Phase: This test WILL FAIL for same reasons as InsertOrderStatusAsync_CalledWhenOrderStatusCallbackFired.
-    /// </remarks>
     [Theory]
-    [InlineData("Submitted", OrderStatus.Submitted)]
-    [InlineData("PreSubmitted", OrderStatus.PendingSubmit)]  // IBKR "PreSubmitted" maps to our PendingSubmit
-    [InlineData("Filled", OrderStatus.Filled)]
-    [InlineData("Cancelled", OrderStatus.Cancelled)]
-    public async Task InsertOrderStatusAsync_CorrectlyMapsIbkrStatusToEnum(string ibkrStatus, OrderStatus expectedStatus)
+    [InlineData("ApiPending", OrderStatus.PendingSubmit)]       // Order created, not yet submitted
+    [InlineData("PendingSubmit", OrderStatus.PendingSubmit)]    // Order submitted but not acknowledged
+    [InlineData("PreSubmitted", OrderStatus.PendingSubmit)]     // Order acknowledged but not active (simulated orders)
+    [InlineData("Submitted", OrderStatus.Submitted)]            // Order active on exchange
+    [InlineData("PartFilled", OrderStatus.PartiallyFilled)]     // Order partially filled
+    [InlineData("Filled", OrderStatus.Filled)]                  // Order completely filled
+    [InlineData("Cancelled", OrderStatus.Cancelled)]            // Order cancelled
+    [InlineData("ApiCancelled", OrderStatus.Cancelled)]         // Order cancelled by API
+    [InlineData("Inactive", OrderStatus.Cancelled)]             // Order inactive (mapped to Cancelled)
+    [InlineData("PendingCancel", OrderStatus.Cancelled)]        // Cancel request pending
+    public void InsertOrderStatusAsync_CorrectlyMapsIbkrStatusToEnum(string ibkrStatus, OrderStatus expectedStatus)
     {
         // ============================================================
         // ARRANGE
@@ -126,7 +121,6 @@ public sealed class TwsCallbackHandlerTests
         Mock<ILogger<TwsCallbackHandler>> mockLogger = new();
         Mock<IOrderEventsRepository> mockRepository = new();
 
-        // ⚠️ EXPECTED COMPILATION ERROR: Constructor signature mismatch
         TwsCallbackHandler handler = new(mockLogger.Object, mockRepository.Object);
 
         int ibkrOrderId = 1001;
@@ -148,7 +142,7 @@ public sealed class TwsCallbackHandlerTests
             whyHeld: "",
             mktCapPrice: 0.0);
 
-        await Task.Delay(100);
+        // No Task.Delay needed: .Wait() in implementation makes persistence synchronous
 
         // ============================================================
         // ASSERT
@@ -181,7 +175,7 @@ public sealed class TwsCallbackHandlerTests
     /// to distinguish "no fill" from "filled at price 0.00" (unlikely but theoretically possible).
     /// </remarks>
     [Fact]
-    public async Task InsertOrderStatusAsync_StoresZeroPriceAsNull()
+    public void InsertOrderStatusAsync_StoresZeroPriceAsNull()
     {
         // ============================================================
         // ARRANGE
@@ -190,7 +184,6 @@ public sealed class TwsCallbackHandlerTests
         Mock<ILogger<TwsCallbackHandler>> mockLogger = new();
         Mock<IOrderEventsRepository> mockRepository = new();
 
-        // ⚠️ EXPECTED COMPILATION ERROR: Constructor signature mismatch
         TwsCallbackHandler handler = new(mockLogger.Object, mockRepository.Object);
 
         // ============================================================
@@ -210,7 +203,7 @@ public sealed class TwsCallbackHandlerTests
             whyHeld: "",
             mktCapPrice: 0.0);      // 0.0 = "no value"
 
-        await Task.Delay(100);
+        // No Task.Delay needed: .Wait() in implementation makes persistence synchronous
 
         // ============================================================
         // ASSERT: Verify 0.0 values are stored as NULL
@@ -243,7 +236,7 @@ public sealed class TwsCallbackHandlerTests
     /// We store this as NULL to make queries cleaner (WHERE parent_id IS NOT NULL finds child orders).
     /// </remarks>
     [Fact]
-    public async Task InsertOrderStatusAsync_StoresZeroParentIdAsNull()
+    public void InsertOrderStatusAsync_StoresZeroParentIdAsNull()
     {
         // ============================================================
         // ARRANGE
@@ -252,7 +245,6 @@ public sealed class TwsCallbackHandlerTests
         Mock<ILogger<TwsCallbackHandler>> mockLogger = new();
         Mock<IOrderEventsRepository> mockRepository = new();
 
-        // ⚠️ EXPECTED COMPILATION ERROR: Constructor signature mismatch
         TwsCallbackHandler handler = new(mockLogger.Object, mockRepository.Object);
 
         // ============================================================
@@ -272,7 +264,7 @@ public sealed class TwsCallbackHandlerTests
             whyHeld: "",
             mktCapPrice: 0.0);
 
-        await Task.Delay(100);
+        // No Task.Delay needed: .Wait() in implementation makes persistence synchronous
 
         // ============================================================
         // ASSERT: Verify parentId=0 is stored as NULL
@@ -295,5 +287,79 @@ public sealed class TwsCallbackHandlerTests
                 It.IsAny<CancellationToken>()),
             Times.Once,
             "parentId=0 should be stored as NULL to indicate standalone order (no parent)");
+    }
+
+    /// <summary>
+    /// Verifies that unknown IBKR status values are handled gracefully with fallback to PendingSubmit.
+    /// </summary>
+    /// <remarks>
+    /// When IBKR introduces new status values or sends unexpected values, we should:
+    /// 1. Log a warning (captured by mock logger)
+    /// 2. Use PendingSubmit as fallback (safest: doesn't claim order is Filled when it's not)
+    /// 3. Still persist the event (maintain audit trail)
+    /// </remarks>
+    [Fact]
+    public void InsertOrderStatusAsync_HandlesUnknownStatusWithFallback()
+    {
+        // ============================================================
+        // ARRANGE
+        // ============================================================
+
+        Mock<ILogger<TwsCallbackHandler>> mockLogger = new();
+        Mock<IOrderEventsRepository> mockRepository = new();
+
+        TwsCallbackHandler handler = new(mockLogger.Object, mockRepository.Object);
+
+        string unknownStatus = "UnknownStatusFromFutureIbkrVersion";
+
+        // ============================================================
+        // ACT: Trigger callback with unknown status
+        // ============================================================
+
+        handler.orderStatus(
+            orderId: 1001,
+            status: unknownStatus,
+            filled: 0,
+            remaining: 2,
+            avgFillPrice: 0.0,
+            permId: 123456789,
+            parentId: 0,
+            lastFillPrice: 0.0,
+            clientId: 0,
+            whyHeld: "",
+            mktCapPrice: 0.0);
+
+        // ============================================================
+        // ASSERT: Verify fallback to PendingSubmit
+        // ============================================================
+
+        mockRepository.Verify(
+            repo => repo.InsertOrderStatusAsync(
+                It.IsAny<string>(),
+                It.IsAny<int?>(),
+                It.Is<OrderStatus>(s => s == OrderStatus.PendingSubmit),  // Fallback to PendingSubmit
+                It.IsAny<int>(),
+                It.IsAny<int>(),
+                It.IsAny<decimal?>(),
+                It.IsAny<decimal?>(),
+                It.IsAny<int?>(),
+                It.IsAny<int?>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                It.IsAny<decimal?>(),
+                It.IsAny<CancellationToken>()),
+            Times.Once,
+            "Unknown IBKR status should fall back to PendingSubmit and still persist event");
+
+        // Verify warning was logged
+        mockLogger.Verify(
+            logger => logger.Log(
+                LogLevel.Warning,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains(unknownStatus)),
+                It.IsAny<Exception?>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once,
+            "Unknown status should trigger a warning log");
     }
 }

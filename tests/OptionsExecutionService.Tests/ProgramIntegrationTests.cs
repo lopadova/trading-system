@@ -215,6 +215,9 @@ public sealed class ProgramIntegrationTests
                 services.AddScoped<ICampaignRepository, CampaignRepository>();
                 services.AddScoped<IOrderTrackingRepository, OrderTrackingRepository>();
 
+                // OrderEventsRepository is Singleton (thread-safe, used by Singleton TwsCallbackHandler)
+                services.AddSingleton<IOrderEventsRepository, OrderEventsRepository>();
+
                 // Register strategy services
                 services.AddSingleton<IStrategyValidator, StrategyValidator>();
                 services.AddSingleton<IStrategyLoader, StrategyLoader>();
@@ -236,9 +239,9 @@ public sealed class ProgramIntegrationTests
                 };
 
                 services.AddSingleton(ibkrConfig);
-                services.AddSingleton<Ibkr.TwsCallbackHandler>();
+                services.AddSingleton<OptionsExecutionService.Ibkr.TwsCallbackHandler>();
                 services.AddSingleton<IbkrPortScanner>();
-                services.AddSingleton<IIbkrClient, Ibkr.IbkrClient>();
+                services.AddSingleton<IIbkrClient, OptionsExecutionService.Ibkr.IbkrClient>();
 
                 // Register order safety configuration
                 SharedKernel.Domain.OrderSafetyConfig safetyConfig = new()
