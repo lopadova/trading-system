@@ -118,6 +118,7 @@ try
     // Register repositories
     builder.Services.AddScoped<ICampaignRepository, CampaignRepository>();
     builder.Services.AddScoped<IOrderTrackingRepository, OrderTrackingRepository>();
+    builder.Services.AddScoped<IOrderEventsRepository, OrderEventsRepository>();
 
     // Register strategy services
     builder.Services.AddSingleton<IStrategyValidator, StrategyValidator>();

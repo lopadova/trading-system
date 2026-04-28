@@ -46,8 +46,8 @@ public sealed class MigrationIntegrationTests : IAsyncLifetime
         int count = await conn.QuerySingleAsync<int>(
             "SELECT COUNT(*) FROM schema_migrations");
 
-        // Phase 7.4: migration 004 (SafetyFlagsAndAudit) brings the count to 4.
-        Assert.Equal(4, count);
+        // Phase 1: migration 005 (AddOrderEvents) brings the count to 5.
+        Assert.Equal(5, count);
     }
 
     [Fact(DisplayName = "TEST-22-17: Migration 001 creates campaigns table")]
