@@ -1,3 +1,4 @@
+using IBApi;
 using Microsoft.Extensions.Logging;
 using Moq;
 using OptionsExecutionService.Ibkr;
@@ -363,4 +364,228 @@ public sealed class TwsCallbackHandlerTests
             Times.Once,
             "Unknown status should trigger a warning log");
     }
+
+    #region execDetails() Callback Tests
+
+    /// <summary>
+    /// Verifies that execDetails() callback persists execution data to order_events table via IOrderEventsRepository.
+    /// </summary>
+    /// <remarks>
+    /// This test is in the RED phase of TDD - it WILL FAIL because:
+    /// 1. The execDetails() callback in TwsCallbackHandler doesn't call InsertExecutionAsync() yet.
+    /// 2. Task #8 will implement the persistence logic to make this test GREEN.
+    ///
+    /// Expected failure: Mock verification will fail because InsertExecutionAsync is never called.
+    /// </remarks>
+    [Fact]
+    public void InsertExecutionAsync_CalledWhenExecDetailsCallbackFired()
+    {
+        // ============================================================
+        // ARRANGE: Setup mocks and test data
+        // ============================================================
+
+        // Mock logger
+        Mock<ILogger<TwsCallbackHandler>> mockLogger = new();
+
+        // Mock repository (this is what we're verifying gets called)
+        Mock<IOrderEventsRepository> mockRepository = new();
+
+        // Create handler with mocked dependencies
+        TwsCallbackHandler handler = new(mockLogger.Object, mockRepository.Object);
+
+        // Test parameters matching IBKR execDetails callback signature
+        int reqId = 1;
+
+        // Create mock Contract representing SPY 20260515 550C option
+        Contract contract = new()
+        {
+            Symbol = "SPY",
+            SecType = "OPT",
+            LastTradeDateOrContractMonth = "20260515",
+            Strike = 550.0,
+            Right = "C",
+            Exchange = "SMART",
+            Currency = "USD"
+        };
+
+        // Create mock Execution representing a fill of 2 contracts at $5.50
+        Execution execution = new()
+        {
+            OrderId = 1001,
+            ExecId = "0001f4e8.65a1b2c3.01.01",
+            Time = "20260430  09:30:15",
+            Side = "BOT",
+            Shares = 2,
+            Price = 5.50,
+            Exchange = "CBOE",
+            PermId = 123456789,
+            ClientId = 0
+        };
+
+        // ============================================================
+        // ACT: Trigger the IBKR callback
+        // ============================================================
+
+        handler.execDetails(reqId, contract, execution);
+
+        // No Task.Delay needed: .Wait() in implementation makes persistence synchronous (when implemented)
+
+        // ============================================================
+        // ASSERT: Verify repository was called with correct parameters
+        // ============================================================
+
+        // Verify InsertExecutionAsync was called ONCE with correct data
+        mockRepository.Verify(
+            repo => repo.InsertExecutionAsync(
+                It.Is<string>(orderId => orderId == execution.OrderId.ToString()),  // Map ibkrOrderId → orderId as string
+                It.Is<int?>(id => id == execution.OrderId),                        // ibkrOrderId
+                It.Is<string>(execId => execId == execution.ExecId),               // execId (unique per fill)
+                It.Is<string>(time => time == execution.Time),                     // execTime (IBKR format)
+                It.Is<string>(side => side == execution.Side),                     // side (BOT/SLD)
+                It.Is<decimal>(shares => shares == execution.Shares),              // shares executed
+                It.Is<decimal>(price => price == (decimal)execution.Price),        // execution price
+                It.Is<string>(exchange => exchange == execution.Exchange),         // exchange
+                It.Is<int?>(permId => permId == execution.PermId),                 // permId
+                It.Is<string>(symbol => symbol == contract.Symbol),                // contract symbol
+                It.Is<string>(secType => secType == contract.SecType),             // contract secType
+                It.IsAny<CancellationToken>()),
+            Times.Once,
+            "execDetails callback should persist execution event to order_events table via InsertExecutionAsync");
+    }
+
+    /// <summary>
+    /// Verifies that execDetails() callback correctly handles multiple executions for the same order.
+    /// </summary>
+    /// <remarks>
+    /// An order can have multiple partial fills (executions). Each execution should create a separate
+    /// immutable event row in order_events with a unique execId.
+    ///
+    /// This test verifies:
+    /// 1. Each execDetails() call creates a new event (append-only audit trail)
+    /// 2. Each execution has a unique execId
+    /// 3. Repository is called once per execution (no deduplication at callback level)
+    ///
+    /// Deduplication (if needed) is the repository's responsibility via unique constraint on execId.
+    /// </remarks>
+    [Fact]
+    public void InsertExecutionAsync_CreatesNewEventForEachExecution()
+    {
+        // ============================================================
+        // ARRANGE
+        // ============================================================
+
+        Mock<ILogger<TwsCallbackHandler>> mockLogger = new();
+        Mock<IOrderEventsRepository> mockRepository = new();
+
+        TwsCallbackHandler handler = new(mockLogger.Object, mockRepository.Object);
+
+        int reqId = 1;
+
+        // Same contract for all executions
+        Contract contract = new()
+        {
+            Symbol = "SPY",
+            SecType = "OPT",
+            LastTradeDateOrContractMonth = "20260515",
+            Strike = 550.0,
+            Right = "C",
+            Exchange = "SMART",
+            Currency = "USD"
+        };
+
+        // First execution: partial fill of 1 contract at $5.50
+        Execution execution1 = new()
+        {
+            OrderId = 1001,
+            ExecId = "0001f4e8.65a1b2c3.01.01",  // Unique execId #1
+            Time = "20260430  09:30:15",
+            Side = "BOT",
+            Shares = 1,
+            Price = 5.50,
+            Exchange = "CBOE",
+            PermId = 123456789,
+            ClientId = 0
+        };
+
+        // Second execution: another partial fill of 1 contract at $5.55 (price improved)
+        Execution execution2 = new()
+        {
+            OrderId = 1001,                      // Same order
+            ExecId = "0001f4e8.65a1b2c3.01.02",  // Different execId #2
+            Time = "20260430  09:30:16",         // 1 second later
+            Side = "BOT",
+            Shares = 1,
+            Price = 5.55,                        // Different price
+            Exchange = "CBOE",
+            PermId = 123456789,
+            ClientId = 0
+        };
+
+        // ============================================================
+        // ACT: Trigger execDetails twice for the same order
+        // ============================================================
+
+        handler.execDetails(reqId, contract, execution1);
+        handler.execDetails(reqId, contract, execution2);
+
+        // ============================================================
+        // ASSERT: Verify repository was called TWICE (once per execution)
+        // ============================================================
+
+        // Verify first execution was persisted
+        mockRepository.Verify(
+            repo => repo.InsertExecutionAsync(
+                It.Is<string>(orderId => orderId == "1001"),
+                It.Is<int?>(id => id == 1001),
+                It.Is<string>(execId => execId == "0001f4e8.65a1b2c3.01.01"),  // First execId
+                It.Is<string>(time => time == "20260430  09:30:15"),
+                It.Is<string>(side => side == "BOT"),
+                It.Is<decimal>(shares => shares == 1),
+                It.Is<decimal>(price => price == 5.50m),
+                It.Is<string>(exchange => exchange == "CBOE"),
+                It.Is<int?>(permId => permId == 123456789),
+                It.Is<string>(symbol => symbol == "SPY"),
+                It.Is<string>(secType => secType == "OPT"),
+                It.IsAny<CancellationToken>()),
+            Times.Once,
+            "First execution should be persisted");
+
+        // Verify second execution was persisted
+        mockRepository.Verify(
+            repo => repo.InsertExecutionAsync(
+                It.Is<string>(orderId => orderId == "1001"),
+                It.Is<int?>(id => id == 1001),
+                It.Is<string>(execId => execId == "0001f4e8.65a1b2c3.01.02"),  // Second execId
+                It.Is<string>(time => time == "20260430  09:30:16"),
+                It.Is<string>(side => side == "BOT"),
+                It.Is<decimal>(shares => shares == 1),
+                It.Is<decimal>(price => price == 5.55m),
+                It.Is<string>(exchange => exchange == "CBOE"),
+                It.Is<int?>(permId => permId == 123456789),
+                It.Is<string>(symbol => symbol == "SPY"),
+                It.Is<string>(secType => secType == "OPT"),
+                It.IsAny<CancellationToken>()),
+            Times.Once,
+            "Second execution should be persisted");
+
+        // Verify total calls = 2
+        mockRepository.Verify(
+            repo => repo.InsertExecutionAsync(
+                It.IsAny<string>(),
+                It.IsAny<int?>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<decimal>(),
+                It.IsAny<decimal>(),
+                It.IsAny<string>(),
+                It.IsAny<int?>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()),
+            Times.Exactly(2),
+            "execDetails should create separate events for each execution (append-only audit trail)");
+    }
+
+    #endregion
 }

@@ -58,4 +58,35 @@ public interface IOrderEventsRepository
     /// <param name="ct">Cancellation token.</param>
     /// <returns>List of OrderEventRecords ordered by event_id.</returns>
     Task<IReadOnlyList<OrderEventRecord>> GetOrderEventsAsync(string orderId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Inserts an execution (fill) event from IBKR's execDetails() callback into the database.
+    /// This method creates an append-only audit trail. Each execution creates a new immutable event row.
+    /// The execId should be unique (IBKR guarantees uniqueness per execution) and can be used for deduplication.
+    /// </summary>
+    /// <param name="orderId">Internal order ID (links to order_tracking).</param>
+    /// <param name="ibkrOrderId">IBKR order ID.</param>
+    /// <param name="execId">IBKR execution ID (unique per fill).</param>
+    /// <param name="execTime">Execution timestamp from IBKR (format: "YYYYMMDD  HH:MM:SS").</param>
+    /// <param name="side">Execution side (BOT/SLD).</param>
+    /// <param name="shares">Number of shares executed.</param>
+    /// <param name="price">Execution price.</param>
+    /// <param name="exchange">Exchange where executed.</param>
+    /// <param name="permId">IBKR permanent order ID.</param>
+    /// <param name="symbol">Contract symbol.</param>
+    /// <param name="secType">Contract security type (OPT, STK, etc.).</param>
+    /// <param name="ct">Cancellation token.</param>
+    Task InsertExecutionAsync(
+        string orderId,
+        int? ibkrOrderId,
+        string execId,
+        string execTime,
+        string side,
+        decimal shares,
+        decimal price,
+        string exchange,
+        int? permId,
+        string symbol,
+        string secType,
+        CancellationToken ct = default);
 }

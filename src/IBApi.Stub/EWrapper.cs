@@ -193,9 +193,14 @@ public class ContractDetails
 public class Execution
 {
     public int OrderId { get; set; }
+    public string ExecId { get; set; } = "";
+    public string Time { get; set; } = "";
     public string Side { get; set; } = "";
     public decimal Shares { get; set; }
     public double Price { get; set; }
+    public string Exchange { get; set; } = "";
+    public int PermId { get; set; }
+    public int ClientId { get; set; }
 }
 
 public class CommissionReport
