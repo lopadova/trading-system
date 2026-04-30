@@ -23,9 +23,16 @@ public sealed class OrderOutboxRepositoryTests : IDisposable
         _dbPath = $"test-order-outbox-{Guid.NewGuid()}.db";
         _db = new SqliteConnectionFactory(_dbPath);
 
-        // NOTE: Migration will be created in Task #14
-        // For now, repository methods will throw NotImplementedException (RED phase)
+        // Run migration to create order_outbox table
+        MigrationRunner runner = new(
+            _db,
+            new LoggerFactory().CreateLogger<MigrationRunner>());
 
+        runner.RunAsync(
+            new[] { new OptionsExecutionService.Migrations.AddOrderOutbox006() },
+            CancellationToken.None).GetAwaiter().GetResult();
+
+        // Create repository
         _repository = new OrderOutboxRepository(
             _db,
             new LoggerFactory().CreateLogger<OrderOutboxRepository>());

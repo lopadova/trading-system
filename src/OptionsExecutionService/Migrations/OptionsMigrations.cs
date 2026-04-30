@@ -19,6 +19,7 @@ public static class OptionsMigrations
         new AddOrderTracking003(),
         new SafetyFlagsAndAudit004(),
         new AddOrderEvents005(),
+        new AddOrderOutbox006(),
         // Future migrations will be added here:
     };
 }
