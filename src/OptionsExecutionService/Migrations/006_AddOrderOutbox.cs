@@ -22,7 +22,7 @@ public sealed class AddOrderOutbox006 : IMigration
             order_id          TEXT    NOT NULL,     -- Internal order ID (links to order_tracking)
             operation         TEXT    NOT NULL,     -- Operation type: PlaceOrder, CancelOrder, ModifyOrder
             payload           TEXT    NOT NULL,     -- JSON payload of operation (order params, cancel params, etc.)
-            status            TEXT    NOT NULL DEFAULT 'pending',  -- 'pending' or 'sent'
+            status            TEXT    NOT NULL DEFAULT 'pending',  -- 'pending', 'sent', or 'failed'
             created_at        TEXT    NOT NULL DEFAULT (datetime('now')),  -- ISO8601 UTC timestamp
             sent_at           TEXT                   -- Timestamp when marked sent (null until sent)
         );

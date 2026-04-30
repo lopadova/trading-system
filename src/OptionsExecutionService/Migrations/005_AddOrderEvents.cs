@@ -22,7 +22,7 @@ public sealed class AddOrderEvents005 : IMigration
             event_id          INTEGER PRIMARY KEY AUTOINCREMENT,
             order_id          TEXT    NOT NULL,     -- Internal order ID (links to order_tracking)
             ibkr_order_id     INTEGER,              -- IBKR order ID (null until submitted)
-            event_type        TEXT    NOT NULL,     -- 'status' or 'execution'
+            event_type        TEXT    NOT NULL,     -- 'status', 'execution', or 'error'
 
             -- orderStatus fields (event_type = 'status')
             status            TEXT,                 -- OrderStatus enum as string

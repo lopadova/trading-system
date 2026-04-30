@@ -38,6 +38,7 @@ public sealed class CampaignRepository : ICampaignRepository
             State = campaign.State.ToString(),
             CreatedAt = campaign.CreatedAt.ToString("O"),
             ActivatedAt = campaign.ActivatedAt?.ToString("O"),
+            PendingExitAt = campaign.PendingExitAt?.ToString("O"),
             ClosedAt = campaign.ClosedAt?.ToString("O"),
             CloseReason = campaign.CloseReason,
             RealizedPnL = campaign.RealizedPnL,
@@ -259,6 +260,7 @@ public sealed class CampaignRepository : ICampaignRepository
             State = state,
             CreatedAt = DateTime.Parse(metadata.CreatedAt, null, System.Globalization.DateTimeStyles.RoundtripKind),
             ActivatedAt = metadata.ActivatedAt != null ? DateTime.Parse(metadata.ActivatedAt, null, System.Globalization.DateTimeStyles.RoundtripKind) : null,
+            PendingExitAt = metadata.PendingExitAt != null ? DateTime.Parse(metadata.PendingExitAt, null, System.Globalization.DateTimeStyles.RoundtripKind) : null,
             ClosedAt = metadata.ClosedAt != null ? DateTime.Parse(metadata.ClosedAt, null, System.Globalization.DateTimeStyles.RoundtripKind) : null,
             CloseReason = metadata.CloseReason,
             RealizedPnL = metadata.RealizedPnL,
@@ -276,6 +278,7 @@ public sealed class CampaignRepository : ICampaignRepository
         public required string State { get; init; }
         public required string CreatedAt { get; init; }
         public string? ActivatedAt { get; init; }
+        public string? PendingExitAt { get; init; }  // Phase 1: State Persistence
         public string? ClosedAt { get; init; }
         public string? CloseReason { get; init; }
         public decimal? RealizedPnL { get; init; }

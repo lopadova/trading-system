@@ -23,8 +23,9 @@ public sealed record OrderEventRecord
 
     /// <summary>
     /// Order status from OrderStatus enum (stored as string).
+    /// NULL for non-status events (execution/error events).
     /// </summary>
-    public required string Status { get; init; }
+    public string? Status { get; init; }
 
     /// <summary>
     /// Filled quantity.

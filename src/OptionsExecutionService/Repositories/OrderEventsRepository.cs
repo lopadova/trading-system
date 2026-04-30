@@ -268,30 +268,46 @@ public sealed class OrderEventsRepository : IOrderEventsRepository
         long errorTime,
         CancellationToken ct = default)
     {
-        const string sql = @"
+        // Validate inputs (negative-first pattern)
+        if (string.IsNullOrWhiteSpace(orderId))
+        {
+            throw new ArgumentException("OrderId cannot be empty", nameof(orderId));
+        }
+
+        // SQL: Insert error event with auto-generated event_id and timestamp
+        // NOTE: event_timestamp has DEFAULT so we can omit it, or set explicitly
+        const string sql = """
             INSERT INTO order_events (
-                order_id, ibkr_order_id, event_type, error_code, error_message, error_time, timestamp
+                order_id, ibkr_order_id, event_type, error_code, error_message, error_time
             ) VALUES (
-                @OrderId, @IbkrOrderId, 'error', @ErrorCode, @ErrorMessage, @ErrorTime, datetime('now')
-            )";
+                @OrderId, @IbkrOrderId, 'error', @ErrorCode, @ErrorMessage, @ErrorTime
+            )
+            """;
 
-        await using SqliteConnection conn = await _db.OpenAsync(ct);
-
-        var command = new CommandDefinition(
-            commandText: sql,
-            parameters: new
+        try
+        {
+            await using SqliteConnection conn = await _db.OpenAsync(ct);
+            CommandDefinition cmd = new(sql, new
             {
                 OrderId = orderId,
                 IbkrOrderId = ibkrOrderId,
                 ErrorCode = errorCode,
                 ErrorMessage = errorMessage,
                 ErrorTime = errorTime
-            },
-            cancellationToken: ct
-        );
+            }, cancellationToken: ct);
 
-        await conn.ExecuteAsync(command);
+            await conn.ExecuteAsync(cmd);
 
-        _logger.LogDebug("Persisted error event: orderId={OrderId} errorCode={ErrorCode}", orderId, errorCode);
+            _logger.LogDebug(
+                "Persisted error event: OrderId={OrderId} ErrorCode={ErrorCode}",
+                orderId, errorCode);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Failed to persist error event: OrderId={OrderId} ErrorCode={ErrorCode}",
+                orderId, errorCode);
+            throw;
+        }
     }
 }

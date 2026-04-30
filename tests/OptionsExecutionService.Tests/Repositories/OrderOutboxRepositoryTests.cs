@@ -49,7 +49,14 @@ public sealed class OrderOutboxRepositoryTests : IDisposable
         // Clean up test database
         if (File.Exists(_dbPath))
         {
-            File.Delete(_dbPath);
+            try
+            {
+                File.Delete(_dbPath);
+            }
+            catch (IOException)
+            {
+                // File handle not fully released on Windows - ignore and let OS clean up
+            }
         }
     }
 

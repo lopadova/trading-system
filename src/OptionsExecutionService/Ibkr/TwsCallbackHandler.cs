@@ -1,4 +1,3 @@
-using System.Globalization;
 using IBApi;
 using Microsoft.Extensions.Logging;
 using OptionsExecutionService.Repositories;

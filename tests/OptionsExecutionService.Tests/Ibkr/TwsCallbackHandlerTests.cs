@@ -10,18 +10,9 @@ namespace OptionsExecutionService.Tests.Ibkr;
 
 /// <summary>
 /// Unit tests for TwsCallbackHandler IBKR callback persistence.
-/// Tests the RED phase of TDD - this test WILL FAIL until Task #5 implements the persistence logic.
+/// Validates orderStatus, execDetails, and error callbacks are persisted to order_events table.
+/// Phase 1: State Persistence & Idempotency
 /// </summary>
-/// <remarks>
-/// Expected failures:
-/// 1. Compilation error: TwsCallbackHandler constructor doesn't accept IOrderEventsRepository yet.
-/// 2. Runtime assertion failure: orderStatus() doesn't call repository.InsertOrderStatusAsync() yet.
-///
-/// These failures are INTENTIONAL - they prove the test is properly written in the RED phase.
-/// Task #5 will make this test GREEN by:
-/// - Adding IOrderEventsRepository dependency to TwsCallbackHandler constructor
-/// - Implementing InsertOrderStatusAsync() call in orderStatus() callback
-/// </remarks>
 public sealed class TwsCallbackHandlerTests
 {
     /// <summary>
@@ -371,7 +362,6 @@ public sealed class TwsCallbackHandlerTests
     /// Verifies that execDetails() callback persists execution data to order_events table via IOrderEventsRepository.
     /// </summary>
     /// <remarks>
-    /// This test is in the RED phase of TDD - it WILL FAIL because:
     /// 1. The execDetails() callback in TwsCallbackHandler doesn't call InsertExecutionAsync() yet.
     /// 2. Task #8 will implement the persistence logic to make this test GREEN.
     ///
@@ -437,7 +427,6 @@ public sealed class TwsCallbackHandlerTests
         // Verify InsertExecutionAsync was called ONCE with correct data
         mockRepository.Verify(
             repo => repo.InsertExecutionAsync(
-                // NOTE: This test assumes orderId == execution.OrderId.ToString() for simplicity (RED phase).
                 // Task #8 implementation must resolve orderId via order_tracking lookup:
                 //   SELECT order_id FROM order_tracking WHERE ibkr_order_id = execution.OrderId
                 // If no match found, the execution is orphaned (order placed before crash).
@@ -597,7 +586,6 @@ public sealed class TwsCallbackHandlerTests
 
     /// <summary>
     /// Verifies that order-specific error callbacks trigger InsertErrorAsync() persistence.
-    /// This is TDD RED phase - test will fail until Task #11 implements persistence.
     /// </summary>
     /// <remarks>
     /// Expected failures:
@@ -626,7 +614,6 @@ public sealed class TwsCallbackHandlerTests
         // Verify InsertErrorAsync called once with correct parameters
         mockRepository.Verify(
             repo => repo.InsertErrorAsync(
-                // NOTE: This test assumes orderId == id.ToString() for simplicity (RED phase).
                 // Task #11 implementation must resolve orderId via order_tracking lookup.
                 It.Is<string>(oid => oid == orderId.ToString()),
                 It.Is<int?>(id => id == orderId),
