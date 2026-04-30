@@ -36,6 +36,13 @@ public sealed record Campaign
     public DateTime? ActivatedAt { get; init; }
 
     /// <summary>
+    /// Timestamp when exit orders were placed and campaign entered PendingExit (UTC).
+    /// Null if not yet in PendingExit state.
+    /// Phase 1: State Persistence & Idempotency
+    /// </summary>
+    public DateTime? PendingExitAt { get; init; }
+
+    /// <summary>
     /// Timestamp when campaign was closed (UTC).
     /// Null if not yet closed.
     /// </summary>
@@ -95,7 +102,27 @@ public sealed record Campaign
     }
 
     /// <summary>
+    /// Transitions campaign to PendingExit state.
+    /// Called when exit orders have been placed but not yet fully filled.
+    /// Phase 1: State Persistence & Idempotency
+    /// </summary>
+    public Campaign BeginExit()
+    {
+        if (State != CampaignState.Active)
+        {
+            throw new InvalidOperationException($"Cannot begin exit from state {State}. Must be Active.");
+        }
+
+        return this with
+        {
+            State = CampaignState.PendingExit,
+            PendingExitAt = DateTime.UtcNow
+        };
+    }
+
+    /// <summary>
     /// Transitions campaign to Closed state with final P&amp;L and reason.
+    /// Can transition from Active (skip PendingExit) or PendingExit (normal flow).
     /// </summary>
     public Campaign Close(string reason, decimal realizedPnL)
     {

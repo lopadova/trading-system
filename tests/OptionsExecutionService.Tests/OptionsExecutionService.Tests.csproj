@@ -26,6 +26,30 @@
     </PackageReference>
   </ItemGroup>
 
+  <!--
+    IBKR TWS API wiring: same dual-path pattern as OptionsExecutionService.
+    Local Windows dev with TWS installed → real CSharpAPI.dll.
+    CI / no-TWS checkout → compile against in-repo IBApi.Stub project.
+  -->
+  <PropertyGroup>
+    <IbkrRealDllPath>C:\TWS API\source\CSharpClient\client\bin\Release\net8.0\CSharpAPI.dll</IbkrRealDllPath>
+    <UseRealIbkrDll Condition="Exists('$(IbkrRealDllPath)')">true</UseRealIbkrDll>
+    <UseRealIbkrDll Condition="'$(UseRealIbkrDll)' == ''">false</UseRealIbkrDll>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(UseRealIbkrDll)' == 'true'">
+    <!-- CRITICAL: Official IBKR TWS API library (CSharpAPI.dll) -->
+    <!-- Install from: https://www.interactivebrokers.com/en/trading/tws-api-install.php -->
+    <Reference Include="IBApi">
+      <HintPath>$(IbkrRealDllPath)</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(UseRealIbkrDll)' == 'false'">
+    <ProjectReference Include="..\..\src\IBApi.Stub\IBApi.Stub.csproj" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\..\src\OptionsExecutionService\OptionsExecutionService.csproj" />
     <ProjectReference Include="..\..\src\SharedKernel\SharedKernel.csproj" />

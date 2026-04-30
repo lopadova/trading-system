@@ -1,5 +1,7 @@
 using IBApi;
 using Microsoft.Extensions.Logging;
+using OptionsExecutionService.Repositories;
+using SharedKernel.Domain;
 using SharedKernel.Ibkr;
 
 namespace OptionsExecutionService.Ibkr;
@@ -13,6 +15,7 @@ namespace OptionsExecutionService.Ibkr;
 public sealed class TwsCallbackHandler : DefaultEWrapper
 {
     private readonly ILogger<TwsCallbackHandler> _logger;
+    private readonly IOrderEventsRepository _orderEventsRepository;
     private readonly object _lock = new();
 
     // State management
@@ -24,9 +27,12 @@ public sealed class TwsCallbackHandler : DefaultEWrapper
     public event EventHandler<(int OrderId, string Status, int Filled, int Remaining, double AvgFillPrice)>? OrderStatusChanged;
     public event EventHandler<(int OrderId, int ErrorCode, string ErrorMessage)>? OrderError;
 
-    public TwsCallbackHandler(ILogger<TwsCallbackHandler> logger)
+    public TwsCallbackHandler(
+        ILogger<TwsCallbackHandler> logger,
+        IOrderEventsRepository orderEventsRepository)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _orderEventsRepository = orderEventsRepository ?? throw new ArgumentNullException(nameof(orderEventsRepository));
     }
 
     /// <summary>
@@ -103,7 +109,107 @@ public sealed class TwsCallbackHandler : DefaultEWrapper
             "Order status: orderId={OrderId} status={Status} filled={Filled} remaining={Remaining} avgPrice={AvgPrice}",
             orderId, status, filled, remaining, avgFillPrice);
 
+        // Persist callback to order_events table (synchronous blocking for test simplicity + race condition prevention)
+        try
+        {
+            // Map IBKR status string to OrderStatus enum
+            OrderStatus mappedStatus = MapIbkrStatus(status);
+
+            // Convert IBKR sentinel values (0.0, 0, empty string) to NULL
+            decimal? lastFillPriceNullable = lastFillPrice == 0.0 ? null : (decimal?)lastFillPrice;
+            decimal? avgFillPriceNullable = avgFillPrice == 0.0 ? null : (decimal?)avgFillPrice;
+            int? parentIdNullable = parentId == 0 ? null : (int?)parentId;
+            decimal? mktCapPriceNullable = mktCapPrice == 0.0 ? null : (decimal?)mktCapPrice;
+            string? whyHeldNullable = string.IsNullOrEmpty(whyHeld) ? null : whyHeld;
+
+            // Call repository synchronously (blocks IBKR callback thread until persistence completes)
+            // This guarantees test assertions can verify immediately without Task.Delay race conditions
+            // TODO (Phase 2): Map IBKR orderId → internal orderId via IOrderTrackingRepository lookup
+            // For now: Store IBKR orderId as string directly
+            Task persistTask = _orderEventsRepository.InsertOrderStatusAsync(
+                orderId: orderId.ToString(),
+                ibkrOrderId: orderId,
+                status: mappedStatus,
+                filled: (int)filled,
+                remaining: (int)remaining,
+                lastFillPrice: lastFillPriceNullable,
+                avgFillPrice: avgFillPriceNullable,
+                permId: (int?)permId,
+                parentId: parentIdNullable,
+                lastTradeDate: null,                // Not provided in orderStatus callback
+                whyHeld: whyHeldNullable,
+                mktCapPrice: mktCapPriceNullable,
+                ct: CancellationToken.None
+            );
+
+            // Wait with 5-second timeout to prevent indefinite deadlock if DB locks
+            if (!persistTask.Wait(TimeSpan.FromSeconds(5)))
+            {
+                _logger.LogError("Timeout persisting orderStatus callback for order {OrderId} after 5 seconds", orderId);
+            }
+        }
+        catch (Exception ex)
+        {
+            // CRITICAL: IBKR callbacks must NEVER crash (would kill connection)
+            // Log error but do NOT rethrow
+            _logger.LogError(ex, "Failed to persist orderStatus callback for order {OrderId}", orderId);
+        }
+
+        // Fire event after persistence (existing behavior preserved)
         OrderStatusChanged?.Invoke(this, (orderId, status, (int)filled, (int)remaining, avgFillPrice));
+    }
+
+    /// <summary>
+    /// Maps IBKR order status string to OrderStatus enum.
+    /// </summary>
+    /// <remarks>
+    /// IBKR status values: https://interactivebrokers.github.io/tws-api/classIBApi_1_1EWrapper.html#a17f2a02d6449710b6394d0266a353313
+    /// Common statuses:
+    /// - ApiPending: Order created, not yet submitted to IBKR
+    /// - PendingSubmit: Order submitted but not yet acknowledged by exchange
+    /// - PreSubmitted: Order acknowledged but not yet active (simulated orders)
+    /// - Submitted: Order active on exchange
+    /// - PartFilled: Order partially filled
+    /// - Filled: Order completely filled
+    /// - Cancelled: Order cancelled
+    /// - ApiCancelled: Order cancelled by API
+    /// - Inactive: Order inactive (outside trading hours, etc.)
+    /// - PendingCancel: Cancel request pending
+    /// </remarks>
+    private OrderStatus MapIbkrStatus(string ibkrStatus) => ibkrStatus switch
+    {
+        // Pending states
+        "ApiPending" => OrderStatus.PendingSubmit,
+        "PendingSubmit" => OrderStatus.PendingSubmit,
+        "PreSubmitted" => OrderStatus.PendingSubmit,
+
+        // Active states
+        "Submitted" => OrderStatus.Submitted,
+        "Active" => OrderStatus.Active,
+        "PartFilled" => OrderStatus.PartiallyFilled,
+        "Filled" => OrderStatus.Filled,
+
+        // Terminal states
+        "Cancelled" => OrderStatus.Cancelled,
+        "ApiCancelled" => OrderStatus.Cancelled,
+        "Inactive" => OrderStatus.Cancelled,  // Map Inactive to Cancelled (order no longer working)
+        "PendingCancel" => OrderStatus.Cancelled,
+
+        // Unknown status: log warning and use fallback
+        _ => LogUnknownStatusAndReturnFallback(ibkrStatus)
+    };
+
+    /// <summary>
+    /// Logs unknown IBKR status and returns fallback value (PendingSubmit).
+    /// </summary>
+    /// <remarks>
+    /// PendingSubmit is the safest fallback: it indicates "something happened but we're not sure what".
+    /// This prevents false positives (claiming order is Filled when it's not) while maintaining audit trail.
+    /// </remarks>
+    private OrderStatus LogUnknownStatusAndReturnFallback(string ibkrStatus)
+    {
+        _logger.LogWarning("Unknown IBKR order status: {Status}. Using PendingSubmit as fallback.", ibkrStatus);
+        return OrderStatus.PendingSubmit;
     }
 
     public override void openOrder(int orderId, Contract contract, Order order, OrderState orderState)
@@ -168,6 +274,34 @@ public sealed class TwsCallbackHandler : DefaultEWrapper
         if (id > 0 && errorCode >= 200)
         {
             _logger.LogError("Order error: orderId={OrderId} code={Code} message={Message}", id, errorCode, errorMsg);
+
+            // Persist error event to order_events table
+            try
+            {
+                // NOTE: Simplified orderId mapping for Phase 1 - use IBKR orderId as string
+                // Phase 2 will implement proper order_tracking lookup
+                var persistTask = _orderEventsRepository.InsertErrorAsync(
+                    orderId: id.ToString(),
+                    ibkrOrderId: id,
+                    errorCode: errorCode,
+                    errorMessage: errorMsg,
+                    errorTime: errorTime
+                );
+
+                // Wait with 5-second timeout (same pattern as orderStatus/execDetails)
+                if (!persistTask.Wait(TimeSpan.FromSeconds(5)))
+                {
+                    _logger.LogError("Timeout persisting error callback for order {OrderId} errorCode {ErrorCode} after 5 seconds",
+                        id, errorCode);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to persist error callback for order {OrderId} errorCode {ErrorCode}",
+                    id, errorCode);
+                // Don't rethrow - IBKR callbacks must never crash
+            }
+
             OrderError?.Invoke(this, (id, errorCode, errorMsg));
             return;
         }
@@ -222,6 +356,39 @@ public sealed class TwsCallbackHandler : DefaultEWrapper
         _logger.LogInformation(
             "Execution: reqId={ReqId} orderId={OrderId} symbol={Symbol} side={Side} shares={Shares} price={Price}",
             reqId, execution.OrderId, contract.Symbol, execution.Side, execution.Shares, execution.Price);
+
+        // Persist execution event to order_events table
+        try
+        {
+            // NOTE: Simplified orderId mapping for Phase 1 - use IBKR orderId as string
+            // Phase 2 will implement proper order_tracking lookup
+            var persistTask = _orderEventsRepository.InsertExecutionAsync(
+                orderId: execution.OrderId.ToString(),
+                ibkrOrderId: execution.OrderId,
+                execId: execution.ExecId,
+                execTime: execution.Time,
+                side: execution.Side,
+                shares: execution.Shares,
+                price: (decimal)execution.Price,  // Convert double to decimal
+                exchange: execution.Exchange,
+                permId: execution.PermId > 0 ? (int)execution.PermId : null,  // Convert long to int?
+                symbol: contract.Symbol,
+                secType: contract.SecType
+            );
+
+            // Wait with 5-second timeout (same pattern as orderStatus)
+            if (!persistTask.Wait(TimeSpan.FromSeconds(5)))
+            {
+                _logger.LogError("Timeout persisting execDetails callback for order {OrderId} execId {ExecId} after 5 seconds",
+                    execution.OrderId, execution.ExecId);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to persist execDetails callback for order {OrderId} execId {ExecId}",
+                execution.OrderId, execution.ExecId);
+            // Don't rethrow - IBKR callbacks must never crash
+        }
     }
 
     public override void execDetailsEnd(int reqId) { }

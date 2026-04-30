@@ -119,6 +119,11 @@ try
     builder.Services.AddScoped<ICampaignRepository, CampaignRepository>();
     builder.Services.AddScoped<IOrderTrackingRepository, OrderTrackingRepository>();
 
+    // Thread-safe for Singleton: OrderEventsRepository creates new SQLiteConnection per call
+    // via IDbConnectionFactory.OpenAsync(). No shared state between method invocations.
+    // SQLite with WAL mode supports concurrent reads and writes.
+    builder.Services.AddSingleton<IOrderEventsRepository, OrderEventsRepository>();
+
     // Register strategy services
     builder.Services.AddSingleton<IStrategyValidator, StrategyValidator>();
     builder.Services.AddSingleton<IStrategyLoader, StrategyLoader>();
