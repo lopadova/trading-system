@@ -89,4 +89,23 @@ public interface IOrderEventsRepository
         string symbol,
         string secType,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// Inserts an order error event from IBKR's error() callback into the database.
+    /// This method creates an append-only audit trail. Each error creates a new immutable event row.
+    /// Only order-specific errors are persisted (id > 0 and errorCode >= 200).
+    /// </summary>
+    /// <param name="orderId">Internal order ID (links to order_tracking).</param>
+    /// <param name="ibkrOrderId">IBKR order ID.</param>
+    /// <param name="errorCode">IBKR error code.</param>
+    /// <param name="errorMessage">Error message from IBKR.</param>
+    /// <param name="errorTime">Error timestamp from IBKR (Unix timestamp).</param>
+    /// <param name="ct">Cancellation token.</param>
+    Task InsertErrorAsync(
+        string orderId,
+        int? ibkrOrderId,
+        int errorCode,
+        string errorMessage,
+        long errorTime,
+        CancellationToken ct = default);
 }

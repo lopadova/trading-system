@@ -592,4 +592,83 @@ public sealed class TwsCallbackHandlerTests
     }
 
     #endregion
+
+    #region Error Callback Persistence Tests
+
+    /// <summary>
+    /// Verifies that order-specific error callbacks trigger InsertErrorAsync() persistence.
+    /// This is TDD RED phase - test will fail until Task #11 implements persistence.
+    /// </summary>
+    /// <remarks>
+    /// Expected failures:
+    /// 1. Compilation error: OrderEventsRepository doesn't implement InsertErrorAsync yet.
+    /// 2. Runtime error: TwsCallbackHandler.error() doesn't call repository yet.
+    /// </remarks>
+    [Fact]
+    public void InsertErrorAsync_CalledWhenOrderErrorCallbackFired()
+    {
+        // ARRANGE
+        Mock<ILogger<TwsCallbackHandler>> mockLogger = new();
+        Mock<IOrderEventsRepository> mockRepository = new();
+        TwsCallbackHandler handler = new(mockLogger.Object, mockRepository.Object);
+
+        // IBKR error callback parameters for order-specific error
+        int orderId = 1001;
+        long errorTime = 1735603200; // Unix timestamp
+        int errorCode = 201; // Order-specific error (200+)
+        string errorMsg = "Order rejected - invalid contract";
+        string advancedOrderRejectJson = "";
+
+        // ACT
+        handler.error(orderId, errorTime, errorCode, errorMsg, advancedOrderRejectJson);
+
+        // ASSERT
+        // Verify InsertErrorAsync called once with correct parameters
+        mockRepository.Verify(
+            repo => repo.InsertErrorAsync(
+                // NOTE: This test assumes orderId == id.ToString() for simplicity (RED phase).
+                // Task #11 implementation must resolve orderId via order_tracking lookup.
+                It.Is<string>(oid => oid == orderId.ToString()),
+                It.Is<int?>(id => id == orderId),
+                It.Is<int>(code => code == errorCode),
+                It.Is<string>(msg => msg == errorMsg),
+                It.Is<long>(time => time == errorTime),
+                It.IsAny<CancellationToken>()),
+            Times.Once,
+            "Order-specific error callback should persist error event to order_events table");
+    }
+
+    /// <summary>
+    /// Verifies that connection errors and info messages are NOT persisted.
+    /// Only order-specific errors (id > 0 and errorCode >= 200) should be saved.
+    /// </summary>
+    [Theory]
+    [InlineData(0, 2104, "Market data farm connection OK")]        // Connection status (id=0)
+    [InlineData(-1, 502, "Connection refused")]                    // Connection error (id=-1)
+    [InlineData(1001, 165, "Historical market data service OK")]   // Info message (errorCode < 200)
+    public void InsertErrorAsync_NotCalledForNonOrderErrors(int orderId, int errorCode, string errorMsg)
+    {
+        // ARRANGE
+        Mock<ILogger<TwsCallbackHandler>> mockLogger = new();
+        Mock<IOrderEventsRepository> mockRepository = new();
+        TwsCallbackHandler handler = new(mockLogger.Object, mockRepository.Object);
+
+        // ACT
+        handler.error(orderId, 0L, errorCode, errorMsg, "");
+
+        // ASSERT
+        // Verify InsertErrorAsync NOT called for connection/info messages
+        mockRepository.Verify(
+            repo => repo.InsertErrorAsync(
+                It.IsAny<string>(),
+                It.IsAny<int?>(),
+                It.IsAny<int>(),
+                It.IsAny<string>(),
+                It.IsAny<long>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never,
+            "Connection errors and info messages should NOT be persisted to order_events");
+    }
+
+    #endregion
 }
