@@ -17,13 +17,17 @@ public sealed class AddOrderEvents005 : IMigration
         -- Order events table: immutable audit trail of IBKR callbacks
         -- NOTE: event_id uses AUTOINCREMENT to ensure monotonic ordering
         -- (prevents timestamp-based flakes on fast sequential inserts)
+        -- Supports BOTH orderStatus and execDetails callbacks via event_type discriminator
         CREATE TABLE IF NOT EXISTS order_events (
             event_id          INTEGER PRIMARY KEY AUTOINCREMENT,
             order_id          TEXT    NOT NULL,     -- Internal order ID (links to order_tracking)
             ibkr_order_id     INTEGER,              -- IBKR order ID (null until submitted)
-            status            TEXT    NOT NULL,     -- OrderStatus enum as string
-            filled            INTEGER NOT NULL,     -- Filled quantity
-            remaining         INTEGER NOT NULL,     -- Remaining quantity
+            event_type        TEXT    NOT NULL,     -- 'status' or 'execution'
+
+            -- orderStatus fields (event_type = 'status')
+            status            TEXT,                 -- OrderStatus enum as string
+            filled            INTEGER,              -- Filled quantity
+            remaining         INTEGER,              -- Remaining quantity
             last_fill_price   REAL,                 -- Last fill price (from execDetails)
             avg_fill_price    REAL,                 -- Average fill price (from orderStatus)
             perm_id           INTEGER,              -- IBKR permanent order ID
@@ -31,6 +35,17 @@ public sealed class AddOrderEvents005 : IMigration
             last_trade_date   TEXT,                 -- Last trade date (from orderStatus)
             why_held          TEXT,                 -- Reason order held (from orderStatus)
             mkt_cap_price     REAL,                 -- Market cap price (from orderStatus)
+
+            -- execDetails fields (event_type = 'execution')
+            exec_id           TEXT,                 -- IBKR execution ID (unique per fill)
+            exec_time         TEXT,                 -- Execution timestamp from IBKR
+            side              TEXT,                 -- Execution side (BOT/SLD)
+            shares            REAL,                 -- Number of shares executed
+            price             REAL,                 -- Execution price
+            exchange          TEXT,                 -- Exchange where executed
+            symbol            TEXT,                 -- Contract symbol
+            sec_type          TEXT,                 -- Contract security type (OPT, STK, etc.)
+
             event_timestamp   TEXT    NOT NULL DEFAULT (datetime('now'))  -- ISO8601 UTC
         );
 
@@ -46,9 +61,15 @@ public sealed class AddOrderEvents005 : IMigration
         -- Index for time-based queries (e.g., "show all callbacks in last 24h")
         CREATE INDEX IF NOT EXISTS idx_order_events_timestamp
             ON order_events(event_timestamp DESC);
+
+        -- Index for execution ID lookups (deduplication)
+        CREATE INDEX IF NOT EXISTS idx_order_events_exec_id
+            ON order_events(exec_id)
+            WHERE exec_id IS NOT NULL;
         """;
 
     public string DownSql => """
+        DROP INDEX IF EXISTS idx_order_events_exec_id;
         DROP INDEX IF EXISTS idx_order_events_timestamp;
         DROP INDEX IF EXISTS idx_order_events_ibkr_order_id;
         DROP INDEX IF EXISTS idx_order_events_order_id;

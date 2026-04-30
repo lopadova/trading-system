@@ -447,9 +447,9 @@ public sealed class TwsCallbackHandlerTests
                 It.Is<string>(time => time == execution.Time),                     // execTime (IBKR format)
                 It.Is<string>(side => side == execution.Side),                     // side (BOT/SLD)
                 It.Is<decimal>(shares => shares == execution.Shares),              // shares executed
-                It.Is<decimal>(price => price == execution.Price),                 // execution price (decimal, no cast needed)
+                It.Is<decimal>(price => price == (decimal)execution.Price),        // execution price (cast from double)
                 It.Is<string>(exchange => exchange == execution.Exchange),         // exchange
-                It.Is<int?>(permId => permId == execution.PermId),                 // permId
+                It.Is<int?>(permId => permId == (execution.PermId > 0 ? (int)execution.PermId : null)),  // permId (cast from long)
                 It.Is<string>(symbol => symbol == contract.Symbol),                // contract symbol
                 It.Is<string>(secType => secType == contract.SecType),             // contract secType
                 It.IsAny<CancellationToken>()),

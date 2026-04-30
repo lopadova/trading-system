@@ -46,11 +46,11 @@ public sealed class OrderEventsRepository : IOrderEventsRepository
         // NOTE: event_id uses AUTOINCREMENT for monotonic ordering (prevents timestamp flakes)
         const string sql = """
             INSERT INTO order_events (
-                order_id, ibkr_order_id, status, filled, remaining,
+                order_id, ibkr_order_id, event_type, status, filled, remaining,
                 last_fill_price, avg_fill_price, perm_id, parent_id,
                 last_trade_date, why_held, mkt_cap_price
             ) VALUES (
-                @OrderId, @IbkrOrderId, @Status, @Filled, @Remaining,
+                @OrderId, @IbkrOrderId, 'status', @Status, @Filled, @Remaining,
                 @LastFillPrice, @AvgFillPrice, @PermId, @ParentId,
                 @LastTradeDate, @WhyHeld, @MktCapPrice
             )
@@ -188,6 +188,74 @@ public sealed class OrderEventsRepository : IOrderEventsRepository
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to get events for order {OrderId}", orderId);
+            throw;
+        }
+    }
+
+    public async Task InsertExecutionAsync(
+        string orderId,
+        int? ibkrOrderId,
+        string execId,
+        string execTime,
+        string side,
+        decimal shares,
+        decimal price,
+        string exchange,
+        int? permId,
+        string symbol,
+        string secType,
+        CancellationToken ct = default)
+    {
+        // Validate inputs (negative-first pattern)
+        if (string.IsNullOrWhiteSpace(orderId))
+        {
+            throw new ArgumentException("OrderId cannot be empty", nameof(orderId));
+        }
+        if (string.IsNullOrWhiteSpace(execId))
+        {
+            throw new ArgumentException("ExecId cannot be empty", nameof(execId));
+        }
+
+        // SQL: Insert execution event with auto-generated event_id and timestamp
+        const string sql = """
+            INSERT INTO order_events (
+                order_id, ibkr_order_id, event_type, exec_id, exec_time,
+                side, shares, price, exchange, perm_id, symbol, sec_type
+            ) VALUES (
+                @OrderId, @IbkrOrderId, 'execution', @ExecId, @ExecTime,
+                @Side, @Shares, @Price, @Exchange, @PermId, @Symbol, @SecType
+            )
+            """;
+
+        try
+        {
+            await using SqliteConnection conn = await _db.OpenAsync(ct);
+            CommandDefinition cmd = new(sql, new
+            {
+                OrderId = orderId,
+                IbkrOrderId = ibkrOrderId,
+                ExecId = execId,
+                ExecTime = execTime,
+                Side = side,
+                Shares = shares,
+                Price = price,
+                Exchange = exchange,
+                PermId = permId,
+                Symbol = symbol,
+                SecType = secType
+            }, cancellationToken: ct);
+
+            await conn.ExecuteAsync(cmd);
+
+            _logger.LogDebug(
+                "Persisted execution event: OrderId={OrderId} ExecId={ExecId} Side={Side} Shares={Shares}@{Price}",
+                orderId, execId, side, shares, price);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Failed to persist execution event: OrderId={OrderId} ExecId={ExecId}",
+                orderId, execId);
             throw;
         }
     }

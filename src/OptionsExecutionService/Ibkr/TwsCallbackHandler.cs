@@ -329,6 +329,39 @@ public sealed class TwsCallbackHandler : DefaultEWrapper
         _logger.LogInformation(
             "Execution: reqId={ReqId} orderId={OrderId} symbol={Symbol} side={Side} shares={Shares} price={Price}",
             reqId, execution.OrderId, contract.Symbol, execution.Side, execution.Shares, execution.Price);
+
+        // Persist execution event to order_events table
+        try
+        {
+            // NOTE: Simplified orderId mapping for Phase 1 - use IBKR orderId as string
+            // Phase 2 will implement proper order_tracking lookup
+            var persistTask = _orderEventsRepository.InsertExecutionAsync(
+                orderId: execution.OrderId.ToString(),
+                ibkrOrderId: execution.OrderId,
+                execId: execution.ExecId,
+                execTime: execution.Time,
+                side: execution.Side,
+                shares: execution.Shares,
+                price: (decimal)execution.Price,  // Convert double to decimal
+                exchange: execution.Exchange,
+                permId: execution.PermId > 0 ? (int)execution.PermId : null,  // Convert long to int?
+                symbol: contract.Symbol,
+                secType: contract.SecType
+            );
+
+            // Wait with 5-second timeout (same pattern as orderStatus)
+            if (!persistTask.Wait(TimeSpan.FromSeconds(5)))
+            {
+                _logger.LogError("Timeout persisting execDetails callback for order {OrderId} execId {ExecId} after 5 seconds",
+                    execution.OrderId, execution.ExecId);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to persist execDetails callback for order {OrderId} execId {ExecId}",
+                execution.OrderId, execution.ExecId);
+            // Don't rethrow - IBKR callbacks must never crash
+        }
     }
 
     public override void execDetailsEnd(int reqId) { }
