@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
 using OptionsExecutionService.Repositories;
@@ -49,9 +50,19 @@ public sealed class OutboxReconcilerWorkerTests
         mockRepository.Setup(r => r.GetPendingAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(pendingEntries);
 
+        // Mock IServiceScopeFactory and IServiceScope for DI (worker uses IServiceScopeFactory for testability)
+        var mockServiceScope = new Mock<IServiceScope>();
+        var mockScopeServiceProvider = new Mock<IServiceProvider>();
+        mockScopeServiceProvider.Setup(sp => sp.GetService(typeof(IOrderOutboxRepository)))
+            .Returns(mockRepository.Object);
+        mockServiceScope.Setup(s => s.ServiceProvider).Returns(mockScopeServiceProvider.Object);
+
+        var mockScopeFactory = new Mock<IServiceScopeFactory>();
+        mockScopeFactory.Setup(f => f.CreateScope()).Returns(mockServiceScope.Object);
+
         var worker = new OutboxReconcilerWorker(
+            mockScopeFactory.Object,
             mockLogger.Object,
-            mockRepository.Object,
             mockConfig.Object);
 
         var cts = new CancellationTokenSource();
@@ -114,9 +125,19 @@ public sealed class OutboxReconcilerWorkerTests
                 return callCount == 1 ? new List<OrderOutboxEntry> { pendingEntry } : new List<OrderOutboxEntry>();
             });
 
+        // Mock IServiceScopeFactory and IServiceScope for DI (worker uses IServiceScopeFactory for testability)
+        var mockServiceScope = new Mock<IServiceScope>();
+        var mockScopeServiceProvider = new Mock<IServiceProvider>();
+        mockScopeServiceProvider.Setup(sp => sp.GetService(typeof(IOrderOutboxRepository)))
+            .Returns(mockRepository.Object);
+        mockServiceScope.Setup(s => s.ServiceProvider).Returns(mockScopeServiceProvider.Object);
+
+        var mockScopeFactory = new Mock<IServiceScopeFactory>();
+        mockScopeFactory.Setup(f => f.CreateScope()).Returns(mockServiceScope.Object);
+
         var worker = new OutboxReconcilerWorker(
+            mockScopeFactory.Object,
             mockLogger.Object,
-            mockRepository.Object,
             mockConfig.Object);
 
         var cts = new CancellationTokenSource();
@@ -177,9 +198,19 @@ public sealed class OutboxReconcilerWorkerTests
                 return callCount == 1 ? new List<OrderOutboxEntry> { pendingEntry } : new List<OrderOutboxEntry>();
             });
 
+        // Mock IServiceScopeFactory and IServiceScope for DI (worker uses IServiceScopeFactory for testability)
+        var mockServiceScope = new Mock<IServiceScope>();
+        var mockScopeServiceProvider = new Mock<IServiceProvider>();
+        mockScopeServiceProvider.Setup(sp => sp.GetService(typeof(IOrderOutboxRepository)))
+            .Returns(mockRepository.Object);
+        mockServiceScope.Setup(s => s.ServiceProvider).Returns(mockScopeServiceProvider.Object);
+
+        var mockScopeFactory = new Mock<IServiceScopeFactory>();
+        mockScopeFactory.Setup(f => f.CreateScope()).Returns(mockServiceScope.Object);
+
         var worker = new OutboxReconcilerWorker(
+            mockScopeFactory.Object,
             mockLogger.Object,
-            mockRepository.Object,
             mockConfig.Object);
 
         var cts = new CancellationTokenSource();
