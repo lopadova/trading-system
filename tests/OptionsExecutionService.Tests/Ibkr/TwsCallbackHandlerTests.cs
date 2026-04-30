@@ -128,7 +128,7 @@ public sealed class TwsCallbackHandlerTests
             filled: 0,
             remaining: 2,
             avgFillPrice: 0.0,
-            permId: 123456789,
+            permId: 123456789L,  // L suffix forces long type (matches TwsCallbackHandler override)
             parentId: 0,
             lastFillPrice: 0.0,
             clientId: 0,
@@ -189,7 +189,7 @@ public sealed class TwsCallbackHandlerTests
             filled: 0,
             remaining: 2,
             avgFillPrice: 0.0,      // 0.0 = "no fill yet"
-            permId: 123456789,
+            permId: 123456789L,  // L suffix forces long type (matches TwsCallbackHandler override)
             parentId: 0,
             lastFillPrice: 0.0,     // 0.0 = "no fill yet"
             clientId: 0,
@@ -250,7 +250,7 @@ public sealed class TwsCallbackHandlerTests
             filled: 0,
             remaining: 2,
             avgFillPrice: 0.0,
-            permId: 123456789,
+            permId: 123456789L,  // L suffix forces long type (matches TwsCallbackHandler override)
             parentId: 0,            // 0 = "no parent order"
             lastFillPrice: 0.0,
             clientId: 0,
@@ -315,7 +315,7 @@ public sealed class TwsCallbackHandlerTests
             filled: 0,
             remaining: 2,
             avgFillPrice: 0.0,
-            permId: 123456789,
+            permId: 123456789L,  // L suffix forces long type (matches TwsCallbackHandler override)
             parentId: 0,
             lastFillPrice: 0.0,
             clientId: 0,
