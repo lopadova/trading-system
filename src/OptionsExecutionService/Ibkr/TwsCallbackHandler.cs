@@ -275,6 +275,34 @@ public sealed class TwsCallbackHandler : DefaultEWrapper
         if (id > 0 && errorCode >= 200)
         {
             _logger.LogError("Order error: orderId={OrderId} code={Code} message={Message}", id, errorCode, errorMsg);
+
+            // Persist error event to order_events table
+            try
+            {
+                // NOTE: Simplified orderId mapping for Phase 1 - use IBKR orderId as string
+                // Phase 2 will implement proper order_tracking lookup
+                var persistTask = _orderEventsRepository.InsertErrorAsync(
+                    orderId: id.ToString(),
+                    ibkrOrderId: id,
+                    errorCode: errorCode,
+                    errorMessage: errorMsg,
+                    errorTime: errorTime
+                );
+
+                // Wait with 5-second timeout (same pattern as orderStatus/execDetails)
+                if (!persistTask.Wait(TimeSpan.FromSeconds(5)))
+                {
+                    _logger.LogError("Timeout persisting error callback for order {OrderId} errorCode {ErrorCode} after 5 seconds",
+                        id, errorCode);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to persist error callback for order {OrderId} errorCode {ErrorCode}",
+                    id, errorCode);
+                // Don't rethrow - IBKR callbacks must never crash
+            }
+
             OrderError?.Invoke(this, (id, errorCode, errorMsg));
             return;
         }

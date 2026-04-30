@@ -259,4 +259,39 @@ public sealed class OrderEventsRepository : IOrderEventsRepository
             throw;
         }
     }
+
+    public async Task InsertErrorAsync(
+        string orderId,
+        int? ibkrOrderId,
+        int errorCode,
+        string errorMessage,
+        long errorTime,
+        CancellationToken ct = default)
+    {
+        const string sql = @"
+            INSERT INTO order_events (
+                order_id, ibkr_order_id, event_type, error_code, error_message, error_time, timestamp
+            ) VALUES (
+                @OrderId, @IbkrOrderId, 'error', @ErrorCode, @ErrorMessage, @ErrorTime, datetime('now')
+            )";
+
+        await using SqliteConnection conn = await _db.OpenAsync(ct);
+
+        var command = new CommandDefinition(
+            commandText: sql,
+            parameters: new
+            {
+                OrderId = orderId,
+                IbkrOrderId = ibkrOrderId,
+                ErrorCode = errorCode,
+                ErrorMessage = errorMessage,
+                ErrorTime = errorTime
+            },
+            cancellationToken: ct
+        );
+
+        await conn.ExecuteAsync(command);
+
+        _logger.LogDebug("Persisted error event: orderId={OrderId} errorCode={ErrorCode}", orderId, errorCode);
+    }
 }

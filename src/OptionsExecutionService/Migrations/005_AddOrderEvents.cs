@@ -17,7 +17,7 @@ public sealed class AddOrderEvents005 : IMigration
         -- Order events table: immutable audit trail of IBKR callbacks
         -- NOTE: event_id uses AUTOINCREMENT to ensure monotonic ordering
         -- (prevents timestamp-based flakes on fast sequential inserts)
-        -- Supports BOTH orderStatus and execDetails callbacks via event_type discriminator
+        -- Supports orderStatus, execDetails, and error callbacks via event_type discriminator
         CREATE TABLE IF NOT EXISTS order_events (
             event_id          INTEGER PRIMARY KEY AUTOINCREMENT,
             order_id          TEXT    NOT NULL,     -- Internal order ID (links to order_tracking)
@@ -45,6 +45,11 @@ public sealed class AddOrderEvents005 : IMigration
             exchange          TEXT,                 -- Exchange where executed
             symbol            TEXT,                 -- Contract symbol
             sec_type          TEXT,                 -- Contract security type (OPT, STK, etc.)
+
+            -- error fields (event_type = 'error')
+            error_code        INTEGER,              -- IBKR error code
+            error_message     TEXT,                 -- Error message from IBKR
+            error_time        INTEGER,              -- Error timestamp from IBKR (Unix timestamp)
 
             event_timestamp   TEXT    NOT NULL DEFAULT (datetime('now'))  -- ISO8601 UTC
         );
