@@ -237,6 +237,7 @@ try
     // Register background workers
     builder.Services.AddHostedService<IbkrConnectionWorker>();
     builder.Services.AddHostedService<CampaignMonitorWorker>();
+    builder.Services.AddHostedService<OutboxReconcilerWorker>();  // Phase 1: Crash recovery reconciler
 
     // Observability — health-state tracker; exposed via /health HTTP endpoint below.
     builder.Services.AddSingleton<IHealthState>(sp =>
