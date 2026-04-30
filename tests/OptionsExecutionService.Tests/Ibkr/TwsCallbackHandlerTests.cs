@@ -437,13 +437,17 @@ public sealed class TwsCallbackHandlerTests
         // Verify InsertExecutionAsync was called ONCE with correct data
         mockRepository.Verify(
             repo => repo.InsertExecutionAsync(
-                It.Is<string>(orderId => orderId == execution.OrderId.ToString()),  // Map ibkrOrderId → orderId as string
+                // NOTE: This test assumes orderId == execution.OrderId.ToString() for simplicity (RED phase).
+                // Task #8 implementation must resolve orderId via order_tracking lookup:
+                //   SELECT order_id FROM order_tracking WHERE ibkr_order_id = execution.OrderId
+                // If no match found, the execution is orphaned (order placed before crash).
+                It.Is<string>(orderId => orderId == execution.OrderId.ToString()),
                 It.Is<int?>(id => id == execution.OrderId),                        // ibkrOrderId
                 It.Is<string>(execId => execId == execution.ExecId),               // execId (unique per fill)
                 It.Is<string>(time => time == execution.Time),                     // execTime (IBKR format)
                 It.Is<string>(side => side == execution.Side),                     // side (BOT/SLD)
                 It.Is<decimal>(shares => shares == execution.Shares),              // shares executed
-                It.Is<decimal>(price => price == (decimal)execution.Price),        // execution price
+                It.Is<decimal>(price => price == execution.Price),                 // execution price (decimal, no cast needed)
                 It.Is<string>(exchange => exchange == execution.Exchange),         // exchange
                 It.Is<int?>(permId => permId == execution.PermId),                 // permId
                 It.Is<string>(symbol => symbol == contract.Symbol),                // contract symbol

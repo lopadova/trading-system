@@ -197,7 +197,7 @@ public class Execution
     public string Time { get; set; } = "";
     public string Side { get; set; } = "";
     public decimal Shares { get; set; }
-    public double Price { get; set; }
+    public decimal Price { get; set; }  // decimal for financial precision (not double)
     public string Exchange { get; set; } = "";
     public int PermId { get; set; }
     public int ClientId { get; set; }
