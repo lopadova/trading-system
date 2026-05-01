@@ -120,6 +120,7 @@ public class EClientSocket
     public void reqIds(int numIds) { }
     public void reqPositions() { }
     public void reqAccountSummary(int requestId, string group, string tags) { }
+    public void cancelAccountSummary(int requestId) { }
     public void reqMktData(int requestId, Contract contract, string genericTickList, bool snapshot, bool regulatorySnapshot, List<TagValue>? mktDataOptions) { }
     public void cancelMktData(int requestId) { }
     public void placeOrder(int orderId, Contract contract, Order order) { }
