@@ -207,10 +207,10 @@ public sealed class OptionsConfigurationValidator : IConfigurationValidator
         int maxPositionSize = _config.GetValue<int>("Safety:MaxPositionSize", 0);
         decimal maxPositionValueUsd = _config.GetValue<decimal>("Safety:MaxPositionValueUsd", 0);
         decimal minAccountBalanceUsd = _config.GetValue<decimal>("Safety:MinAccountBalanceUsd", 0);
-        decimal maxRiskPercent = _config.GetValue<decimal>("Safety:MaxRiskPercentOfAccount", 0);
+        decimal maxPositionPct = _config.GetValue<decimal>("Safety:MaxPositionPctOfAccount", 0);
         int circuitBreakerThreshold = _config.GetValue<int>("Safety:CircuitBreakerFailureThreshold", 0);
         int circuitBreakerWindow = _config.GetValue<int>("Safety:CircuitBreakerWindowMinutes", 0);
-        int circuitBreakerReset = _config.GetValue<int>("Safety:CircuitBreakerResetMinutes", 0);
+        int circuitBreakerCooldown = _config.GetValue<int>("Safety:CircuitBreakerCooldownMinutes", 0);
 
         // Validate position limits (critical)
         if (maxPositionSize <= 0)
@@ -229,17 +229,18 @@ public sealed class OptionsConfigurationValidator : IConfigurationValidator
         }
 
         // Validate risk percentage (critical)
-        if (maxRiskPercent <= 0 || maxRiskPercent > 100)
+        // Stored as fraction (0-1), where 0.05 = 5%
+        if (maxPositionPct <= 0 || maxPositionPct > 1)
         {
-            criticalErrors.Add($"Safety:MaxRiskPercentOfAccount must be between 0 and 100, got {maxRiskPercent}");
+            criticalErrors.Add($"Safety:MaxPositionPctOfAccount must be between 0 and 1 (fraction), got {maxPositionPct}. Use 0.05 for 5%.");
         }
 
-        // Warning if risk is very high (>10% per trade)
-        if (maxRiskPercent > 10)
+        // Warning if risk is very high (>10% per trade = 0.10 fraction)
+        if (maxPositionPct > 0.10m)
         {
             warnings.Add(
-                $"Safety:MaxRiskPercentOfAccount is {maxRiskPercent}%, which is very high. " +
-                "Consider lowering to 5% or less for better risk management.");
+                $"Safety:MaxPositionPctOfAccount is {maxPositionPct:P0} ({maxPositionPct * 100:F1}%), which is very high. " +
+                "Consider lowering to 0.05 (5%) or less for better risk management.");
         }
 
         // Validate circuit breaker settings (critical)
@@ -253,17 +254,17 @@ public sealed class OptionsConfigurationValidator : IConfigurationValidator
             criticalErrors.Add($"Safety:CircuitBreakerWindowMinutes must be positive, got {circuitBreakerWindow}");
         }
 
-        if (circuitBreakerReset <= 0)
+        if (circuitBreakerCooldown <= 0)
         {
-            criticalErrors.Add($"Safety:CircuitBreakerResetMinutes must be positive, got {circuitBreakerReset}");
+            criticalErrors.Add($"Safety:CircuitBreakerCooldownMinutes must be positive, got {circuitBreakerCooldown}");
         }
 
-        // Cross-field validation: reset should be >= window for safety
-        if (circuitBreakerReset < circuitBreakerWindow)
+        // Cross-field validation: cooldown should be >= window for safety
+        if (circuitBreakerCooldown < circuitBreakerWindow)
         {
             warnings.Add(
-                $"Safety:CircuitBreakerResetMinutes ({circuitBreakerReset}) is less than " +
-                $"CircuitBreakerWindowMinutes ({circuitBreakerWindow}). Consider making reset >= window.");
+                $"Safety:CircuitBreakerCooldownMinutes ({circuitBreakerCooldown}) is less than " +
+                $"CircuitBreakerWindowMinutes ({circuitBreakerWindow}). Consider making cooldown >= window.");
         }
     }
 
