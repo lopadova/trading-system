@@ -9,6 +9,7 @@ function wrap(ui: ReactNode) {
   qc.setQueryData(['risk', 'metrics'], {
     vix: 18.5,
     vix1d: 17.2,
+    vix3m: 19.8, // Added missing vix3m property
     delta: 12.3,
     theta: -45.6,
     vega: 78.9,
