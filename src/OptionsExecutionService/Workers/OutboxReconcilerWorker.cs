@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using OptionsExecutionService.Repositories;
@@ -12,18 +13,18 @@ namespace OptionsExecutionService.Workers;
 /// </summary>
 public sealed class OutboxReconcilerWorker : BackgroundService
 {
+    private readonly IServiceScopeFactory _serviceScopeFactory;
     private readonly ILogger<OutboxReconcilerWorker> _logger;
-    private readonly IOrderOutboxRepository _repository;
     private readonly IConfiguration _configuration;
     private readonly TimeSpan _interval;
 
     public OutboxReconcilerWorker(
+        IServiceScopeFactory serviceScopeFactory,
         ILogger<OutboxReconcilerWorker> logger,
-        IOrderOutboxRepository repository,
         IConfiguration configuration)
     {
+        _serviceScopeFactory = serviceScopeFactory ?? throw new ArgumentNullException(nameof(serviceScopeFactory));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _repository = repository ?? throw new ArgumentNullException(nameof(repository));
         _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
 
         // Read reconciler interval from config (default: 60 seconds)
@@ -56,8 +57,12 @@ public sealed class OutboxReconcilerWorker : BackgroundService
 
     private async Task ProcessPendingEntriesAsync(CancellationToken ct)
     {
+        // Create a scope for scoped repository (BackgroundService is singleton, repository is scoped)
+        using IServiceScope scope = _serviceScopeFactory.CreateScope();
+        IOrderOutboxRepository repository = scope.ServiceProvider.GetRequiredService<IOrderOutboxRepository>();
+
         // Get pending entries (limit 100 per iteration to avoid memory issues)
-        var pendingEntries = await _repository.GetPendingAsync(limit: 100, ct);
+        var pendingEntries = await repository.GetPendingAsync(limit: 100, ct);
 
         if (pendingEntries.Count == 0)
         {
@@ -75,7 +80,7 @@ public sealed class OutboxReconcilerWorker : BackgroundService
                 await ProcessEntryAsync(entry, ct);
 
                 // Mark as sent
-                await _repository.MarkSentAsync(entry.OutboxId, ct);
+                await repository.MarkSentAsync(entry.OutboxId, ct);
 
                 _logger.LogInformation(
                     "Processed outbox entry: OutboxId={OutboxId} OrderId={OrderId} Operation={Operation}",
@@ -90,7 +95,7 @@ public sealed class OutboxReconcilerWorker : BackgroundService
 
                 try
                 {
-                    await _repository.MarkFailedAsync(entry.OutboxId, ct);
+                    await repository.MarkFailedAsync(entry.OutboxId, ct);
                 }
                 catch (Exception markEx)
                 {

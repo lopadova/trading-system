@@ -118,6 +118,7 @@ try
     // Register repositories
     builder.Services.AddScoped<ICampaignRepository, CampaignRepository>();
     builder.Services.AddScoped<IOrderTrackingRepository, OrderTrackingRepository>();
+    builder.Services.AddScoped<IOrderOutboxRepository, OrderOutboxRepository>();  // Phase 1: Crash recovery outbox
 
     // Thread-safe for Singleton: OrderEventsRepository creates new SQLiteConnection per call
     // via IDbConnectionFactory.OpenAsync(). No shared state between method invocations.
