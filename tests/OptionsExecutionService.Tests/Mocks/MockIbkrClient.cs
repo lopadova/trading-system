@@ -144,4 +144,20 @@ public sealed class MockIbkrClient : IIbkrClient
     {
         OrderError?.Invoke(this, (orderId, errorCode, message));
     }
+
+    /// <summary>
+    /// Test helper: simulate order status changed event.
+    /// </summary>
+    public void SimulateOrderStatusChanged(int orderId, string status, int filled, int remaining, double avgFillPrice)
+    {
+        OrderStatusChanged?.Invoke(this, (orderId, status, filled, remaining, avgFillPrice));
+    }
+
+    /// <summary>
+    /// Test helper: simulate order error event.
+    /// </summary>
+    public void SimulateOrderError(int orderId, int errorCode, string errorMessage)
+    {
+        OrderError?.Invoke(this, (orderId, errorCode, errorMessage));
+    }
 }

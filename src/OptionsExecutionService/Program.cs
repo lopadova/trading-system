@@ -247,6 +247,7 @@ try
     builder.Services.AddHostedService<IbkrConnectionWorker>();
     builder.Services.AddHostedService<CampaignMonitorWorker>();
     builder.Services.AddHostedService<OutboxReconcilerWorker>();  // Phase 1: Crash recovery reconciler
+    builder.Services.AddHostedService<OrderStatusHandler>();       // Phase 3: Broker callback persistence - Task RM-04
 
     // Observability — health-state tracker; exposed via /health HTTP endpoint below.
     builder.Services.AddSingleton<IHealthState>(sp =>
