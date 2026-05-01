@@ -121,7 +121,18 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Check for Cloudflare API token
+      id: check-token
+      run: |
+        if [ -z "${{ secrets.CLOUDFLARE_API_TOKEN }}" ]; then
+          echo "skip=true" >> $GITHUB_OUTPUT
+          echo "⚠️ CLOUDFLARE_API_TOKEN not configured - skipping deployment"
+        else
+          echo "skip=false" >> $GITHUB_OUTPUT
+        fi
+
     - name: Setup Node
+      if: steps.check-token.outputs.skip != 'true'
       uses: actions/setup-node@v4
       with:
         node-version: ${{ env.NODE_VERSION }}
@@ -129,10 +140,12 @@ jobs:
         cache-dependency-path: infra/cloudflare/worker/package-lock.json
 
     - name: Install dependencies
+      if: steps.check-token.outputs.skip != 'true'
       working-directory: infra/cloudflare/worker
       run: npm ci --no-audit --no-fund
 
     - name: Deploy to Cloudflare Workers
+      if: steps.check-token.outputs.skip != 'true'
       working-directory: infra/cloudflare/worker
       env:
         CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -153,7 +166,18 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Check for Cloudflare API token
+      id: check-token
+      run: |
+        if [ -z "${{ secrets.CLOUDFLARE_API_TOKEN }}" ]; then
+          echo "skip=true" >> $GITHUB_OUTPUT
+          echo "⚠️ CLOUDFLARE_API_TOKEN not configured - skipping deployment"
+        else
+          echo "skip=false" >> $GITHUB_OUTPUT
+        fi
+
     - name: Setup Node
+      if: steps.check-token.outputs.skip != 'true'
       uses: actions/setup-node@v4
       with:
         node-version: ${{ env.NODE_VERSION }}
@@ -161,10 +185,12 @@ jobs:
         cache-dependency-path: infra/cloudflare/worker/package-lock.json
 
     - name: Install dependencies
+      if: steps.check-token.outputs.skip != 'true'
       working-directory: infra/cloudflare/worker
       run: npm ci --no-audit --no-fund
 
     - name: Deploy to Cloudflare Workers (staging)
+      if: steps.check-token.outputs.skip != 'true'
       working-directory: infra/cloudflare/worker
       env:
         CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -187,7 +213,18 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Check for Cloudflare API token
+      id: check-token
+      run: |
+        if [ -z "${{ secrets.CLOUDFLARE_API_TOKEN }}" ]; then
+          echo "skip=true" >> $GITHUB_OUTPUT
+          echo "⚠️ CLOUDFLARE_API_TOKEN not configured - skipping deployment"
+        else
+          echo "skip=false" >> $GITHUB_OUTPUT
+        fi
+
     - name: Setup Node
+      if: steps.check-token.outputs.skip != 'true'
       uses: actions/setup-node@v4
       with:
         node-version: ${{ env.NODE_VERSION }}
@@ -195,14 +232,17 @@ jobs:
         cache-dependency-path: dashboard/package-lock.json
 
     - name: Install dependencies
+      if: steps.check-token.outputs.skip != 'true'
       working-directory: dashboard
       run: npm ci --no-audit --no-fund
 
     - name: Build dashboard
+      if: steps.check-token.outputs.skip != 'true'
       working-directory: dashboard
       run: npm run build
 
     - name: Deploy to Cloudflare Pages
+      if: steps.check-token.outputs.skip != 'true'
       uses: cloudflare/pages-action@v1
       with:
         apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -226,7 +266,18 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Check for Cloudflare API token
+      id: check-token
+      run: |
+        if [ -z "${{ secrets.CLOUDFLARE_API_TOKEN }}" ]; then
+          echo "skip=true" >> $GITHUB_OUTPUT
+          echo "⚠️ CLOUDFLARE_API_TOKEN not configured - skipping deployment"
+        else
+          echo "skip=false" >> $GITHUB_OUTPUT
+        fi
+
     - name: Setup Node
+      if: steps.check-token.outputs.skip != 'true'
       uses: actions/setup-node@v4
       with:
         node-version: ${{ env.NODE_VERSION }}
@@ -234,10 +285,12 @@ jobs:
         cache-dependency-path: dashboard/package-lock.json
 
     - name: Install dependencies
+      if: steps.check-token.outputs.skip != 'true'
       working-directory: dashboard
       run: npm ci --no-audit --no-fund
 
     - name: Build dashboard
+      if: steps.check-token.outputs.skip != 'true'
       working-directory: dashboard
       run: npm run build
 
@@ -245,6 +298,7 @@ jobs:
     # pollute production analytics. Create the project with:
     #   bunx wrangler pages project create trading-dashboard-staging
     - name: Deploy to Cloudflare Pages (staging)
+      if: steps.check-token.outputs.skip != 'true'
       uses: cloudflare/pages-action@v1
       with:
         apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
