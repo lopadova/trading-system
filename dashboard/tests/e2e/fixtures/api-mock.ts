@@ -85,10 +85,13 @@ const RISK_METRICS: JsonValue = {
 }
 
 const SYSTEM_METRICS: JsonValue = {
-  services: [
-    { serviceName: 'TradingSupervisorService', lastSeenAt: '2026-04-20T14:30:00Z', cpuPercent: 4.2, ramPercent: 18.1, uptimeSeconds: 86400 },
-    { serviceName: 'OptionsExecutionService', lastSeenAt: '2026-04-20T14:30:00Z', cpuPercent: 3.8, ramPercent: 16.7, uptimeSeconds: 86400 },
-  ],
+  cpu: [22, 28, 24, 30, 34, 38, 35, 40, 44, 48, 42, 38, 36, 34, 32, 30, 34, 38, 36, 34],
+  ram: [54, 55, 56, 57, 58, 58, 59, 59, 60, 61, 60, 59, 58, 58, 57, 57, 58, 58, 58, 58],
+  network: [12, 18, 22, 30, 45, 58, 65, 72, 78, 82, 76, 68, 60, 54, 48, 42, 48, 54, 62, 71],
+  diskUsedPct: 79,
+  diskFreeGb: 42,
+  diskTotalGb: 200,
+  asOf: '2026-04-20T14:30:00Z',
 }
 
 // Everything else (activity, breakdown, etc.) — return an empty-ish shape so
@@ -100,20 +103,30 @@ const EMPTY_LIST: JsonValue = { items: [] }
  * fragments are matched first so "/risk/semaphore" does not collide with
  * "/risk/metrics".
  */
+const PERF_SERIES: JsonValue = {
+  asset: 'all',
+  range: '1M',
+  portfolio: [100, 102, 101, 103, 105],
+  sp500: [100, 101, 100, 102, 103],
+  swda: [100, 101, 101, 102, 104],
+  startDate: '2026-03-20',
+  endDate: '2026-04-20',
+}
+
 const MOCK_TABLE: Array<{ match: (url: string) => boolean; body: JsonValue }> = [
   { match: u => u.includes('/risk/semaphore'), body: SEMAPHORE_GREEN },
   { match: u => u.includes('/risk/metrics'), body: RISK_METRICS },
   { match: u => u.includes('/performance/summary'), body: SUMMARY },
-  { match: u => u.includes('/performance/series'), body: { series: [] } },
+  { match: u => u.includes('/performance/series'), body: PERF_SERIES },
   { match: u => u.includes('/performance/today'), body: { points: [] } },
   { match: u => u.includes('/campaigns/summary'), body: CAMPAIGNS_SUMMARY },
   { match: u => u.includes('/system/metrics'), body: SYSTEM_METRICS },
   { match: u => u.includes('/alerts/summary-24h'), body: ALERTS_SUMMARY },
   { match: u => u.includes('/alerts/unresolved'), body: { alerts: [] } },
   { match: u => u.includes('/positions'), body: POSITIONS },
-  { match: u => u.includes('/activity/recent'), body: EMPTY_LIST },
-  { match: u => u.includes('/drawdowns'), body: { drawdowns: [] } },
-  { match: u => u.includes('/monthly-returns'), body: { months: [] } },
+  { match: u => u.includes('/activity/recent'), body: { events: [] } },
+  { match: u => u.includes('/drawdowns'), body: { asset: 'all', range: 'Max', portfolioSeries: [], sp500Series: [], worst: [] } },
+  { match: u => u.includes('/monthly-returns'), body: { asset: 'all', years: {}, totals: {} } },
   { match: u => u.includes('/heartbeats'), body: { heartbeats: [] } },
   { match: u => u.includes('/audit/orders'), body: { orders: [] } },
   { match: u => u.includes('/breakdown'), body: EMPTY_LIST },
