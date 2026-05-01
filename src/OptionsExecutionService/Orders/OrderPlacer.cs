@@ -7,6 +7,7 @@ using SharedKernel.Domain;
 using SharedKernel.Ibkr;
 using SharedKernel.Observability;
 using SharedKernel.Safety;
+using System.Globalization;
 
 namespace OptionsExecutionService.Orders;
 
@@ -37,16 +38,9 @@ public sealed class OrderPlacer : IOrderPlacer
     private readonly IOrderAuditSink _auditSink;
     private readonly IAlerter _alerter;
     private readonly SafetyOptions _safetyOptions;
+    private readonly IOrderCircuitBreaker _circuitBreaker;
+    private readonly IAccountEquityProvider _equityProvider;
     private readonly ILogger<OrderPlacer> _logger;
-
-    // Circuit breaker state. Lock-protected; only Reject-class failures count.
-    private readonly Lock _circuitLock = new();
-    private bool _circuitBreakerOpen = false;
-    private DateTime? _circuitBreakerTrippedAt = null;
-
-    // Account balance cache (updated periodically by background service)
-    private decimal _cachedAccountBalance = 0m;
-    private readonly Lock _balanceLock = new();
 
     public OrderPlacer(
         IIbkrClient ibkrClient,
@@ -56,6 +50,8 @@ public sealed class OrderPlacer : IOrderPlacer
         ISafetyFlagStore flagStore,
         IOrderAuditSink auditSink,
         IAlerter alerter,
+        IOrderCircuitBreaker circuitBreaker,
+        IAccountEquityProvider equityProvider,
         IOptions<SafetyOptions> safetyOptions,
         ILogger<OrderPlacer> logger)
     {
@@ -66,6 +62,8 @@ public sealed class OrderPlacer : IOrderPlacer
         _flagStore = flagStore ?? throw new ArgumentNullException(nameof(flagStore));
         _auditSink = auditSink ?? throw new ArgumentNullException(nameof(auditSink));
         _alerter = alerter ?? throw new ArgumentNullException(nameof(alerter));
+        _circuitBreaker = circuitBreaker ?? throw new ArgumentNullException(nameof(circuitBreaker));
+        _equityProvider = equityProvider ?? throw new ArgumentNullException(nameof(equityProvider));
         _safetyOptions = safetyOptions?.Value ?? throw new ArgumentNullException(nameof(safetyOptions));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
@@ -165,9 +163,13 @@ public sealed class OrderPlacer : IOrderPlacer
         }
 
         // ===== GATE #4 — Circuit breaker =====
-        if (IsCircuitBreakerOpen())
+        if (_circuitBreaker.IsOpen())
         {
-            string error = $"Circuit breaker is open. Tripped at {_circuitBreakerTrippedAt:O}";
+            CircuitBreakerState breakerState = _circuitBreaker.GetState();
+            string error = string.Format(CultureInfo.InvariantCulture,
+                "Circuit breaker is open. Tripped at {0}. Reason: {1}",
+                breakerState.TrippedAt?.ToString("O", CultureInfo.InvariantCulture) ?? "unknown",
+                breakerState.Reason ?? "unknown");
             _logger.LogError("Order rejected by circuit breaker: {CampaignId}", request.CampaignId);
             await _auditSink.WriteAsync(
                 OrderAuditEntry.Rejected(request, semaphoreSnapshot, AuditOutcome.RejectedBreaker, "breaker-open"),
@@ -213,7 +215,11 @@ public sealed class OrderPlacer : IOrderPlacer
                 // Submission rejected by broker — classify as BrokerReject
                 // (deliberate refusal of our request, not a transport fault).
                 await _orderRepo.UpdateOrderStatusAsync(orderId, OrderStatus.Failed, 0, 0m, ct).ConfigureAwait(false);
-                await RecordFailureAsync(IbkrFailureType.BrokerReject, ct).ConfigureAwait(false);
+
+                // Query failure count and delegate to circuit breaker
+                List<OrderRecord> recentFailures = await _orderRepo.GetFailedOrdersInWindowAsync(
+                    _safetyConfig.CircuitBreakerWindowMinutes, ct).ConfigureAwait(false);
+                await _circuitBreaker.RecordFailureAsync(IbkrFailureType.BrokerReject, recentFailures.Count, ct).ConfigureAwait(false);
 
                 await _auditSink.WriteAsync(
                     OrderAuditEntry.BrokerRejected(request, semaphoreSnapshot, orderId, "IBKR PlaceOrder returned false"),
@@ -250,7 +256,9 @@ public sealed class OrderPlacer : IOrderPlacer
 
             // Exception during IBKR call → classify as BrokerReject (we don't know
             // if the other side received it; better to count and trip early).
-            await RecordFailureAsync(IbkrFailureType.BrokerReject, ct).ConfigureAwait(false);
+            List<OrderRecord> recentFailures = await _orderRepo.GetFailedOrdersInWindowAsync(
+                _safetyConfig.CircuitBreakerWindowMinutes, ct).ConfigureAwait(false);
+            await _circuitBreaker.RecordFailureAsync(IbkrFailureType.BrokerReject, recentFailures.Count, ct).ConfigureAwait(false);
 
             await _auditSink.WriteAsync(
                 OrderAuditEntry.ErrorDuring(request, semaphoreSnapshot, orderId, ex.Message),
@@ -314,61 +322,34 @@ public sealed class OrderPlacer : IOrderPlacer
 
     public bool IsCircuitBreakerOpen()
     {
-        lock (_circuitLock)
-        {
-            // If circuit breaker is open, check if cooldown has expired
-            if (_circuitBreakerOpen && _circuitBreakerTrippedAt is not null)
-            {
-                DateTime cooldownEnd = _circuitBreakerTrippedAt.Value
-                    .AddMinutes(_safetyConfig.CircuitBreakerCooldownMinutes);
-
-                if (DateTime.UtcNow >= cooldownEnd)
-                {
-                    _logger.LogInformation("Circuit breaker cooldown expired. Resetting circuit.");
-                    _circuitBreakerOpen = false;
-                    _circuitBreakerTrippedAt = null;
-                }
-            }
-
-            return _circuitBreakerOpen;
-        }
+        return _circuitBreaker.IsOpen();
     }
 
     public void ResetCircuitBreaker()
     {
-        lock (_circuitLock)
-        {
-            _circuitBreakerOpen = false;
-            _circuitBreakerTrippedAt = null;
-            _logger.LogWarning("Circuit breaker manually reset");
-        }
+        _circuitBreaker.Reset();
     }
 
     public async Task<OrderStats> GetOrderStatsAsync(CancellationToken ct = default)
     {
         OrderStats stats = await _orderRepo.GetOrderStatsAsync(ct);
 
-        // Add circuit breaker state
-        lock (_circuitLock)
+        // Add circuit breaker state from singleton
+        CircuitBreakerState breakerState = _circuitBreaker.GetState();
+        return stats with
         {
-            return stats with
-            {
-                CircuitBreakerOpen = _circuitBreakerOpen,
-                CircuitBreakerTrippedAt = _circuitBreakerTrippedAt
-            };
-        }
+            CircuitBreakerOpen = breakerState.IsOpen,
+            CircuitBreakerTrippedAt = breakerState.TrippedAt
+        };
     }
 
     /// <summary>
-    /// Updates the cached account balance (called by background service).
+    /// Updates the account equity (legacy method for backward compatibility with tests).
+    /// New code should update via IAccountEquityProvider directly.
     /// </summary>
     public void UpdateAccountBalance(decimal balance)
     {
-        lock (_balanceLock)
-        {
-            _cachedAccountBalance = balance;
-            _logger.LogDebug("Account balance updated: {Balance:C}", balance);
-        }
+        _equityProvider.UpdateEquity(balance, DateTime.UtcNow);
     }
 
     /// <summary>
@@ -417,16 +398,35 @@ public sealed class OrderPlacer : IOrderPlacer
                 (OrderResult.Fail(OrderStatus.ValidationFailed, error), AuditOutcome.RejectedMaxValue));
         }
 
-        // SAFETY 4: Account balance must be above the floor.
-        decimal accountBalance;
-        lock (_balanceLock)
+        // SAFETY 4: Account equity must be available and fresh.
+        AccountEquitySnapshot? equity = _equityProvider.GetEquity();
+
+        if (equity is null)
         {
-            accountBalance = _cachedAccountBalance;
+            string error = "Account equity unavailable - cannot verify safety limits";
+            _logger.LogError("Order rejected: {Error}", error);
+            return Task.FromResult<(OrderResult?, AuditOutcome?)>(
+                (OrderResult.Fail(OrderStatus.ValidationFailed, error), AuditOutcome.Error));
         }
+
+        if (equity.IsStale)
+        {
+            string error = string.Format(CultureInfo.InvariantCulture,
+                "Account equity is stale (age: {0:F0}s) - refusing order for safety",
+                equity.Age.TotalSeconds);
+            _logger.LogError("Order rejected: {Error}", error);
+            return Task.FromResult<(OrderResult?, AuditOutcome?)>(
+                (OrderResult.Fail(OrderStatus.ValidationFailed, error), AuditOutcome.Error));
+        }
+
+        decimal accountBalance = equity.NetLiquidation;
 
         if (accountBalance < _safetyConfig.MinAccountBalanceUsd)
         {
-            string error = $"Account balance ${accountBalance:N0} below minimum ${_safetyConfig.MinAccountBalanceUsd:N0}";
+            string error = string.Format(CultureInfo.InvariantCulture,
+                "Account balance ${0:N0} below minimum ${1:N0}",
+                accountBalance,
+                _safetyConfig.MinAccountBalanceUsd);
             _logger.LogError("Order rejected: {Error}", error);
             return Task.FromResult<(OrderResult?, AuditOutcome?)>(
                 (OrderResult.Fail(OrderStatus.ValidationFailed, error), AuditOutcome.RejectedMinBalance));
@@ -448,75 +448,23 @@ public sealed class OrderPlacer : IOrderPlacer
     }
 
     /// <summary>
-    /// Records a failure and checks if the circuit breaker should trip. The
-    /// classification matters:
-    /// <list type="bullet">
-    ///   <item><description><see cref="IbkrFailureType.NetworkError"/>: does NOT count — transport noise shouldn't open the breaker.</description></item>
-    ///   <item><description><see cref="IbkrFailureType.BrokerReject"/>: counts — a deliberate rejection is the signal we want to contain.</description></item>
-    ///   <item><description><see cref="IbkrFailureType.Unknown"/>: counts (fail-closed).</description></item>
-    /// </list>
-    /// Callers who want to explicitly report a transport fault should pass
-    /// <see cref="IbkrFailureType.NetworkError"/>; the breaker will silently
-    /// skip it but still log for observability.
+    /// Public hook for external callers (e.g. connection watcher) to classify
+    /// IBKR-side failures against the breaker.
     /// </summary>
-    private async Task RecordFailureAsync(IbkrFailureType failureType, CancellationToken ct)
+    public async Task RecordIbkrFailureAsync(IbkrFailureType failureType, CancellationToken ct = default)
     {
-        if (failureType == IbkrFailureType.NetworkError)
-        {
-            // Transport-level fault: intentionally ignored for breaker math. Log
-            // it so dashboards still see the event, but don't escalate.
-            _logger.LogInformation("Network-class IBKR failure observed — NOT counted toward circuit breaker");
-            return;
-        }
-
         try
         {
-            // We still use the persistent failed-orders table as the source of
-            // truth for "how many true failures in the window" — consistent with
-            // pre-7.4 behavior and resilient across restarts.
             List<OrderRecord> recentFailures = await _orderRepo.GetFailedOrdersInWindowAsync(
-                _safetyConfig.CircuitBreakerWindowMinutes,
-                ct).ConfigureAwait(false);
-
-            int failureCount = recentFailures.Count;
-
-            _logger.LogWarning(
-                "Failure recorded (type={Type}). {Count} failures in last {Minutes} minutes",
-                failureType, failureCount, _safetyConfig.CircuitBreakerWindowMinutes);
-
-            if (failureCount >= _safetyConfig.CircuitBreakerFailureThreshold)
-            {
-                lock (_circuitLock)
-                {
-                    if (!_circuitBreakerOpen)
-                    {
-                        _circuitBreakerOpen = true;
-                        _circuitBreakerTrippedAt = DateTime.UtcNow;
-
-                        _logger.LogCritical(
-                            "CIRCUIT BREAKER TRIPPED: {Count} failures in {Minutes} minutes. " +
-                            "All order placement blocked for {Cooldown} minutes.",
-                            failureCount,
-                            _safetyConfig.CircuitBreakerWindowMinutes,
-                            _safetyConfig.CircuitBreakerCooldownMinutes);
-                    }
-                }
-            }
+                _safetyConfig.CircuitBreakerWindowMinutes, ct).ConfigureAwait(false);
+            await _circuitBreaker.RecordFailureAsync(failureType, recentFailures.Count, ct).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to record failure for circuit breaker");
+            _logger.LogError(ex, "Failed to record IBKR failure for circuit breaker");
             // Don't throw — breaker accounting failure must not block order processing.
         }
     }
-
-    /// <summary>
-    /// Public hook for external callers (e.g. connection watcher) to classify
-    /// IBKR-side failures against the breaker. Mirrors the internal helper so
-    /// we don't have to expose <c>RecordFailureAsync</c> directly.
-    /// </summary>
-    public Task RecordIbkrFailureAsync(IbkrFailureType failureType, CancellationToken ct = default)
-        => RecordFailureAsync(failureType, ct);
 
     // Legacy methods for Campaign Manager (TODO: Refactor CampaignManager to use new interface)
     public Task<IReadOnlyList<string>> PlaceEntryOrdersAsync(string campaignId, StrategyDefinition strategy, CancellationToken ct = default)

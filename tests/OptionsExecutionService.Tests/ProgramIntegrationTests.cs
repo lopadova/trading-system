@@ -272,6 +272,12 @@ public sealed class ProgramIntegrationTests
                 services.AddSingleton<SharedKernel.Safety.ISafetyFlagStore, Mocks.InMemorySafetyFlagStore>();
                 services.AddSingleton<SharedKernel.Safety.IOrderAuditSink, Mocks.RecordingAuditSink>();
 
+                // Phase 2: OrderCircuitBreaker singleton (persists across worker cycles)
+                services.AddSingleton<OptionsExecutionService.Services.IOrderCircuitBreaker, OptionsExecutionService.Services.OrderCircuitBreaker>();
+
+                // Phase 2: AccountEquityProvider singleton (equity cache with freshness)
+                services.AddSingleton<OptionsExecutionService.Services.IAccountEquityProvider, OptionsExecutionService.Services.AccountEquityProvider>();
+
                 // Register order placer (scoped to match repository lifetime)
                 services.AddScoped<IOrderPlacer, OrderPlacer>();
 

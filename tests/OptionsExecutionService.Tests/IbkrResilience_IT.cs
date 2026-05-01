@@ -1,5 +1,7 @@
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Moq;
 using OptionsExecutionService.Orders;
 using OptionsExecutionService.Repositories;
 using OptionsExecutionService.Services;
@@ -86,6 +88,15 @@ public sealed class IbkrResilience_IT : IAsyncDisposable
         SemaphoreGate greenGate = GateTestHelpers.FixedGate(SemaphoreStatus.Green);
         IOptions<SafetyOptions> safetyOptions = Options.Create(new SafetyOptions());
 
+        // Phase 2: Real singleton services
+        IOrderCircuitBreaker circuitBreaker = new OrderCircuitBreaker(safety, NullLogger<OrderCircuitBreaker>.Instance);
+        IAccountEquityProvider equityProvider = new AccountEquityProvider(
+            new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Safety:AccountBalanceMaxAgeSeconds"] = "300"
+            }).Build(),
+            NullLogger<AccountEquityProvider>.Instance);
+
         _orderPlacer = new OrderPlacer(
             _ibkr,
             _orderRepo,
@@ -94,6 +105,8 @@ public sealed class IbkrResilience_IT : IAsyncDisposable
             flagStore,
             _auditSink,
             _alerter,
+            circuitBreaker,
+            equityProvider,
             safetyOptions,
             NullLogger<OrderPlacer>.Instance);
 

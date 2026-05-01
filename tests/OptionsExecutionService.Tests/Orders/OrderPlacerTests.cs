@@ -1,5 +1,7 @@
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Moq;
 using OptionsExecutionService.Orders;
 using OptionsExecutionService.Repositories;
 using OptionsExecutionService.Services;
@@ -66,6 +68,17 @@ public sealed class OrderPlacerTests : IAsyncDisposable
         _auditSink = new RecordingAuditSink();
         IOptions<SafetyOptions> safetyOptions = Options.Create(new SafetyOptions());
 
+        // Phase 2: Use real OrderCircuitBreaker singleton (required for circuit breaker tests)
+        IOrderCircuitBreaker circuitBreaker = new OrderCircuitBreaker(_safetyConfig, NullLogger<OrderCircuitBreaker>.Instance);
+
+        // Phase 2: Use real AccountEquityProvider singleton (required for equity tests)
+        IAccountEquityProvider equityProvider = new AccountEquityProvider(
+            new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Safety:AccountBalanceMaxAgeSeconds"] = "300"
+            }).Build(),
+            NullLogger<AccountEquityProvider>.Instance);
+
         // Create OrderPlacer
         _orderPlacer = new OrderPlacer(
             _mockIbkr,
@@ -75,6 +88,8 @@ public sealed class OrderPlacerTests : IAsyncDisposable
             _flagStore,
             _auditSink,
             _alerter,
+            circuitBreaker,
+            equityProvider,
             safetyOptions,
             NullLogger<OrderPlacer>.Instance);
 

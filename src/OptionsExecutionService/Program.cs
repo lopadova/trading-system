@@ -216,6 +216,14 @@ try
     // SafetyFlagStore (Gate #2) — durable KV for trading_paused.
     builder.Services.AddSingleton<ISafetyFlagStore, SqliteSafetyFlagStore>();
 
+    // OrderCircuitBreaker (Gate #4) — singleton breaker persists across worker cycles.
+    // Phase 2: Shared safety state P1 - Task RM-05
+    builder.Services.AddSingleton<IOrderCircuitBreaker, OrderCircuitBreaker>();
+
+    // AccountEquityProvider — singleton equity cache with freshness tracking.
+    // Phase 2: Shared safety state P1 - Task RM-06
+    builder.Services.AddSingleton<IAccountEquityProvider, AccountEquityProvider>();
+
     // Order-audit sink — local mirror + Worker ingest.
     builder.Services.AddSingleton<IOrderAuditSink, OutboxOrderAuditSink>();
 

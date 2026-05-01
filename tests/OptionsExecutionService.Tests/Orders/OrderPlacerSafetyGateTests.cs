@@ -1,5 +1,7 @@
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Moq;
 using OptionsExecutionService.Orders;
 using OptionsExecutionService.Repositories;
 using OptionsExecutionService.Services;
@@ -68,6 +70,16 @@ public sealed class OrderPlacerSafetyGateTests : IAsyncDisposable
     private OrderPlacer BuildPlacer(SemaphoreStatus gateStatus, SafetyOptions? options = null)
     {
         SemaphoreGate gate = GateTestHelpers.FixedGate(gateStatus);
+
+        // Phase 2: Use real singleton services
+        IOrderCircuitBreaker circuitBreaker = new OrderCircuitBreaker(_safetyConfig, NullLogger<OrderCircuitBreaker>.Instance);
+        IAccountEquityProvider equityProvider = new AccountEquityProvider(
+            new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Safety:AccountBalanceMaxAgeSeconds"] = "300"
+            }).Build(),
+            NullLogger<AccountEquityProvider>.Instance);
+
         OrderPlacer placer = new(
             _ibkr,
             _orderRepo,
@@ -76,6 +88,8 @@ public sealed class OrderPlacerSafetyGateTests : IAsyncDisposable
             _flagStore,
             _auditSink,
             _alerter,
+            circuitBreaker,
+            equityProvider,
             Options.Create(options ?? new SafetyOptions()),
             NullLogger<OrderPlacer>.Instance);
         placer.UpdateAccountBalance(100000m);
@@ -214,6 +228,16 @@ public sealed class OrderPlacerSafetyGateTests : IAsyncDisposable
     {
         OrderSafetyConfig strictValue = _safetyConfig with { MaxPositionValueUsd = 100m };
         SemaphoreGate gate = GateTestHelpers.FixedGate(SemaphoreStatus.Green);
+
+        // Phase 2: Use real singleton services with strictValue config
+        IOrderCircuitBreaker circuitBreaker = new OrderCircuitBreaker(strictValue, NullLogger<OrderCircuitBreaker>.Instance);
+        IAccountEquityProvider equityProvider = new AccountEquityProvider(
+            new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Safety:AccountBalanceMaxAgeSeconds"] = "300"
+            }).Build(),
+            NullLogger<AccountEquityProvider>.Instance);
+
         OrderPlacer placer = new(
             _ibkr,
             _orderRepo,
@@ -222,6 +246,8 @@ public sealed class OrderPlacerSafetyGateTests : IAsyncDisposable
             _flagStore,
             _auditSink,
             _alerter,
+            circuitBreaker,
+            equityProvider,
             Options.Create(new SafetyOptions()),
             NullLogger<OrderPlacer>.Instance);
         placer.UpdateAccountBalance(100000m);
