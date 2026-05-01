@@ -58,6 +58,7 @@ Before clicking merge, verify:
 - [ ] All HIGH priority issues from Copilot are fixed
 - [ ] All CI checks passed (green)
 - [ ] DI registrations added for all new interfaces/services
+- [ ] No captive dependencies (singletons inject IServiceScopeFactory, not scoped services directly)
 - [ ] Integration tests actually test the full flow (not just repository calls)
 - [ ] Documentation matches actual implementation
 - [ ] No performance claims without benchmarks
