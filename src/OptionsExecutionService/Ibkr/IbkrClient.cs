@@ -275,6 +275,39 @@ public sealed class IbkrClient : IIbkrClient
 
         try
         {
+            // RM-02: Validate option orders have required fields
+            if (request.SecurityType == "OPT")
+            {
+                if (!request.Strike.HasValue)
+                {
+                    string error = $"Option order for {request.Symbol} is missing Strike price";
+                    _logger.LogError("{Error}", error);
+                    return false;
+                }
+
+                if (string.IsNullOrWhiteSpace(request.Expiry))
+                {
+                    string error = $"Option order for {request.Symbol} is missing Expiry date";
+                    _logger.LogError("{Error}", error);
+                    return false;
+                }
+
+                if (string.IsNullOrWhiteSpace(request.OptionRight))
+                {
+                    string error = $"Option order for {request.Symbol} is missing OptionRight (C/P)";
+                    _logger.LogError("{Error}", error);
+                    return false;
+                }
+
+                string normalizedRight = request.OptionRight.ToUpperInvariant();
+                if (normalizedRight is not ("C" or "P"))
+                {
+                    string error = $"Option order for {request.Symbol} has invalid OptionRight '{request.OptionRight}'. Must be 'C' or 'P'";
+                    _logger.LogError("{Error}", error);
+                    return false;
+                }
+            }
+
             // Create IBKR contract
             Contract contract = new()
             {
@@ -284,12 +317,12 @@ public sealed class IbkrClient : IIbkrClient
                 Currency = "USD"
             };
 
-            // For options, add additional fields
+            // For options, add additional fields (validation already performed above)
             if (request.SecurityType == "OPT" && request.Strike.HasValue && !string.IsNullOrEmpty(request.Expiry))
             {
                 contract.Strike = (double)request.Strike.Value;
                 contract.LastTradeDateOrContractMonth = request.Expiry;
-                contract.Right = request.OptionRight ?? "C"; // Default to call if not specified
+                contract.Right = request.OptionRight!.ToUpperInvariant(); // RM-02: Normalize to uppercase
             }
 
             // Create IBKR order

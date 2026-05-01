@@ -535,20 +535,30 @@ public sealed class OrderPlacer : IOrderPlacer
                         $"Use StrikeSelectionMethod=ABSOLUTE with explicit StrikeValue for now.");
                 }
 
-                // Build contract symbol (simplified - assumes OCC format or explicit symbol)
-                // Future: use proper contract builder with symbol/expiry/strike/right/exchange/currency/multiplier
+                // RM-02: Build OCC-format contract symbol
+                // Phase 4: Uses placeholder expiry (30 days from today)
+                // Future: Pass actual expiry from market data engine
                 string contractSymbol = BuildContractSymbol(strategy.Underlying.Symbol, leg);
+
+                // RM-02: Parse OCC symbol to extract expiry/strike/right for OrderRequest
+                OccSymbolParser.OccSymbolComponents occComponents = OccSymbolParser.Parse(contractSymbol);
 
                 // Create order request for this leg
                 // TODO: calculate appropriate limit price from bid/ask/mid market data
                 // For now, use a conservative placeholder price for Phase 4
                 decimal placeholderPrice = leg.Action.ToUpperInvariant() == "BUY" ? 0.10m : 0.05m;
 
+                // RM-02: Populate all required option fields for IBKR validation
                 OrderRequest request = new()
                 {
                     CampaignId = campaignId,
                     Symbol = strategy.Underlying.Symbol,
                     ContractSymbol = contractSymbol,
+                    SecurityType = "OPT", // RM-02: Mark as option order
+                    Strike = occComponents.Strike, // RM-02: Required for option validation
+                    Expiry = occComponents.ExpiryYyyyMmDd, // RM-02: YYYYMMDD format for IBKR
+                    OptionRight = occComponents.Right, // RM-02: "C" or "P"
+                    Exchange = strategy.Underlying.Exchange, // Use strategy config exchange
                     Side = side,
                     Type = OrderType.Limit,
                     Quantity = leg.Quantity,
@@ -599,15 +609,17 @@ public sealed class OrderPlacer : IOrderPlacer
     }
 
     /// <summary>
-    /// Builds OCC-style contract symbol from underlying + leg definition.
-    /// Phase 4: Simplified version - requires ABSOLUTE strike selection.
-    /// Future: enhance with proper contract resolution from market data.
+    /// Builds OCC-format contract symbol from underlying + leg definition + expiry.
+    /// RM-02: Implements proper OCC format validation.
     /// </summary>
-    private static string BuildContractSymbol(string underlying, OptionLeg leg)
+    /// <param name="underlying">Underlying symbol (e.g., "SPX")</param>
+    /// <param name="leg">Option leg definition with strike and right</param>
+    /// <param name="expiry">Option expiry date. If null, uses placeholder (30 days from today)</param>
+    /// <returns>OCC-format symbol (e.g., "SPX   250321P05000000")</returns>
+    /// <exception cref="InvalidOperationException">If leg doesn't have strike value</exception>
+    private static string BuildContractSymbol(string underlying, OptionLeg leg, DateTime? expiry = null)
     {
-        // Simplified: assume leg has explicit strike value and we build OCC-like symbol
-        // Real implementation would query IBKR for contract details or use option chain data
-
+        // RM-02: Validate leg has explicit strike value
         if (leg.StrikeValue == null)
         {
             throw new InvalidOperationException(
@@ -615,14 +627,22 @@ public sealed class OrderPlacer : IOrderPlacer
                 "DELTA/OFFSET selection requires market data engine.");
         }
 
-        // OCC format example: "SPX   250321P05000000"
-        // underlying (6 chars padded) + expiry YYMMDD + C/P + strike (8 digits, 3 decimals)
+        // RM-02: Use placeholder expiry if not provided (for Phase 4 compatibility)
+        // Future phases will pass actual expiry from market data engine
+        DateTime expiryDate = expiry ?? DateTime.Today.AddDays(30);
 
-        // For Phase 4, use simplified placeholder format: "underlying-strike-right"
-        // This will fail IBKR validation, but demonstrates the flow.
-        // TODO RM-02: implement proper option contract validation
-        string right = leg.Right.ToUpperInvariant() == "CALL" ? "C" : "P";
-        return $"{underlying}-{leg.StrikeValue:F2}-{right}";
+        // RM-02: Normalize right to "C" or "P"
+        string right = leg.Right.ToUpperInvariant() switch
+        {
+            "CALL" => "C",
+            "PUT" => "P",
+            "C" => "C",
+            "P" => "P",
+            _ => throw new InvalidOperationException($"Invalid option right '{leg.Right}'. Must be CALL, PUT, C, or P.")
+        };
+
+        // RM-02: Build proper OCC format
+        return OccSymbolBuilder.BuildSymbol(underlying, expiryDate, leg.StrikeValue.Value, right);
     }
 
     public Task<decimal> GetUnrealizedPnLAsync(string campaignId, CancellationToken ct = default)
