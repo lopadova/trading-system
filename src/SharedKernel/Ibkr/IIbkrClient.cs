@@ -91,10 +91,12 @@ public interface IIbkrClient : IDisposable
     void RequestAccountSummary(int requestId);
 
     /// <summary>
-    /// Get the next valid order ID. Must be called before placing first order.
-    /// Response arrives via nextValidId() callback.
+    /// RM-01: Reserves the next available order ID and atomically increments the counter.
+    /// Thread-safe. MUST be called for every order placement to prevent ID collisions.
     /// </summary>
-    int GetNextOrderId();
+    /// <returns>Reserved order ID for this order</returns>
+    /// <exception cref="InvalidOperationException">If called before IBKR connection established (nextValidId not received)</exception>
+    int ReserveOrderId();
 
     /// <summary>
     /// Event raised when connection state changes.

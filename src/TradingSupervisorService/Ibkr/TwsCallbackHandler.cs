@@ -55,6 +55,12 @@ public sealed class TwsCallbackHandler : DefaultEWrapper
     /// </summary>
     public event EventHandler<(int ReqId, int Field, double Iv, double Delta, double Gamma, double Vega, double Theta, double UndPrice)>? TickOptionComputationReceived;
 
+    /// <summary>
+    /// Fired when IBKR sends nextValidId callback with the next available order ID.
+    /// Used by IbkrClient to initialize and update the local order ID counter.
+    /// </summary>
+    public event EventHandler<int>? NextValidIdReceived;
+
     public TwsCallbackHandler(
         ILogger<TwsCallbackHandler> logger,
         Action<ConnectionState> onConnectionStateChanged)
@@ -115,6 +121,7 @@ public sealed class TwsCallbackHandler : DefaultEWrapper
     public override void nextValidId(int orderId)
     {
         _logger.LogInformation("✓ TWS nextValidId({OrderId}) received - connection ready for orders", orderId);
+        NextValidIdReceived?.Invoke(this, orderId);
     }
 
     #endregion

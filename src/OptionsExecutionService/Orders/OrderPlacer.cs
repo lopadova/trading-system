@@ -200,7 +200,7 @@ public sealed class OrderPlacer : IOrderPlacer
 
         // ===== Submission =====
         string orderId = Guid.NewGuid().ToString();
-        int ibkrOrderId = _ibkrClient.GetNextOrderId();
+        int ibkrOrderId = _ibkrClient.ReserveOrderId(); // RM-01: Atomic order ID reservation
 
         try
         {

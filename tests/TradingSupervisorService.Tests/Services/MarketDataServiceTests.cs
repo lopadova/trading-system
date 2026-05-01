@@ -447,7 +447,7 @@ internal sealed class FakeIbkrClient : IIbkrClient
     public void RequestOpenOrders() { }
     public void RequestPositions() { }
     public void RequestAccountSummary(int requestId) { }
-    public int GetNextOrderId() => 1;
+    public int ReserveOrderId() => 1; // RM-01: Renamed from GetNextOrderId
     public void Dispose() { }
 
     public sealed record MarketDataRequest

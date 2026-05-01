@@ -27,6 +27,12 @@ public sealed class TwsCallbackHandler : DefaultEWrapper
     public event EventHandler<(int OrderId, string Status, int Filled, int Remaining, double AvgFillPrice)>? OrderStatusChanged;
     public event EventHandler<(int OrderId, int ErrorCode, string ErrorMessage)>? OrderError;
 
+    /// <summary>
+    /// RM-01: Event fired when IBKR sends nextValidId callback with the next available order ID.
+    /// Used by IbkrClient to initialize and update the local order ID counter.
+    /// </summary>
+    public event EventHandler<int>? NextValidIdReceived;
+
     public TwsCallbackHandler(
         ILogger<TwsCallbackHandler> logger,
         IOrderEventsRepository orderEventsRepository)
@@ -96,6 +102,9 @@ public sealed class TwsCallbackHandler : DefaultEWrapper
             _nextValidOrderId = orderId;
         }
         _logger.LogInformation("✓ TWS nextValidId({OrderId}) received - connection ready for orders", orderId);
+
+        // RM-01: Notify IbkrClient for order ID reservation
+        NextValidIdReceived?.Invoke(this, orderId);
     }
 
     #endregion

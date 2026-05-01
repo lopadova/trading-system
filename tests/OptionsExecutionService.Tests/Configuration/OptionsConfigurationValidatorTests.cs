@@ -44,10 +44,10 @@ public sealed class OptionsConfigurationValidatorTests
             ["Safety:MaxPositionSize"] = "10",
             ["Safety:MaxPositionValueUsd"] = "50000",
             ["Safety:MinAccountBalanceUsd"] = "10000",
-            ["Safety:MaxRiskPercentOfAccount"] = "5.0",
+            ["Safety:MaxPositionPctOfAccount"] = "0.05",  // 5% as fraction
             ["Safety:CircuitBreakerFailureThreshold"] = "3",
             ["Safety:CircuitBreakerWindowMinutes"] = "60",
-            ["Safety:CircuitBreakerResetMinutes"] = "120",
+            ["Safety:CircuitBreakerCooldownMinutes"] = "120",
             ["Strategy:FilePath"] = "strategies/private/current.json",
             ["Strategy:ReloadIntervalSeconds"] = "300",
             ["Execution:MaxConcurrentOrders"] = "5",
@@ -80,10 +80,10 @@ public sealed class OptionsConfigurationValidatorTests
             ["Safety:MaxPositionSize"] = "10",
             ["Safety:MaxPositionValueUsd"] = "50000",
             ["Safety:MinAccountBalanceUsd"] = "10000",
-            ["Safety:MaxRiskPercentOfAccount"] = "5.0",
+            ["Safety:MaxPositionPctOfAccount"] = "0.05",  // 5% as fraction
             ["Safety:CircuitBreakerFailureThreshold"] = "3",
             ["Safety:CircuitBreakerWindowMinutes"] = "60",
-            ["Safety:CircuitBreakerResetMinutes"] = "120",
+            ["Safety:CircuitBreakerCooldownMinutes"] = "120",
             ["Strategy:FilePath"] = "strategies/current.json"
         };
 
@@ -112,10 +112,10 @@ public sealed class OptionsConfigurationValidatorTests
             ["Safety:MaxPositionSize"] = "10",
             ["Safety:MaxPositionValueUsd"] = "50000",
             ["Safety:MinAccountBalanceUsd"] = "10000",
-            ["Safety:MaxRiskPercentOfAccount"] = "5.0",
+            ["Safety:MaxPositionPctOfAccount"] = "0.05",  // 5% as fraction
             ["Safety:CircuitBreakerFailureThreshold"] = "3",
             ["Safety:CircuitBreakerWindowMinutes"] = "60",
-            ["Safety:CircuitBreakerResetMinutes"] = "120",
+            ["Safety:CircuitBreakerCooldownMinutes"] = "120",
             ["Strategy:FilePath"] = "strategies/current.json"
         };
 
@@ -145,10 +145,10 @@ public sealed class OptionsConfigurationValidatorTests
             ["Safety:MaxPositionSize"] = "-10",  // Invalid
             ["Safety:MaxPositionValueUsd"] = "0",  // Invalid
             ["Safety:MinAccountBalanceUsd"] = "-5000",  // Invalid
-            ["Safety:MaxRiskPercentOfAccount"] = "150",  // Invalid
+            ["Safety:MaxPositionPctOfAccount"] = "1.5",  // Invalid (> 1.0)
             ["Safety:CircuitBreakerFailureThreshold"] = "0",  // Invalid
             ["Safety:CircuitBreakerWindowMinutes"] = "-60",  // Invalid
-            ["Safety:CircuitBreakerResetMinutes"] = "0",  // Invalid
+            ["Safety:CircuitBreakerCooldownMinutes"] = "0",  // Invalid
             ["Strategy:FilePath"] = "strategies/current.json"
         };
 
@@ -162,10 +162,10 @@ public sealed class OptionsConfigurationValidatorTests
         Assert.Contains(result.CriticalErrors, e => e.Contains("MaxPositionSize must be positive"));
         Assert.Contains(result.CriticalErrors, e => e.Contains("MaxPositionValueUsd must be positive"));
         Assert.Contains(result.CriticalErrors, e => e.Contains("MinAccountBalanceUsd must be non-negative"));
-        Assert.Contains(result.CriticalErrors, e => e.Contains("MaxRiskPercentOfAccount must be between 0 and 100"));
+        Assert.Contains(result.CriticalErrors, e => e.Contains("MaxPositionPctOfAccount must be between 0 and 1"));
         Assert.Contains(result.CriticalErrors, e => e.Contains("CircuitBreakerFailureThreshold must be positive"));
         Assert.Contains(result.CriticalErrors, e => e.Contains("CircuitBreakerWindowMinutes must be positive"));
-        Assert.Contains(result.CriticalErrors, e => e.Contains("CircuitBreakerResetMinutes must be positive"));
+        Assert.Contains(result.CriticalErrors, e => e.Contains("CircuitBreakerCooldownMinutes must be positive"));
     }
 
     [Fact]
@@ -183,10 +183,10 @@ public sealed class OptionsConfigurationValidatorTests
             ["Safety:MaxPositionSize"] = "10",
             ["Safety:MaxPositionValueUsd"] = "50000",
             ["Safety:MinAccountBalanceUsd"] = "10000",
-            ["Safety:MaxRiskPercentOfAccount"] = "5.0",
+            ["Safety:MaxPositionPctOfAccount"] = "0.05",  // 5% as fraction
             ["Safety:CircuitBreakerFailureThreshold"] = "3",
             ["Safety:CircuitBreakerWindowMinutes"] = "60",
-            ["Safety:CircuitBreakerResetMinutes"] = "120"
+            ["Safety:CircuitBreakerCooldownMinutes"] = "120"
             // Missing Strategy:FilePath
         };
 
@@ -215,10 +215,10 @@ public sealed class OptionsConfigurationValidatorTests
             ["Safety:MaxPositionSize"] = "10",
             ["Safety:MaxPositionValueUsd"] = "50000",
             ["Safety:MinAccountBalanceUsd"] = "10000",
-            ["Safety:MaxRiskPercentOfAccount"] = "15.0",  // High risk - warning
+            ["Safety:MaxPositionPctOfAccount"] = "0.15",  // 15% - High risk warning
             ["Safety:CircuitBreakerFailureThreshold"] = "3",
             ["Safety:CircuitBreakerWindowMinutes"] = "60",
-            ["Safety:CircuitBreakerResetMinutes"] = "120",
+            ["Safety:CircuitBreakerCooldownMinutes"] = "120",
             ["Strategy:FilePath"] = "strategies/current.json"
         };
 
@@ -229,7 +229,7 @@ public sealed class OptionsConfigurationValidatorTests
 
         // Assert
         Assert.True(result.IsValid);
-        Assert.Contains(result.Warnings, w => w.Contains("MaxRiskPercentOfAccount") && w.Contains("very high"));
+        Assert.Contains(result.Warnings, w => w.Contains("MaxPositionPctOfAccount") && w.Contains("very high"));
     }
 
     [Fact]
@@ -249,10 +249,10 @@ public sealed class OptionsConfigurationValidatorTests
             ["Safety:MaxPositionSize"] = "10",
             ["Safety:MaxPositionValueUsd"] = "50000",
             ["Safety:MinAccountBalanceUsd"] = "10000",
-            ["Safety:MaxRiskPercentOfAccount"] = "5.0",
+            ["Safety:MaxPositionPctOfAccount"] = "0.05",  // 5% as fraction
             ["Safety:CircuitBreakerFailureThreshold"] = "3",
             ["Safety:CircuitBreakerWindowMinutes"] = "60",
-            ["Safety:CircuitBreakerResetMinutes"] = "120",
+            ["Safety:CircuitBreakerCooldownMinutes"] = "120",
             ["Strategy:FilePath"] = "strategies/current.json"
         };
 
@@ -281,10 +281,10 @@ public sealed class OptionsConfigurationValidatorTests
             ["Safety:MaxPositionSize"] = "10",
             ["Safety:MaxPositionValueUsd"] = "50000",
             ["Safety:MinAccountBalanceUsd"] = "10000",
-            ["Safety:MaxRiskPercentOfAccount"] = "5.0",
+            ["Safety:MaxPositionPctOfAccount"] = "0.05",  // 5% as fraction
             ["Safety:CircuitBreakerFailureThreshold"] = "3",
             ["Safety:CircuitBreakerWindowMinutes"] = "120",
-            ["Safety:CircuitBreakerResetMinutes"] = "60",  // Less than window - warning
+            ["Safety:CircuitBreakerCooldownMinutes"] = "60",  // Less than window - warning
             ["Strategy:FilePath"] = "strategies/current.json"
         };
 
@@ -296,7 +296,7 @@ public sealed class OptionsConfigurationValidatorTests
         // Assert
         Assert.True(result.IsValid);
         Assert.Contains(result.Warnings, w =>
-            w.Contains("CircuitBreakerResetMinutes") && w.Contains("CircuitBreakerWindowMinutes"));
+            w.Contains("CircuitBreakerCooldownMinutes") && w.Contains("CircuitBreakerWindowMinutes"));
     }
 
     [Fact]
@@ -314,10 +314,10 @@ public sealed class OptionsConfigurationValidatorTests
             ["Safety:MaxPositionSize"] = "10",
             ["Safety:MaxPositionValueUsd"] = "50000",
             ["Safety:MinAccountBalanceUsd"] = "10000",
-            ["Safety:MaxRiskPercentOfAccount"] = "5.0",
+            ["Safety:MaxPositionPctOfAccount"] = "0.05",  // 5% as fraction
             ["Safety:CircuitBreakerFailureThreshold"] = "3",
             ["Safety:CircuitBreakerWindowMinutes"] = "60",
-            ["Safety:CircuitBreakerResetMinutes"] = "120",
+            ["Safety:CircuitBreakerCooldownMinutes"] = "120",
             ["Strategy:FilePath"] = "strategies/current.json",
             ["Strategy:ReloadIntervalSeconds"] = "10"  // Very low - warning
         };
@@ -347,10 +347,10 @@ public sealed class OptionsConfigurationValidatorTests
             ["Safety:MaxPositionSize"] = "10",
             ["Safety:MaxPositionValueUsd"] = "50000",
             ["Safety:MinAccountBalanceUsd"] = "10000",
-            ["Safety:MaxRiskPercentOfAccount"] = "5.0",
+            ["Safety:MaxPositionPctOfAccount"] = "0.05",  // 5% as fraction
             ["Safety:CircuitBreakerFailureThreshold"] = "3",
             ["Safety:CircuitBreakerWindowMinutes"] = "60",
-            ["Safety:CircuitBreakerResetMinutes"] = "120",
+            ["Safety:CircuitBreakerCooldownMinutes"] = "120",
             ["Strategy:FilePath"] = "strategies/current.json",
             ["Execution:MaxConcurrentOrders"] = "50",  // Very high - warning
             ["Execution:OrderTimeoutSeconds"] = "30"

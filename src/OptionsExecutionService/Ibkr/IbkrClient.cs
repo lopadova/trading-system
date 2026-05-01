@@ -26,6 +26,10 @@ public sealed class IbkrClient : IIbkrClient
     private bool _initialDiagnosticsRun = false;
     private volatile bool _shouldProcessMessages = false; // Control flag for message processor thread
 
+    // RM-01: Order ID reservation with atomic increment
+    private int _localNextOrderId = 0;
+    private readonly object _orderIdLock = new();
+
     private readonly object _stateLock = new();
 
     public event EventHandler<ConnectionState>? ConnectionStateChanged;
@@ -50,6 +54,9 @@ public sealed class IbkrClient : IIbkrClient
         _wrapper.SetConnectionStateCallback(newState => State = newState);
         _wrapper.OrderStatusChanged += (sender, args) => OrderStatusChanged?.Invoke(this, args);
         _wrapper.OrderError += (sender, args) => OrderError?.Invoke(this, args);
+
+        // RM-01: Subscribe to nextValidId for order ID initialization and reconnect handling
+        _wrapper.NextValidIdReceived += OnNextValidIdReceived;
 
         _logger.LogInformation(
             "IbkrClient initialized. Host={Host} Port={Port} ClientId={ClientId} Mode={Mode}",
@@ -208,9 +215,49 @@ public sealed class IbkrClient : IIbkrClient
         _client.reqCurrentTime();
     }
 
-    public int GetNextOrderId()
+    /// <summary>
+    /// RM-01: Callback for nextValidId from IBKR. Updates local order ID counter with Math.Max
+    /// to handle reconnect scenarios where IBKR might send a lower ID than we've already used.
+    /// Thread-safe with lock to prevent race conditions with ReserveOrderId.
+    /// </summary>
+    private void OnNextValidIdReceived(object? sender, int ibkrOrderId)
     {
-        return _wrapper.NextValidOrderId;
+        lock (_orderIdLock)
+        {
+            int previousId = _localNextOrderId;
+            // Use max to handle reconnect (don't go backwards)
+            _localNextOrderId = Math.Max(_localNextOrderId, ibkrOrderId);
+
+            _logger.LogInformation(
+                "Order ID updated: previous={PreviousId} ibkr={IbkrId} current={CurrentId}",
+                previousId, ibkrOrderId, _localNextOrderId);
+        }
+    }
+
+    /// <summary>
+    /// RM-01: Reserves the next available order ID and atomically increments the counter.
+    /// Thread-safe. Ensures each call returns a unique ID, even in concurrent scenarios.
+    /// CRITICAL: Must be called for EVERY order placement to prevent ID collisions.
+    /// </summary>
+    /// <returns>Reserved order ID for this order</returns>
+    /// <exception cref="InvalidOperationException">If called before IBKR connection is established (nextValidId not yet received)</exception>
+    public int ReserveOrderId()
+    {
+        lock (_orderIdLock)
+        {
+            if (_localNextOrderId == 0)
+            {
+                throw new InvalidOperationException(
+                    "Cannot reserve order ID: IBKR connection not established (nextValidId not yet received). " +
+                    "Ensure connection is active before placing orders.");
+            }
+
+            int reserved = _localNextOrderId;
+            _localNextOrderId++; // Increment for next call
+
+            _logger.LogDebug("Order ID reserved: {OrderId} (next will be {NextId})", reserved, _localNextOrderId);
+            return reserved;
+        }
     }
 
     public bool PlaceOrder(int orderId, OrderRequest request)

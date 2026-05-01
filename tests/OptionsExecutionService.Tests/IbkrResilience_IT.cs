@@ -325,7 +325,7 @@ public sealed class IbkrResilience_IT : IAsyncDisposable
         public void RequestOpenOrders() { /* no-op */ }
         public void RequestPositions() { /* no-op */ }
         public void RequestAccountSummary(int requestId) { _ = requestId; }
-        public int GetNextOrderId() => _nextOrderId++;
+        public int ReserveOrderId() => _nextOrderId++; // RM-01: Renamed from GetNextOrderId
         public void Dispose() { /* no-op */ }
     }
 

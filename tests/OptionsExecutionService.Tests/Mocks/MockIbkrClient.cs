@@ -119,7 +119,11 @@ public sealed class MockIbkrClient : IIbkrClient
         // Mock: no-op
     }
 
-    public int GetNextOrderId()
+    /// <summary>
+    /// RM-01: Reserves the next available order ID and atomically increments the counter.
+    /// Mock implementation for testing.
+    /// </summary>
+    public int ReserveOrderId()
     {
         return _nextOrderId++;
     }
