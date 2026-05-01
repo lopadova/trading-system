@@ -70,7 +70,7 @@ const POSITIONS: JsonValue = {
   ],
 }
 
-const ALERTS_SUMMARY: JsonValue = { critical: 0, warnings: 1, info: 3 }
+const ALERTS_SUMMARY: JsonValue = { total: 4, critical: 0, warning: 1, info: 3 }
 
 const RISK_METRICS: JsonValue = {
   vix: 14.22,
@@ -94,9 +94,7 @@ const SYSTEM_METRICS: JsonValue = {
   asOf: '2026-04-20T14:30:00Z',
 }
 
-// Everything else (activity, breakdown, etc.) — return an empty-ish shape so
-// the widgets render their zero state without throwing.
-const EMPTY_LIST: JsonValue = { items: [] }
+const BREAKDOWN: JsonValue = { byStrategy: [], byAsset: [] }
 
 /**
  * Table mapping URL fragments → response JSON. Longer / more-specific
@@ -129,7 +127,7 @@ const MOCK_TABLE: Array<{ match: (url: string) => boolean; body: JsonValue }> = 
   { match: u => u.includes('/monthly-returns'), body: { asset: 'all', years: {}, totals: {} } },
   { match: u => u.includes('/heartbeats'), body: { heartbeats: [] } },
   { match: u => u.includes('/audit/orders'), body: { orders: [] } },
-  { match: u => u.includes('/breakdown'), body: EMPTY_LIST },
+  { match: u => u.includes('/breakdown'), body: BREAKDOWN },
 ]
 
 /**
