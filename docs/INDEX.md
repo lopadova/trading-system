@@ -6,7 +6,7 @@ aliases:
   - Wiki Home
   - Docs Index
 status: current
-last-reviewed: 2026-04-21
+last-reviewed: 2026-05-01
 ---
 
 # Trading System Knowledge Base
@@ -23,6 +23,7 @@ Repo root README: [Repository Overview](../README.md) — lives outside the `doc
 
 - [[DAILY_OPS]] — morning / midday / EOD rounds
 - [[RUNBOOK]] — incident playbooks (1-9)
+- [[DEPLOYMENT_CHECKLIST]] — pre-deployment verification checklist
 - [[SECRETS]] — secret rotation pipeline
 - [[GO_LIVE]] — paper → live flip, with rollback
 - [[RELEASE]] — tag-based release procedure
@@ -30,6 +31,7 @@ Repo root README: [Repository Overview](../README.md) — lives outside the `doc
 - [[SLO]] — service-level objectives
 - [[PAPER_VALIDATION]] — 14-day paper-run procedure
 - [[OBSERVABILITY]] — logs, metrics, Sentry, uptime
+- [[CI_TROUBLESHOOTING]] — GitHub Actions CI/CD troubleshooting
 - [[Windows Defender Unlock - Complete Guide|WINDOWS_DEFENDER]] — AVIRA / Defender setup
 
 ### Developer (building new features)

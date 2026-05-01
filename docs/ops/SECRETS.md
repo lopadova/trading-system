@@ -5,7 +5,7 @@ aliases: ["SECRETS", "Secrets", "Secret Rotation"]
 status: current
 audience: ["operator"]
 phase: "phase-7.5"
-last-reviewed: "2026-04-21"
+last-reviewed: "2026-05-01"
 related:
   - "[[GO_LIVE]]"
   - "[[DR]]"
@@ -38,7 +38,7 @@ related:
 | `Smtp:Password`        | .NET supervisor    | DPAPI appsettings                    | DPAPI appsettings                    |
 | `Cloudflare:ApiKey`    | .NET (both)        | DPAPI appsettings                    | DPAPI appsettings                    |
 
-**Two storage layers**:
+**Three storage layers**:
 
 1. **Cloudflare Worker** secrets live inside Cloudflare (never on disk locally).
    Pushed via `bunx wrangler secret put` or the bulk script
@@ -49,6 +49,61 @@ related:
    `DPAPI:<base64>` markers, not cleartext. The runtime decrypts transparently
    through `EncryptedConfigProvider` (see
    `src/SharedKernel/Configuration/EncryptedConfigProvider.cs`).
+
+3. **GitHub Actions** secrets for CI/CD deployment (see § GitHub Actions Secrets below).
+
+---
+
+## GitHub Actions Secrets
+
+**Purpose:** CI/CD deployment workflows need Cloudflare credentials to deploy Worker and Dashboard.
+
+**Location:** Repository Settings → Secrets and variables → Actions
+
+| Secret                   | Required For                          | How to Generate                                                                 |
+|--------------------------|---------------------------------------|---------------------------------------------------------------------------------|
+| `CLOUDFLARE_API_TOKEN`   | Worker + Dashboard deployment         | https://dash.cloudflare.com/profile/api-tokens<br/>Permissions: `Workers Scripts:Edit`, `Pages:Edit`, `Account Settings:Read` |
+| `CLOUDFLARE_ACCOUNT_ID`  | Dashboard deployment (Pages)          | Found in Cloudflare dashboard URL: `dash.cloudflare.com/<account-id>/...`      |
+
+### Setup Procedure
+
+1. **Generate API Token:**
+   - Go to https://dash.cloudflare.com/profile/api-tokens
+   - Click "Create Token"
+   - Use "Edit Cloudflare Workers" template
+   - Add permissions:
+     - Account Settings:Read
+     - Workers Scripts:Edit
+     - Cloudflare Pages:Edit
+   - Set Account Resources: Include → Your Account
+   - Continue to summary → Create Token
+   - **Copy token immediately** (shown only once)
+
+2. **Add to GitHub Secrets:**
+   ```
+   Repository → Settings → Secrets and variables → Actions → New repository secret
+   
+   Name: CLOUDFLARE_API_TOKEN
+   Value: <paste-token>
+   
+   Name: CLOUDFLARE_ACCOUNT_ID  
+   Value: <your-cloudflare-account-id>
+   ```
+
+3. **Verify:**
+   - Push to main (or re-run failed workflow)
+   - Deployment jobs should now execute (not skip)
+   - Check https://github.com/<org>/<repo>/actions
+
+### Troubleshooting
+
+**Symptom:** Deployment jobs skip with `⚠️ CLOUDFLARE_API_TOKEN not configured`
+
+**Cause:** Secrets not set in GitHub.
+
+**Solution:** Follow setup procedure above.
+
+**Note:** As of 2026-05-01 (PR #21), deployment jobs gracefully skip when secrets are missing. CI will pass green with test jobs only. This is expected for forks and development environments. See [[CI_TROUBLESHOOTING]] for details.
 
 ---
 

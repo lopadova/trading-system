@@ -78,8 +78,13 @@ Production-ready automated trading system for options strategies via Interactive
 
 ### CI/CD
 - **[GitHub Actions](.github/workflows/)** - Automated build, test, and deployment
-  - `dotnet-build-test.yml` - .NET services build and test
+  - `ci.yml` - Complete CI/CD pipeline (build, test, deploy to staging/production)
   - `cloudflare-deploy.yml` - Worker and Dashboard deployment
+  - `playwright-e2e.yml` - End-to-end dashboard tests (14 specs)
+- **[CI Troubleshooting](docs/ops/CI_TROUBLESHOOTING.md)** - Common CI issues and solutions
+- **[Deployment Checklist](docs/ops/DEPLOYMENT_CHECKLIST.md)** - Pre-deployment verification
+
+**Note**: Deployment workflows gracefully skip when Cloudflare secrets are not configured (e.g., forks, development environments). All test jobs run normally.
 
 ---
 
