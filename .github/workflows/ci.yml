@@ -228,10 +228,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Check for Cloudflare API token
+        id: check-token
+        run: |
+          if [ -z "${{ secrets.CLOUDFLARE_API_TOKEN }}" ]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "⚠️ CLOUDFLARE_API_TOKEN not configured - skipping deployment"
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Download artifacts
+        if: steps.check-token.outputs.skip != 'true'
         uses: actions/download-artifact@v4
 
       - name: Setup Node
+        if: steps.check-token.outputs.skip != 'true'
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -241,6 +253,7 @@ jobs:
       # this won't regress to the @img/sharp-libvips tarball failure seen
       # when we used bun.
       - name: Deploy Cloudflare Worker
+        if: steps.check-token.outputs.skip != 'true'
         working-directory: infra/cloudflare/worker
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -250,6 +263,7 @@ jobs:
 
       # Deploy Dashboard to Cloudflare Pages
       - name: Deploy Dashboard
+        if: steps.check-token.outputs.skip != 'true'
         working-directory: dashboard
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -283,7 +297,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Check for Cloudflare API token
+        id: check-token
+        run: |
+          if [ -z "${{ secrets.CLOUDFLARE_API_TOKEN }}" ]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "⚠️ CLOUDFLARE_API_TOKEN not configured - skipping deployment"
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Setup Node
+        if: steps.check-token.outputs.skip != 'true'
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -291,10 +316,12 @@ jobs:
           cache-dependency-path: infra/cloudflare/worker/package-lock.json
 
       - name: Install worker dependencies
+        if: steps.check-token.outputs.skip != 'true'
         working-directory: infra/cloudflare/worker
         run: npm ci --no-audit --no-fund
 
       - name: Deploy Cloudflare Worker to staging
+        if: steps.check-token.outputs.skip != 'true'
         working-directory: infra/cloudflare/worker
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
