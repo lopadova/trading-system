@@ -593,8 +593,25 @@ public sealed class GreeksMonitorWorker : BackgroundService
                 reqId = _nextPositionReqId++;
             }
 
+            // Phase 5: RM-08 - Skip positions without identifiable contract
+            // IBKR requires conId OR complete contract (expiry/strike/right/exchange/currency/multiplier)
+            // Current implementation uses only symbol + "OPT" which is ambiguous.
+            // TODO: Future enhancement - parse ContractSymbol (OCC format) to extract expiry/strike/right
+            //       OR store conId from IBKR order confirmation
+            if (string.IsNullOrWhiteSpace(pos.ContractSymbol))
+            {
+                _logger.LogWarning(
+                    "{Worker} skipping greeks subscription for position {PositionId}: no contract symbol. " +
+                    "Greeks will be marked stale. Implement conId persistence or OCC parser to fix.",
+                    nameof(GreeksMonitorWorker), pos.PositionId);
+                continue; // Skip this position - cannot identify option contract
+            }
+
             try
             {
+                // Phase 5: Limitation - uses only symbol + "OPT" (ambiguous for multi-expiry)
+                // IBKR may reject or return wrong contract data.
+                // Future: pass conId or parse expiry/strike/right from ContractSymbol
                 // genericTickList "106,100": 106=option implied vol, 100=option greeks
                 _ibkrClient.RequestMarketData(
                     requestId: reqId,
@@ -610,7 +627,8 @@ public sealed class GreeksMonitorWorker : BackgroundService
                 _positionSymbols[pos.PositionId] = pos.ContractSymbol;
 
                 _logger.LogInformation(
-                    "{Worker} subscribed greeks for position {PositionId} ({Contract}) reqId={ReqId}",
+                    "{Worker} subscribed greeks for position {PositionId} ({Contract}) reqId={ReqId} " +
+                    "[Phase5-WARNING: uses ambiguous symbol-only contract - may not match correct option]",
                     nameof(GreeksMonitorWorker), pos.PositionId, pos.ContractSymbol, reqId);
             }
             catch (Exception ex)

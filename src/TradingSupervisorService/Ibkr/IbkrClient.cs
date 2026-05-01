@@ -413,8 +413,48 @@ public sealed class IbkrClient : IIbkrClient
 
     public void RequestAccountSummary(int requestId)
     {
-        _logger.LogInformation("[STUB] RequestAccountSummary: requestId={RequestId}", requestId);
-        // TODO: Implement actual IBKR account summary request in future tasks
+        // Phase 5: Supervisor market/account data P1 - Task RM-07
+
+        if (!IsConnected)
+        {
+            throw new InvalidOperationException("Cannot request account summary: not connected to IBKR");
+        }
+
+        // Request all essential account value tags for risk management and safety checks
+        const string tags =
+            "NetLiquidation," +      // Total account value
+            "TotalCashValue," +      // Cash balance
+            "AvailableFunds," +      // Funds available for trading
+            "ExcessLiquidity," +     // Excess liquidity
+            "RealizedPnL," +         // Realized profit/loss
+            "UnrealizedPnL";         // Unrealized profit/loss
+
+        _logger.LogInformation(
+            "Requesting account summary: reqId={RequestId} tags={Tags}",
+            requestId, tags);
+
+        // Request account summary for all accounts ("All") with specified tags
+        // groupName="All" returns summary across all linked accounts
+        _client.reqAccountSummary(requestId, "All", tags);
+    }
+
+    public void CancelAccountSummary(int requestId)
+    {
+        // Phase 5: Supervisor market/account data P1 - Task RM-07
+
+        if (!IsConnected)
+        {
+            _logger.LogWarning(
+                "Cannot cancel account summary reqId={RequestId}: not connected",
+                requestId);
+            return;
+        }
+
+        _logger.LogInformation(
+            "Cancelling account summary: reqId={RequestId}",
+            requestId);
+
+        _client.cancelAccountSummary(requestId);
     }
 
     public int GetNextOrderId()
