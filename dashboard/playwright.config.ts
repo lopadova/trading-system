@@ -18,7 +18,7 @@ import { defineConfig, devices } from '@playwright/test'
  *     starting a local server.
  */
 
-const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:5173'
+const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:5173'
 const SKIP_WEBSERVER = process.env.SKIP_WEBSERVER === '1'
 
 export default defineConfig({
