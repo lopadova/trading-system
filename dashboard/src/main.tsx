@@ -5,8 +5,6 @@ import * as Sentry from '@sentry/react'
 import './index.css'
 import App from './App'
 import { queryClient } from './lib/queryClient'
-import { applyTheme } from './utils/theme'
-import { useUiStore } from './stores/uiStore'
 import { reportWebVitals } from './lib/web-vitals'
 import { ErrorFallback } from './components/ui/ErrorFallback'
 
@@ -30,9 +28,9 @@ if (sentryDsn) {
   })
 }
 
-// Apply initial theme before React renders
-const initialTheme = useUiStore.getState().theme
-applyTheme(initialTheme)
+// Theme initialization now handled by themeStore.ts (line 33) via index.html
+// anti-flash script to prevent FOUC. The Header component imports themeStore,
+// which triggers module load and applies the initial theme from localStorage.
 
 const rootElement = document.getElementById('root')
 if (!rootElement) {

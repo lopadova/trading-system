@@ -13,12 +13,9 @@
     <script>
       (function() {
         try {
-          const stored = localStorage.getItem('trading-ui');
-          const theme = stored ? JSON.parse(stored).state?.theme : 'system';
-          const resolved = theme === 'system'
-            ? window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-            : theme || 'dark';
-          document.documentElement.setAttribute('data-theme', resolved);
+          const stored = localStorage.getItem('ts-theme');
+          const theme = (stored === 'light' || stored === 'dark') ? stored : 'dark';
+          document.documentElement.setAttribute('data-theme', theme);
         } catch (e) {
           document.documentElement.setAttribute('data-theme', 'dark');
         }

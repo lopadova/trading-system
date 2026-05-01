@@ -43,7 +43,8 @@ const headerCopy: Record<string, { title: string; subtitle?: string }> = {
 }
 
 function App() {
-  const [currentRoute, setCurrentRoute] = useState<Route>('/')
+  // Initialize from current URL pathname to support direct navigation (e.g., E2E tests)
+  const [currentRoute, setCurrentRoute] = useState<Route>(window.location.pathname as Route || '/')
 
   useEffect(() => {
     // Simple client-side routing
